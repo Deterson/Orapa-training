@@ -39,7 +39,8 @@ import {
   undo,
 } from '../game/notes';
 import { shotBoardSvg } from './board';
-import { type Tool, notesBoardSvg, notesLayerSvg, notesToolbar } from './notesBoard';
+import { type Tool, notesBoardSvg, notesToolbar } from './notesBoard';
+import { notesLayerSvg } from './notesLayer';
 import { RAY_COLOR } from './palette';
 import { diffLine, resultBoardSvg } from './resultBoard';
 import { rulesPage } from './rules';
@@ -68,6 +69,8 @@ interface State {
   ink: Ink;
   /** Mode « sonder une case » de l'onglet Tirs. */
   probing: boolean;
+  /** Notes affichées en transparence dans l'onglet Tirs. */
+  showNotes: boolean;
   /** Action définitive en attente de confirmation. */
   confirm: 'submit' | 'abandon' | null;
   /** Partie sauvegardée proposée à la reprise. */
@@ -143,6 +146,7 @@ export function startApp(root: HTMLElement, version: string): void {
     tool: 'pencil',
     ink: 'ink',
     probing: false,
+    showNotes: true,
     confirm: null,
     pending: null,
     notice: '',
@@ -216,13 +220,17 @@ export function startApp(root: HTMLElement, version: string): void {
     return `<div class="actions"><button type="button" data-action="ask-submit"${ready ? '' : ' disabled title="5 gemmes valides requises"'}>${t.actions.submit}</button><button type="button" class="ghost" data-action="ask-abandon">${t.actions.abandon}</button></div>`;
   };
 
-  const probePanel = (session: GameSession): string => {
-    if (session.finished) return '';
-    return `<div class="notes-tools"><button type="button" class="tool" data-action="toggle-probe" aria-pressed="${state.probing}">${t.actions.probe}</button>${
-      state.probing
-        ? `<form class="probe-form" data-form="probe"><label class="sr-only" for="probe-input">Case</label><input id="probe-input" name="cell" type="text" inputmode="text" autocomplete="off" maxlength="3" placeholder="E4" /><button type="submit">OK</button></form>`
-        : ''
-    }</div>`;
+  /** Sous la grille de tir : sonder une case, et afficher ou non les notes en transparence. */
+  const optionsPanel = (session: GameSession): string => {
+    const probe = session.finished
+      ? ''
+      : `<button type="button" class="tool" data-action="toggle-probe" aria-pressed="${state.probing}">${t.actions.probe}</button>${
+          state.probing
+            ? `<form class="probe-form" data-form="probe"><label class="sr-only" for="probe-input">Case</label><input id="probe-input" name="cell" type="text" inputmode="text" autocomplete="off" maxlength="3" placeholder="E4" /><button type="submit">OK</button></form>`
+            : ''
+        }`;
+    const notes = `<label class="check"><input type="checkbox" id="show-notes" data-toggle="notes"${state.showNotes ? ' checked' : ''} />${t.actions.showNotes}</label>`;
+    return `<div class="notes-tools">${probe}${notes}</div>`;
   };
 
   const resumePanel = (save: SaveData): string => {
@@ -272,8 +280,13 @@ export function startApp(root: HTMLElement, version: string): void {
       if (state.tab === 'shots') {
         board = `${shotBoardSvg(
           { shots, selected: state.selected },
-          { probes: session.probes, probing: state.probing && !session.finished },
-        )}${probePanel(session)}`;
+          {
+            probes: session.probes,
+            probing: state.probing && !session.finished,
+            gems: placedGems(state.solution),
+            notes: state.showNotes ? state.notes.present : null,
+          },
+        )}${optionsPanel(session)}`;
       } else if (state.tab === 'result' && session.finished) {
         board = resultPanel(session);
       } else if (state.tab === 'solution') {
@@ -671,6 +684,14 @@ export function startApp(root: HTMLElement, version: string): void {
           () => undefined,
         );
     }
+  });
+
+  root.addEventListener('change', (event) => {
+    const target = event.target as HTMLInputElement;
+    if (target.dataset['toggle'] !== 'notes') return;
+    state.showNotes = target.checked;
+    render();
+    root.querySelector<HTMLInputElement>('#show-notes')?.focus();
   });
 
   root.addEventListener('submit', (event) => {

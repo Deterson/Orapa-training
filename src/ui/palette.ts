@@ -60,6 +60,7 @@ export const MARK_LABEL: Record<CellMark, string> = {
   yellow: 'jaune',
   blue: 'bleue',
   white: 'blanche',
+  grey: 'grisée',
   empty: 'vide',
   maybe: 'doute',
 };

@@ -15,7 +15,7 @@ function sampleSave(): SaveData {
   session.probe('E4');
   let solution = dropGem(emptySolution(), 'blue-triangle', 2, 2);
   solution = rotateGem(solution, 'blue-triangle');
-  let notes = toggleMark(emptyNotes(), 'B3', 'red');
+  let notes = toggleMark(toggleMark(emptyNotes(), 'B3', 'red'), 'C4', 'grey');
   notes = addStroke(notes, {
     ink: 'blue',
     points: [

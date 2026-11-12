@@ -377,6 +377,14 @@ Règles de calcul à figer (voir questions ouvertes) :
 
 ---
 
+## Évolutions depuis la v1.0.0
+
+- **v1.0.1** : texte minimal dans toute l'interface (libellés courts, plus de paragraphes d'aide,
+  page Règles concise).
+- **v1.0.2** : l'onglet « Solution » devient **« Gemmes »** ; les gemmes posées et les notes
+  s'affichent **en transparence sur l'onglet Tirs**, avec une case à cocher « Notes » pour
+  masquer ou afficher les notes ; nouvelle marque de note **« Gris »** pour griser des cases.
+
 ## Questions ouvertes
 
 - Soumission : une seule tentative (comme à deux joueurs, une erreur = défaite) ou

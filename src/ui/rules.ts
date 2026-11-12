@@ -102,8 +102,8 @@ export function rulesPage(version: string): string {
 
       <h2>Jouer</h2>
       <ul class="rule-list">
-        <li><b>Tirs</b> : touchez un repère. <b>Sonder</b> : contenu d'une case.</li>
-        <li><b>Solution</b> : posez les gemmes ; touchez un repère pour tester un tir sur votre grille.</li>
+        <li><b>Tirs</b> : touchez un repère. <b>Sonder</b> : contenu d'une case. Vos gemmes et vos notes y apparaissent en transparence.</li>
+        <li><b>Gemmes</b> : posez les gemmes ; touchez un repère pour tester un tir sur votre grille.</li>
         <li><b>Soumettre</b> : une seule proposition.</li>
       </ul>
       <p><a class="back" href="#jeu">← ${t.nav.backToGame}</a></p>

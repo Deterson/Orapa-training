@@ -5,8 +5,11 @@
 import { ENTRY_POINTS, type EntryPoint, cellLabel, parseCell } from '../game/board';
 import { GEM_COLOR_LABELS } from '../game/colors';
 import { GRID_COLS, GRID_ROWS } from '../game/constants';
+import { GEM_SHAPES, type Placement, placedPolygon } from '../game/gems';
+import type { Notes } from '../game/notes';
 import type { ProbeRecord, ShotRecord } from '../game/session';
-import { GEM_FILL, MARK_LETTER, PATTERN_DEFS, RAY_COLOR } from './palette';
+import { notesLayerSvg } from './notesLayer';
+import { GEM_FILL, MARK_LETTER, PATTERN_DEFS, RAY_COLOR, gemPolygons } from './palette';
 
 export interface ShotMarks {
   shots: readonly ShotRecord[];
@@ -95,7 +98,15 @@ export function boardFrame(
     </svg>`;
 }
 
+function points(list: readonly (readonly [number, number])[]): string {
+  return list.map(([x, y]) => `${x},${y}`).join(' ');
+}
+
 export interface ShotBoardOptions {
+  /** Gemmes posées par le joueur, affichées en transparence sous les repères. */
+  gems?: readonly Placement[];
+  /** Notes du joueur, affichées en transparence ; null pour les masquer. */
+  notes?: Notes | null;
   probes?: readonly ProbeRecord[];
   /** Mode « sonder une case » : chaque case devient cliquable. */
   probing?: boolean;
@@ -131,10 +142,19 @@ function probeTargetsSvg(): string {
 
 /** Grille de tir : aucune gemme n'est visible, seulement les résultats des tirs et des sondes. */
 export function shotBoardSvg(marks: ShotMarks, options: ShotBoardOptions = {}): string {
-  const { probes = [], probing = false } = options;
+  const { probes = [], probing = false, gems = [], notes = null } = options;
+  const ghostGems = gems.length
+    ? `<g class="ghost-gems">${gems
+        .map((placement) => {
+          const shape = GEM_SHAPES[placement.gem];
+          return gemPolygons(points(placedPolygon(placement)), shape.color, 'real-gem');
+        })
+        .join('')}</g>`
+    : '';
+  const ghostNotes = notes ? `<g class="ghost-notes">${notesLayerSvg(notes)}</g>` : '';
   return boardFrame(
     'Grille de tir : 10 colonnes, 8 lignes, repères du bord cliquables',
-    `${entryLabelsSvg(marks)}${probeMarksSvg(probes)}${probing ? probeTargetsSvg() : ''}`,
+    `${ghostGems}${ghostNotes}${entryLabelsSvg(marks)}${probeMarksSvg(probes)}${probing ? probeTargetsSvg() : ''}`,
     probing ? 'is-probing' : '',
   );
 }

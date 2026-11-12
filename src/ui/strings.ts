@@ -14,7 +14,7 @@ export const fr = {
   },
   tabs: {
     shots: 'Tirs',
-    solution: 'Solution',
+    solution: 'Gemmes',
     notes: 'Notes',
     result: 'Résultat',
   },
@@ -25,6 +25,7 @@ export const fr = {
     abandon: 'Abandonner',
     replay: 'Rejouer',
     probe: 'Sonder',
+    showNotes: 'Notes',
     resume: 'Reprendre',
     rotate: '↻ Pivoter',
     flip: '⇋ Retourner',

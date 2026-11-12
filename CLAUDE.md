@@ -111,11 +111,11 @@ Zones :
 1. **Grille de tir** : les repères de bord sont cliquables pour tirer un laser. Le point
    de sortie est marqué de la couleur obtenue. **Le chemin du rayon n'est jamais tracé**
    (il trahirait les gemmes) ; il ne l'est que sur la grille de solution du joueur. Historique des tirs (numéroté) consultable et effaçable à
-   l'affichage (mais le **compteur de tirs** ne baisse jamais).
+   l'affichage (mais le **compteur de tirs** ne baisse jamais). Les **gemmes posées** par le joueur et ses **notes** s'y affichent en **transparence** sous les repères ; une case à cocher « Notes » masque ou affiche les notes (les gemmes restent affichées).
 2. **Grille de notes / dessin** : calque libre pour annoter les cases (couleur,
-   croix « vide », crayon, gomme, annuler/rétablir). N'a aucun effet sur la
+   **grisée**, croix « vide », doute, crayon, gomme, annuler/rétablir). N'a aucun effet sur la
    correction.
-3. **Grille de solution** : le joueur y dépose les gemmes de sa réserve (les mêmes
+3. **Grille de solution** (onglet « Gemmes ») : le joueur y dépose les gemmes de sa réserve (les mêmes
    que celles cachées), les déplace, les fait pivoter ; la gemme rouge a en plus un
    bouton « retourner ». Les placements invalides (chevauchement, hors grille, contact
    par un segment) sont refusés ou signalés avec la règle enfreinte.

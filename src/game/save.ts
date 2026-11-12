@@ -97,7 +97,7 @@ function parseSolution(value: unknown): Solution | null {
   return result as Solution;
 }
 
-const MARKS: readonly CellMark[] = ['red', 'yellow', 'blue', 'white', 'empty', 'maybe'];
+const MARKS: readonly CellMark[] = ['red', 'yellow', 'blue', 'white', 'grey', 'empty', 'maybe'];
 const INKS: readonly Ink[] = ['ink', 'red', 'yellow', 'blue', 'green'];
 const MAX_STROKES = 2000;
 const MAX_POINTS = 5000;
