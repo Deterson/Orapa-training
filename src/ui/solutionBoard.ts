@@ -40,8 +40,6 @@ export interface SolutionView {
   selected: GemId | null;
   issues: readonly SolutionIssue[];
   shots: readonly ShotRecord[];
-  /** Pour chaque tir fait, la grille du joueur donne-t-elle le même résultat ? */
-  matches: ReadonlyMap<number, boolean>;
   /** Tir simulé sur la grille du joueur, dont on dessine le trajet. */
   hypothesis: ShotResult | null;
 }
@@ -85,7 +83,7 @@ export function solutionBoardSvg(view: SolutionView): string {
   const marks = { shots: view.shots, selected: null };
   return boardFrame(
     "Grille de solution : posez les gemmes à l'endroit où vous pensez qu'elles sont",
-    `${tray}${gems}${ray}${entryLabelsSvg(marks, 'hypo', view.matches)}`,
+    `${tray}${gems}${ray}${entryLabelsSvg(marks, 'hypo')}`,
     'solution-svg',
     TRAY_EXTRA,
   );

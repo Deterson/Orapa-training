@@ -4,6 +4,7 @@
  * l'onglet affiché et la sélection.
  */
 import { RESULT_COLOR_LABELS, componentColors } from '../game/colors';
+import { cellLabel } from '../game/board';
 import { GRID_COLS, GRID_ROWS } from '../game/constants';
 import { GEM_SHAPES, type GemId } from '../game/gems';
 import { type ShotResult, shoot } from '../game/laser';
@@ -51,6 +52,7 @@ import { gemOrigin, gemSize, solutionBoardSvg } from './solutionBoard';
 type Phase = 'loading' | 'resume' | 'ready' | 'error';
 type Tab = 'shots' | 'solution' | 'notes' | 'result';
 type View = 'game' | 'rules';
+type Ask = { kind: 'fire'; label: string } | { kind: 'probe'; cell: string };
 
 interface State {
   phase: Phase;
@@ -67,8 +69,12 @@ interface State {
   notes: NotesHistory;
   tool: Tool;
   ink: Ink;
-  /** Mode « sonder une case » de l'onglet Tirs. */
-  probing: boolean;
+  /** Tir ou sonde en attente de confirmation (fenêtre modale). */
+  ask: Ask | null;
+  /** Confirmations désactivées pour cette partie. */
+  skipConfirm: boolean;
+  /** Case du curseur clavier de l'onglet Tirs. */
+  cursor: { row: number; col: number };
   /** Notes affichées en transparence dans l'onglet Tirs. */
   showNotes: boolean;
   /** Action définitive en attente de confirmation. */
@@ -106,14 +112,15 @@ function viewFromHash(): View {
 }
 
 /**
- * Pastilles d'un résultat : une par couleur de gemme qui le compose (violet clair = rouge, bleu et
- * blanc), ou une seule pastille pour une couleur simple et pour « transparent ». Le nom reste écrit.
+ * Pastilles d'un résultat : une par couleur de gemme qui le compose, séparées par un « + »
+ * (violet clair = rouge + bleu + blanc). Aucune pastille pour « transparent ». Le nom reste écrit.
  */
 function chips(color: ShotRecord['color']): string {
   const parts = componentColors(color);
-  const dots = (parts.length ? parts : [color])
+  if (parts.length === 0) return '';
+  const dots = parts
     .map((part) => `<span class="chip" style="background:${RAY_COLOR[part]}"></span>`)
-    .join('');
+    .join('<span class="plus">+</span>');
   return `<span class="chips" aria-hidden="true">${dots}</span>`;
 }
 
@@ -153,7 +160,9 @@ export function startApp(root: HTMLElement, version: string): void {
     notes: newHistory(),
     tool: 'pencil',
     ink: 'ink',
-    probing: false,
+    ask: null,
+    skipConfirm: false,
+    cursor: { row: 0, col: 0 },
     showNotes: true,
     confirm: null,
     pending: null,
@@ -174,7 +183,6 @@ export function startApp(root: HTMLElement, version: string): void {
       selected: state.selectedGem,
       issues,
       shots: session.shots,
-      matches,
       hypothesis: state.hypothesis,
     });
     const selected = state.selectedGem;
@@ -228,17 +236,16 @@ export function startApp(root: HTMLElement, version: string): void {
     return `<div class="actions"><button type="button" data-action="ask-submit"${ready ? '' : ' disabled title="5 gemmes valides requises"'}>${t.actions.submit}</button><button type="button" class="ghost" data-action="ask-abandon">${t.actions.abandon}</button></div>`;
   };
 
-  /** Sous la grille de tir : sonder une case, et afficher ou non les notes en transparence. */
-  const optionsPanel = (session: GameSession): string => {
-    const probe = session.finished
-      ? ''
-      : `<button type="button" class="tool" data-action="toggle-probe" aria-pressed="${state.probing}">${t.actions.probe}</button>${
-          state.probing
-            ? `<form class="probe-form" data-form="probe"><label class="sr-only" for="probe-input">Case</label><input id="probe-input" name="cell" type="text" inputmode="text" autocomplete="off" maxlength="3" placeholder="E4" /><button type="submit">OK</button></form>`
-            : ''
-        }`;
-    const notes = `<label class="check"><input type="checkbox" id="show-notes" data-toggle="notes"${state.showNotes ? ' checked' : ''} />${t.actions.showNotes}</label>`;
-    return `<div class="notes-tools">${probe}${notes}</div>`;
+  /** Sous la grille de tir : afficher ou non les notes en transparence. */
+  const optionsPanel = (): string =>
+    `<div class="notes-tools"><label class="check"><input type="checkbox" id="show-notes" data-toggle="notes"${state.showNotes ? ' checked' : ''} />${t.actions.showNotes}</label></div>`;
+
+  /** Fenêtre modale de confirmation d'un tir ou d'une sonde. */
+  const modal = (): string => {
+    const { ask } = state;
+    if (!ask) return '';
+    const title = ask.kind === 'fire' ? t.modal.fire(ask.label) : t.modal.probe(ask.cell);
+    return `<div class="modal-backdrop" data-modal-backdrop><div class="modal" role="dialog" aria-modal="true" aria-label="${title}"><p class="modal-title">${title}</p><label class="check"><input type="checkbox" id="skip-confirm" />${t.modal.dontAsk}</label><div class="actions"><button type="button" data-action="modal-confirm">${t.modal.confirm}</button><button type="button" class="ghost" data-action="modal-cancel">${t.modal.cancel}</button></div></div></div>`;
   };
 
   const resumePanel = (save: SaveData): string => {
@@ -264,6 +271,7 @@ export function startApp(root: HTMLElement, version: string): void {
       session: session.toSnapshot(),
       solution: state.solution,
       notes: state.notes.present,
+      skipConfirm: state.skipConfirm,
     });
   };
 
@@ -290,11 +298,12 @@ export function startApp(root: HTMLElement, version: string): void {
           { shots, selected: state.selected },
           {
             probes: session.probes,
-            probing: state.probing && !session.finished,
+            probeable: !session.finished,
+            cursor: state.cursor,
             gems: placedGems(state.solution),
             notes: state.showNotes ? state.notes.present : null,
           },
-        )}${optionsPanel(session)}`;
+        )}${optionsPanel()}`;
       } else if (state.tab === 'result' && session.finished) {
         board = resultPanel(session);
       } else if (state.tab === 'solution') {
@@ -364,6 +373,7 @@ export function startApp(root: HTMLElement, version: string): void {
           </aside>
         </div>
         <p class="sr-only" aria-live="polite">${state.notice}</p>
+        ${modal()}
       </main>`;
     persist();
   };
@@ -380,7 +390,8 @@ export function startApp(root: HTMLElement, version: string): void {
     state.selectedGem = null;
     state.hypothesis = null;
     state.notes = newHistory();
-    state.probing = false;
+    state.ask = null;
+    state.skipConfirm = false;
     state.confirm = null;
     state.tab = 'shots';
     state.notice = '';
@@ -398,7 +409,7 @@ export function startApp(root: HTMLElement, version: string): void {
     }, 30);
   };
 
-  const fire = (label: string): void => {
+  const doFire = (label: string): void => {
     if (!state.session || state.session.finished) return;
     const shot = state.session.fire(label);
     state.selected = shot.n;
@@ -406,7 +417,7 @@ export function startApp(root: HTMLElement, version: string): void {
     render();
   };
 
-  const probe = (label: string): void => {
+  const doProbe = (label: string): void => {
     const { session } = state;
     if (!session || session.finished) return;
     try {
@@ -422,10 +433,42 @@ export function startApp(root: HTMLElement, version: string): void {
   const showResult = (): void => {
     store.clear();
     state.confirm = null;
-    state.probing = false;
+    state.ask = null;
     state.tab = 'result';
     state.notice = state.session ? t.status[state.session.status] : '';
     render();
+  };
+
+  /** Ouvre la confirmation, sauf si elle est désactivée ou si la réponse est déjà connue (gratuit). */
+  const askFire = (label: string): void => {
+    const session = state.session;
+    if (!session || session.finished) return;
+    if (state.skipConfirm || session.shots.some((shot) => shot.entry === label))
+      return doFire(label);
+    state.ask = { kind: 'fire', label };
+    render();
+    root.querySelector<HTMLElement>('[data-action="modal-confirm"]')?.focus();
+  };
+
+  const askProbe = (cell: string): void => {
+    const session = state.session;
+    if (!session || session.finished) return;
+    if (state.skipConfirm || session.probes.some((probe) => probe.cell === cell))
+      return doProbe(cell);
+    state.ask = { kind: 'probe', cell };
+    render();
+    root.querySelector<HTMLElement>('[data-action="modal-confirm"]')?.focus();
+  };
+
+  const closeAsk = (confirmed: boolean): void => {
+    const ask = state.ask;
+    if (!ask) return;
+    const skip = root.querySelector<HTMLInputElement>('#skip-confirm')?.checked ?? false;
+    state.ask = null;
+    if (!confirmed) return render();
+    if (skip) state.skipConfirm = true;
+    if (ask.kind === 'fire') doFire(ask.label);
+    else doProbe(ask.cell);
   };
 
   const testOnSolution = (label: string): void => {
@@ -593,10 +636,11 @@ export function startApp(root: HTMLElement, version: string): void {
 
   root.addEventListener('click', (event) => {
     const target = event.target as Element;
+    if (target.hasAttribute('data-modal-backdrop')) return closeAsk(false);
     const entry = target.closest<HTMLElement>('[data-fire]');
-    if (entry?.dataset['fire']) return fire(entry.dataset['fire']);
+    if (entry?.dataset['fire']) return askFire(entry.dataset['fire']);
     const probeTarget = target.closest<HTMLElement>('[data-probe]');
-    if (probeTarget?.dataset['probe']) return probe(probeTarget.dataset['probe']);
+    if (probeTarget?.dataset['probe']) return askProbe(probeTarget.dataset['probe']);
     const hypo = target.closest<HTMLElement>('[data-hypo]');
     if (hypo?.dataset['hypo']) return testOnSolution(hypo.dataset['hypo']);
     const tab = target.closest<HTMLElement>('[data-tab]')?.dataset['tab'];
@@ -641,6 +685,7 @@ export function startApp(root: HTMLElement, version: string): void {
           state.session = GameSession.fromSnapshot(save.session);
           state.solution = save.solution;
           state.notes = newHistory(save.notes);
+          state.skipConfirm = save.skipConfirm;
           state.pending = null;
           state.phase = 'ready';
           writeSeedToUrl(state.session.seed);
@@ -649,9 +694,10 @@ export function startApp(root: HTMLElement, version: string): void {
         return render();
       case 'discard-save':
         return startGame(seedFromUrl() ?? randomSeed());
-      case 'toggle-probe':
-        state.probing = !state.probing;
-        return render();
+      case 'modal-confirm':
+        return closeAsk(true);
+      case 'modal-cancel':
+        return closeAsk(false);
       case 'ask-submit':
         if (state.session && isSubmittable(state.solution)) state.confirm = 'submit';
         return render();
@@ -702,16 +748,37 @@ export function startApp(root: HTMLElement, version: string): void {
     root.querySelector<HTMLInputElement>('#show-notes')?.focus();
   });
 
-  root.addEventListener('submit', (event) => {
-    const form = event.target as HTMLFormElement;
-    if (form.dataset['form'] !== 'probe') return;
-    event.preventDefault();
-    const input = form.querySelector<HTMLInputElement>('input[name="cell"]');
-    if (input?.value.trim()) probe(input.value);
-  });
-
   root.addEventListener('keydown', (event) => {
     const target = event.target as Element;
+    if (state.ask) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeAsk(false);
+      }
+      return;
+    }
+    if (target.closest('[data-cursor]')) {
+      const step: Record<string, [number, number]> = {
+        ArrowLeft: [0, -1],
+        ArrowRight: [0, 1],
+        ArrowUp: [-1, 0],
+        ArrowDown: [1, 0],
+      };
+      const move = step[event.key];
+      if (move) {
+        event.preventDefault();
+        state.cursor = {
+          row: Math.min(Math.max(state.cursor.row + move[0], 0), GRID_ROWS - 1),
+          col: Math.min(Math.max(state.cursor.col + move[1], 0), GRID_COLS - 1),
+        };
+        render();
+        root.querySelector<SVGElement>('[data-cursor]')?.focus();
+      } else if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        askProbe(cellLabel(state.cursor));
+      }
+      return;
+    }
     const tabButton = target.closest<HTMLElement>('[role="tab"]');
     if (tabButton && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
       const tabs = [...root.querySelectorAll<HTMLElement>('[role="tab"]')];
@@ -779,7 +846,7 @@ export function startApp(root: HTMLElement, version: string): void {
     const hypoEntry = target.closest<HTMLElement>('[data-hypo]')?.dataset['hypo'];
     if (fireEntry) {
       event.preventDefault();
-      fire(fireEntry);
+      askFire(fireEntry);
     } else if (hypoEntry) {
       event.preventDefault();
       testOnSolution(hypoEntry);

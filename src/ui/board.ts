@@ -50,7 +50,6 @@ export function gridLinesSvg(): string {
 export function entryLabelsSvg(
   marks: ShotMarks | null,
   action = 'fire',
-  matches?: ReadonlyMap<number, boolean>,
   interactive = true,
 ): string {
   return ENTRY_POINTS.map((entry) => {
@@ -59,22 +58,22 @@ export function entryLabelsSvg(
     const to = marks?.shots.filter((shot) => shot.exit === entry.label).at(-1);
     const highlighted = marks?.shots.find((shot) => shot.n === marks.selected);
     const selected = highlighted?.entry === entry.label || highlighted?.exit === entry.label;
-    const verdict = from && matches ? (matches.get(from.n) ? 'is-ok' : 'is-bad') : '';
     const classes = [
       'entry',
       from ? 'is-from' : '',
       to ? 'is-to' : '',
       selected ? 'is-selected' : '',
-      verdict,
     ]
       .filter(Boolean)
       .join(' ');
     const badge = from
       ? `<circle class="badge" cx="${x + 0.34}" cy="${y - 0.34}" r="0.24"/><text class="badge-text" x="${x + 0.34}" y="${y - 0.34}">${from.n}</text>`
       : '';
-    const dot = to
-      ? `<circle class="dot" cx="${x + 0.3}" cy="${y + 0.3}" r="0.18" fill="${RAY_COLOR[to.color]}"/>`
-      : '';
+    // « transparent » : aucune pastille.
+    const dot =
+      to && to.color !== 'transparent'
+        ? `<circle class="dot" cx="${x + 0.3}" cy="${y + 0.3}" r="0.18" fill="${RAY_COLOR[to.color]}"/>`
+        : '';
     if (!interactive) {
       return `<g class="${classes}" aria-hidden="true"><rect x="${x - 0.45}" y="${y - 0.45}" width="0.9" height="0.9" rx="0.2"/><text class="label" x="${x}" y="${y}">${entry.label}</text></g>`;
     }
@@ -108,8 +107,10 @@ export interface ShotBoardOptions {
   /** Notes du joueur, affichées en transparence ; null pour les masquer. */
   notes?: Notes | null;
   probes?: readonly ProbeRecord[];
-  /** Mode « sonder une case » : chaque case devient cliquable. */
-  probing?: boolean;
+  /** Les cases sont cliquables pour sonder (partie en cours). */
+  probeable?: boolean;
+  /** Case du curseur clavier, pour sonder sans souris. */
+  cursor?: { row: number; col: number };
 }
 
 function probeMarksSvg(probes: readonly ProbeRecord[]): string {
@@ -140,9 +141,15 @@ function probeTargetsSvg(): string {
   return targets.join('');
 }
 
+/** Curseur clavier : un seul arrêt de tabulation, déplacé aux flèches, Entrée pour sonder. */
+function cursorSvg({ row, col }: { row: number; col: number }): string {
+  const label = cellLabel({ row, col });
+  return `<rect class="cell-cursor" data-cursor tabindex="0" role="button" aria-label="Case ${label} : Entrée pour sonder, flèches pour changer de case" x="${col}" y="${row}" width="1" height="1"/>`;
+}
+
 /** Grille de tir : aucune gemme n'est visible, seulement les résultats des tirs et des sondes. */
 export function shotBoardSvg(marks: ShotMarks, options: ShotBoardOptions = {}): string {
-  const { probes = [], probing = false, gems = [], notes = null } = options;
+  const { probes = [], probeable = false, cursor, gems = [], notes = null } = options;
   const ghostGems = gems.length
     ? `<g class="ghost-gems">${gems
         .map((placement) => {
@@ -154,7 +161,7 @@ export function shotBoardSvg(marks: ShotMarks, options: ShotBoardOptions = {}): 
   const ghostNotes = notes ? `<g class="ghost-notes">${notesLayerSvg(notes)}</g>` : '';
   return boardFrame(
     'Grille de tir : 10 colonnes, 8 lignes, repères du bord cliquables',
-    `${ghostGems}${ghostNotes}${entryLabelsSvg(marks)}${probeMarksSvg(probes)}${probing ? probeTargetsSvg() : ''}`,
-    probing ? 'is-probing' : '',
+    `${ghostGems}${ghostNotes}${entryLabelsSvg(marks)}${probeMarksSvg(probes)}${probeable ? probeTargetsSvg() : ''}${probeable && cursor ? cursorSvg(cursor) : ''}`,
+    probeable ? 'is-probeable' : '',
   );
 }

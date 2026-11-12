@@ -108,7 +108,7 @@ Les étiquettes d'accessibilité (`aria-label`, texte pour lecteurs d'écran) re
 
 Zones :
 
-1. **Grille de tir** : les repères de bord sont cliquables pour tirer un laser. Le point
+1. **Grille de tir** : les repères de bord sont cliquables pour tirer un laser, et **toucher une case la sonde**. Chaque tir ou sonde demande une confirmation en modale (« Laser en E ? », « Sonder E4 ? »), désactivable pour la partie ; redemander ce qui est déjà connu est gratuit. Le point
    de sortie est marqué de la couleur obtenue. **Le chemin du rayon n'est jamais tracé**
    (il trahirait les gemmes) ; il ne l'est que sur la grille de solution du joueur. Historique des tirs (numéroté) consultable et effaçable à
    l'affichage (mais le **compteur de tirs** ne baisse jamais). Les **gemmes posées** par le joueur et ses **notes** s'y affichent en **transparence** sous les repères ; une case à cocher « Notes » masque ou affiche les notes (les gemmes restent affichées).

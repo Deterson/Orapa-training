@@ -386,6 +386,13 @@ Règles de calcul à figer (voir questions ouvertes) :
   masquer ou afficher les notes ; nouvelle marque de note **« Gris »** pour griser des cases.
 - **v1.0.3** : dans l'historique des tirs, une couleur composée garde son nom mais s'affiche avec
   **une pastille par couleur de gemme** qui la compose (violet clair : rouge, bleu, blanc).
+- **v1.0.4** : dans l'historique, les pastilles d'une couleur composée sont séparées par un « + »
+  et « transparent » n'a **aucune pastille** (ni dans l'historique ni sur les repères) ;
+  **sonder = toucher une case** (le bouton et le formulaire « Sonder » disparaissent ; flèches et
+  Entrée au clavier) ; un tir ou une sonde demande une **confirmation** en fenêtre modale
+  (« Laser en E ? », « Sonder E4 ? ») avec la case « Ne plus demander » valable pour la partie
+  (conservée dans la sauvegarde) ; redemander un repère ou une case déjà connus reste gratuit,
+  sans confirmation ; plus de cercles rouges et verts autour des repères de l'onglet Gemmes.
 
 ## Questions ouvertes
 

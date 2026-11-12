@@ -20,6 +20,8 @@ export interface SaveData {
   session: SessionSnapshot;
   solution: Solution;
   notes: Notes;
+  /** Confirmations des tirs et sondes désactivées pour cette partie. */
+  skipConfirm: boolean;
 }
 
 type Json = Record<string, unknown>;
@@ -142,5 +144,7 @@ export function parseSave(raw: unknown): SaveData | null {
   if (session === null || solution === null || notes === null || !isFiniteNumber(savedAt)) {
     return null;
   }
-  return { version: SAVE_VERSION, savedAt, session, solution, notes };
+  // Absent des anciennes sauvegardes : les confirmations restent alors actives.
+  const skipConfirm = raw['skipConfirm'] === true;
+  return { version: SAVE_VERSION, savedAt, session, solution, notes, skipConfirm };
 }

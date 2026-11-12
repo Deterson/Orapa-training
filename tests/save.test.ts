@@ -29,6 +29,7 @@ function sampleSave(): SaveData {
     session: session.toSnapshot(),
     solution,
     notes,
+    skipConfirm: true,
   };
 }
 
@@ -87,6 +88,12 @@ describe("validation d'une sauvegarde", () => {
     const data = sampleSave();
     const parsed = parseSave(roundTrip(data));
     expect(parsed).toEqual(data);
+  });
+
+  it('lit une ancienne sauvegarde sans le réglage des confirmations : elles restent actives', () => {
+    const old = roundTrip(sampleSave()) as Record<string, unknown>;
+    delete old['skipConfirm'];
+    expect(parseSave(old)?.skipConfirm).toBe(false);
   });
 
   it("refuse tout ce qui n'est pas une sauvegarde", () => {

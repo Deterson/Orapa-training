@@ -24,7 +24,6 @@ export const fr = {
     submit: 'Soumettre',
     abandon: 'Abandonner',
     replay: 'Rejouer',
-    probe: 'Sonder',
     showNotes: 'Notes',
     resume: 'Reprendre',
     rotate: '↻ Pivoter',
@@ -44,6 +43,13 @@ export const fr = {
     blue: 'bleue',
     white: 'blanche',
   } satisfies Record<ProbeRecord['content'], string>,
+  modal: {
+    fire: (label: string) => `Laser en ${label} ?`,
+    probe: (cell: string) => `Sonder ${cell} ?`,
+    confirm: 'Confirmer',
+    cancel: 'Annuler',
+    dontAsk: 'Ne plus demander',
+  },
   hints: {
     storageOff: 'Sauvegarde indisponible.',
   },
