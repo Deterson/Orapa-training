@@ -71,10 +71,30 @@ Toute règle tranchée doit être reportée ici **et** couverte par un test.
   configurable), les placer à des positions/orientations aléatoires **sans
   chevauchement** et **dans les limites** de la grille. Rejeter et retirer en cas
   d'échec (backtracking simple ou re-tirage complet).
+- **Contrainte de visibilité** : aucune gemme ne doit être cachée par les autres.
+  Chaque gemme doit être atteignable par au moins un laser, c'est-à-dire qu'il
+  existe une entrée dont le rayon interagit avec elle (la touche ou la traverse)
+  avant d'être arrêté par une autre gemme. Une mine qui viole cette règle est
+  rejetée et regénérée.
+- **Contrainte d'unicité** : la mine doit être la **seule** configuration possible
+  (avec l'ensemble de gemmes donné) qui produit les résultats de l'ensemble des
+  tirs possibles. Pour cela, après génération :
+  1. calculer la « signature » de la mine = résultat du tir depuis **chaque**
+     entrée de bord ;
+  2. chercher par backtracking, avec élagage sur la signature, toutes les
+     configurations valides qui reproduisent exactement cette signature ;
+  3. n'accepter la mine que si la seule solution trouvée est elle-même ; sinon,
+     rejeter et retirer.
+  La contrainte de visibilité est une condition nécessaire de l'unicité (une gemme
+  invisible rendrait la solution ambiguë) : elle sert de filtre rapide avant le
+  solveur, plus coûteux.
+- Le solveur d'unicité vit dans `game/` (ex. `solve.ts`) et doit rester assez
+  rapide pour une génération interactive (viser < 1 s ; sinon, le lancer dans un
+  Web Worker).
 - Option de difficulté (plus tard) : nombre de gemmes, présence de la gemme noire,
   limite de lasers.
-- Vérifier que la mine générée est valide (aucun chevauchement, tout dans la grille)
-  par un test sur de nombreuses graines.
+- Vérifier par un test, sur de nombreuses graines, que toute mine générée est
+  valide (aucun chevauchement, tout dans la grille), visible et unique.
 
 ## Interface
 
@@ -106,11 +126,13 @@ ce résultat ? »).
 
 - Comparaison exacte des gemmes (type, couleur, position, orientation) entre la
   grille joueur et la mine cachée.
-- Une configuration différente mais **indiscernable** par tous les tirs possibles
-  peut exister. Décision à prendre : (a) exiger l'égalité stricte, ou (b) accepter
-  toute configuration dont les résultats sont identiques pour **toutes** les
-  entrées de laser. Par défaut : (b) est plus juste, (a) est plus simple.
-  Implémenter (a) d'abord, (b) ensuite en s'appuyant sur le simulateur.
+- **Une seule réponse valable.** Le générateur garantit que la mine est la seule
+  configuration compatible avec l'ensemble des tirs possibles (voir « Génération
+  aléatoire »). La correction est donc une **égalité stricte** : il n'y a ni
+  équivalence par tirs ni tolérance. Si le joueur se trompe, c'est qu'il n'a pas
+  tiré assez de lasers pour lever l'ambiguïté : c'est le cœur de l'entraînement.
+- Pas besoin de comparer des signatures à la soumission ; le simulateur sert
+  seulement au tir et à l'outil de vérification d'hypothèse du joueur.
 - Après soumission : afficher les différences (gemmes manquantes / mal placées /
   en trop) et la vraie mine.
 
@@ -176,6 +198,7 @@ npm run build      # build statique
 
 - Ensemble exact de gemmes (nombre, formes, couleurs) et règles de propagation
   officielles : à confirmer avec les règles Orapa Mine.
-- Égalité stricte ou équivalence par tirs pour la correction (voir plus haut).
+- Coût du solveur d'unicité à la génération : à mesurer une fois le simulateur
+  écrit (Web Worker ou précalcul de mines si trop lent).
 - Limite de lasers imposée, ou simple compteur indicatif ?
 - Faut-il un mode « tutoriel » expliquant les effets de chaque gemme ?
