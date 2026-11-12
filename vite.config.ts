@@ -15,5 +15,8 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts'],
     environment: 'node',
+    // Les tests du solveur d'unicité explorent beaucoup de dispositions : le délai par défaut
+    // de 5 s est trop juste sur une machine chargée (CI, serveur de développement en parallèle).
+    testTimeout: 60_000,
   },
 });
