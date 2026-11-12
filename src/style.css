@@ -370,11 +370,6 @@ h2 {
   stroke-dasharray: 0.2 0.15;
 }
 
-.tray-label {
-  fill: var(--muted);
-  font-size: 0.45px;
-}
-
 .gem-g {
   cursor: grab;
   touch-action: none;
@@ -652,32 +647,6 @@ h2 {
 
 .result.is-lost h2 {
   color: #d33a2c;
-}
-
-.stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
-  gap: 8px;
-  margin: 0;
-}
-
-.stats div {
-  padding: 8px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-}
-
-.stats dt {
-  color: var(--muted);
-  font-size: 0.8rem;
-}
-
-.stats dd {
-  margin: 0;
-  font-size: 1.2rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
 }
 
 .real-gem {

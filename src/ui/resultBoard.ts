@@ -33,15 +33,14 @@ function whereIs(placement: GemDiff['actual']): string {
   return cellLabel({ row: placement.row, col: placement.col });
 }
 
-/** Phrase de détail pour une gemme. */
+/** Ligne de détail pour une gemme, la plus courte possible. */
 export function diffLine(diff: GemDiff): string {
   const label = GEM_SHAPES[diff.gem].label;
-  if (diff.status === 'correct') return `✔ ${label} : bien placée en ${whereIs(diff.actual)}.`;
-  if (diff.guess === null) {
-    return `✘ ${label} : non posée, elle était en ${whereIs(diff.actual)}.`;
-  }
-  const same = whereIs(diff.guess) === whereIs(diff.actual);
-  return same
-    ? `✘ ${label} : bonne case (${whereIs(diff.actual)}) mais mauvaise orientation.`
-    : `✘ ${label} : vous l'aviez en ${whereIs(diff.guess)}, elle est en ${whereIs(diff.actual)}.`;
+  if (diff.status === 'correct') return `✔ ${label} · ${whereIs(diff.actual)}`;
+  if (diff.guess === null) return `✘ ${label} · ${whereIs(diff.actual)}`;
+  const guess = whereIs(diff.guess);
+  const actual = whereIs(diff.actual);
+  return guess === actual
+    ? `✘ ${label} · ${actual}, orientation`
+    : `✘ ${label} · ${guess} → ${actual}`;
 }

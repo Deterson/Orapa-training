@@ -107,7 +107,7 @@ function chip(color: ShotRecord['color']): string {
 }
 
 function describe(shot: ShotRecord): string {
-  return `Tir ${shot.n} : du repère ${shot.entry}, le rayon ressort ${RESULT_COLOR_LABELS[shot.color]} en ${shot.exit}.`;
+  return `${shot.n} : ${shot.entry} → ${shot.exit}, ${RESULT_COLOR_LABELS[shot.color]}`;
 }
 
 function plural(count: number, one: string, many: string): string {
@@ -168,24 +168,18 @@ export function startApp(root: HTMLElement, version: string): void {
     const selected = state.selectedGem;
     const flippable = selected !== null && GEM_SHAPES[selected].flippable;
     const placedSelected = selected !== null && state.solution[selected] !== null;
-    const selectionText = selected
-      ? `Gemme sélectionnée : ${GEM_SHAPES[selected].label}.`
-      : 'Touchez une gemme pour la sélectionner, glissez-la pour la déplacer.';
     const hypothesis = state.hypothesis
-      ? `<p class="hypo">Sur votre grille, le tir depuis ${state.hypothesis.entry} ressortirait ${RESULT_COLOR_LABELS[state.hypothesis.color]} en ${state.hypothesis.exit}.</p>`
-      : '<p class="hint">Touchez un repère du bord pour tester un tir sur votre grille.</p>';
-    const comparison = session.shots.length
-      ? `Votre grille reproduit ${matching} tir${plural(matching, '', 's')} sur ${session.shots.length}.`
-      : 'Faites quelques tirs pour pouvoir comparer.';
+      ? `<p class="hypo">${state.hypothesis.entry} → ${state.hypothesis.exit} · ${RESULT_COLOR_LABELS[state.hypothesis.color]}</p>`
+      : '';
+    const status = `${placed}/${total}${session.shots.length ? ` · ${matching}/${session.shots.length} tirs` : ''}`;
     return `
       ${board}
       <div class="toolbar" role="toolbar" aria-label="Actions sur la gemme sélectionnée">
         <button type="button" data-action="rotate"${placedSelected ? '' : ' disabled'}>${t.actions.rotate}</button>
-        <button type="button" data-action="flip"${placedSelected && flippable ? '' : ' disabled'} title="Seule la gemme rouge peut être retournée">${t.actions.flip}</button>
+        <button type="button" data-action="flip"${placedSelected && flippable ? '' : ' disabled'} title="Rouge seulement">${t.actions.flip}</button>
         <button type="button" class="ghost" data-action="remove"${placedSelected ? '' : ' disabled'}>${t.actions.putBack}</button>
       </div>
-      <p class="hint">${selectionText}</p>
-      <p class="status"><b>${placed}</b> gemme${plural(placed, '', 's')} sur ${total} posée${plural(placed, '', 's')}. ${comparison}</p>
+      <p class="status">${status}</p>
       ${hypothesis}
       ${
         issues.length
@@ -197,18 +191,10 @@ export function startApp(root: HTMLElement, version: string): void {
   const resultPanel = (session: GameSession): string => {
     const summary = session.summary;
     const diffs = compareSolution(session.reveal(), placedGems(state.solution));
-    const guessed = placedGems(state.solution).length > 0;
     return `
       <div class="result is-${summary.status}">
         <h2>${t.status[summary.status]}</h2>
-        <dl class="stats">
-          <div><dt>Lasers</dt><dd>${summary.lasers}</dd></div>
-          <div><dt>Sondages</dt><dd>${summary.probes}</dd></div>
-          <div><dt>Temps</dt><dd>${formatTime(summary.elapsedMs)}</dd></div>
-          <div><dt>Graine</dt><dd>${summary.seed}</dd></div>
-        </dl>
         ${resultBoardSvg(diffs)}
-        <p class="hint">Les gemmes pleines sont la vraie mine${guessed ? ' ; les contours en pointillés sont votre proposition (vert : bien placée, rouge : à corriger)' : ''}.</p>
         <ul class="diff">${diffs.map((diff) => `<li class="${diff.status}">${diffLine(diff)}</li>`).join('')}</ul>
         <div class="actions">
           <button type="button" data-action="new-game">${t.actions.newGame}</button>
@@ -221,34 +207,30 @@ export function startApp(root: HTMLElement, version: string): void {
   const actionsPanel = (session: GameSession): string => {
     if (session.finished) return '';
     if (state.confirm === 'submit') {
-      return `<div class="confirm" role="alertdialog" aria-label="Confirmer la soumission"><p>Soumettre cette solution ? Une erreur met fin à la partie.</p><div class="actions"><button type="button" data-action="confirm-submit">Oui, soumettre</button><button type="button" class="ghost" data-action="cancel-confirm">Annuler</button></div></div>`;
+      return `<div class="confirm" role="alertdialog" aria-label="Confirmer"><p>Soumettre ?</p><div class="actions"><button type="button" data-action="confirm-submit">${t.actions.submit}</button><button type="button" class="ghost" data-action="cancel-confirm">Annuler</button></div></div>`;
     }
     if (state.confirm === 'abandon') {
-      return `<div class="confirm" role="alertdialog" aria-label="Confirmer l'abandon"><p>Abandonner la partie et révéler la mine ?</p><div class="actions"><button type="button" data-action="confirm-abandon">Oui, abandonner</button><button type="button" class="ghost" data-action="cancel-confirm">Annuler</button></div></div>`;
+      return `<div class="confirm" role="alertdialog" aria-label="Confirmer"><p>Abandonner ?</p><div class="actions"><button type="button" data-action="confirm-abandon">${t.actions.abandon}</button><button type="button" class="ghost" data-action="cancel-confirm">Annuler</button></div></div>`;
     }
     const ready = isSubmittable(state.solution);
-    return `<div class="actions"><button type="button" data-action="ask-submit"${ready ? '' : ' disabled'}>${t.actions.submit}</button><button type="button" class="ghost" data-action="ask-abandon">${t.actions.abandon}</button></div>${ready ? '' : `<p class="hint">${t.hints.submitNeeds}</p>`}`;
+    return `<div class="actions"><button type="button" data-action="ask-submit"${ready ? '' : ' disabled title="5 gemmes valides requises"'}>${t.actions.submit}</button><button type="button" class="ghost" data-action="ask-abandon">${t.actions.abandon}</button></div>`;
   };
 
   const probePanel = (session: GameSession): string => {
     if (session.finished) return '';
-    return `<div class="notes-tools"><button type="button" class="tool" data-action="toggle-probe" aria-pressed="${state.probing}">${t.actions.probe}</button></div>${
+    return `<div class="notes-tools"><button type="button" class="tool" data-action="toggle-probe" aria-pressed="${state.probing}">${t.actions.probe}</button>${
       state.probing
-        ? `<form class="probe-form" data-form="probe"><label for="probe-input">Case à sonder</label><input id="probe-input" name="cell" type="text" inputmode="text" autocomplete="off" maxlength="3" placeholder="E4" /><button type="submit">Sonder</button></form><p class="hint">Touchez une case de la grille, ou saisissez son nom. Une sonde se compte à part des lasers.</p>`
-        : '<p class="hint">« Qu\'y a-t-il en E4 ? » : la réponse est « rien » ou la couleur de la gemme.</p>'
-    }`;
+        ? `<form class="probe-form" data-form="probe"><label class="sr-only" for="probe-input">Case</label><input id="probe-input" name="cell" type="text" inputmode="text" autocomplete="off" maxlength="3" placeholder="E4" /><button type="submit">OK</button></form>`
+        : ''
+    }</div>`;
   };
 
   const resumePanel = (save: SaveData): string => {
     const { session } = save;
-    const when = new Date(save.savedAt).toLocaleString('fr-FR', {
-      dateStyle: 'short',
-      timeStyle: 'short',
-    });
     return `
-      <div class="resume" role="alertdialog" aria-label="Reprendre la partie en cours">
-        <h2>Une partie est en cours</h2>
-        <p>Mine <b>${session.mine.seed}</b> : ${session.shots.length} laser${plural(session.shots.length, '', 's')}, ${session.probes.length} sondage${plural(session.probes.length, '', 's')}, ${formatTime(session.elapsedMs)} de jeu. Sauvegardée le ${when}.</p>
+      <div class="resume" role="alertdialog" aria-label="Partie en cours">
+        <h2>Partie en cours</h2>
+        <p><b>${session.mine.seed}</b> · ${session.shots.length} laser${plural(session.shots.length, '', 's')} · ${session.probes.length} sonde${plural(session.probes.length, '', 's')} · ${formatTime(session.elapsedMs)}</p>
         <div class="actions">
           <button type="button" data-action="resume">${t.actions.resume}</button>
           <button type="button" class="ghost" data-action="discard-save">${t.actions.newGame}</button>
@@ -280,7 +262,7 @@ export function startApp(root: HTMLElement, version: string): void {
   const render = (): void => {
     syncClock();
     if (state.view === 'rules') {
-      root.innerHTML = `<main class="app">${rulesPage()}</main>`;
+      root.innerHTML = `<main class="app">${rulesPage(version)}</main>`;
       return;
     }
     const { session } = state;
@@ -304,24 +286,24 @@ export function startApp(root: HTMLElement, version: string): void {
       board = resumePanel(state.pending);
     } else {
       board = `<p class="placeholder" role="status">${
-        state.phase === 'error' ? 'La génération a échoué.' : 'Génération de la mine…'
+        state.phase === 'error' ? 'Échec de la génération.' : 'Génération…'
       }</p>`;
     }
 
     const history = shots.length
-      ? `<ol class="history">${shots
+      ? `<ol class="history" aria-label="Tirs">${shots
           .map(
             (shot) =>
               `<li><button type="button" class="shot${state.selected === shot.n ? ' is-selected' : ''}" data-shot="${shot.n}"><span class="n">${shot.n}</span><span class="path"><b>${shot.entry}</b> → <b>${shot.exit}</b></span>${chip(shot.color)}<span class="color-name">${RESULT_COLOR_LABELS[shot.color]}</span></button></li>`,
           )
           .join('')}</ol>`
-      : `<p class="hint">${t.hints.fire}</p>`;
+      : '';
 
     const count = session?.laserCount ?? 0;
     const probeCount = session?.probes.length ?? 0;
     const probeHistory = probeCount
-      ? `<h2>Sondages</h2><ul class="probe-list">${(session?.probes ?? [])
-          .map((probe) => `<li><b>${probe.cell}</b> : ${t.probe[probe.content]}</li>`)
+      ? `<ul class="probe-list" aria-label="Sondages">${(session?.probes ?? [])
+          .map((probe) => `<li><b>${probe.cell}</b> · ${t.probe[probe.content]}</li>`)
           .join('')}</ul>`
       : '';
     root.innerHTML = `
@@ -329,18 +311,16 @@ export function startApp(root: HTMLElement, version: string): void {
       <main class="app">
         <header class="top">
           <div>
-            <p class="badge">Version ${version}</p>
             <h1>${t.appName}</h1>
           </div>
           <div class="seed-box">
-            <span class="seed-label">Graine</span>
-            <code class="seed">${session?.seed ?? '…'}</code>
+            <code class="seed" title="Graine">${session?.seed ?? '…'}</code>
             <button type="button" class="ghost" data-action="copy-link"${session ? '' : ' disabled'}>${t.actions.copyLink}</button>
             <a class="nav-link" href="#regles">${t.nav.rules}</a>
             <button type="button" data-action="new-game">${t.actions.newGame}</button>
           </div>
         </header>
-        ${store.available ? '' : '<p class="warning" role="status">La sauvegarde automatique est indisponible dans ce navigateur (navigation privée ?) : la partie ne sera pas conservée si vous fermez la page.</p>'}
+        ${store.available ? '' : `<p class="warning" role="status">${t.hints.storageOff}</p>`}
         <div class="play">
           <section class="board-wrap" id="plateau" tabindex="-1" aria-label="Plateau">
             <div class="tabs" role="tablist">
@@ -355,10 +335,9 @@ export function startApp(root: HTMLElement, version: string): void {
             ${board}
           </section>
           <aside class="side">
-            <div class="counter"><span class="count">${count}</span><span class="count-label">laser${plural(count, '', 's')} tiré${plural(count, '', 's')}</span></div>
-            <p class="meta">${probeCount} sondage${plural(probeCount, '', 's')} · <span class="timer-label">temps</span> <span id="timer">${formatTime(session?.elapsedMs() ?? 0)}</span></p>
+            <div class="counter"><span class="count">${count}</span><span class="count-label">laser${plural(count, '', 's')}</span></div>
+            <p class="meta">${probeCount} sonde${plural(probeCount, '', 's')} · <span id="timer">${formatTime(session?.elapsedMs() ?? 0)}</span></p>
             ${session ? actionsPanel(session) : ''}
-            <h2>Historique des tirs</h2>
             ${history}
             ${probeHistory}
           </aside>
@@ -411,9 +390,9 @@ export function startApp(root: HTMLElement, version: string): void {
     if (!session || session.finished) return;
     try {
       const record = session.probe(label);
-      state.notice = `Case ${record.cell} : ${t.probe[record.content]}.`;
+      state.notice = `${record.cell} : ${t.probe[record.content]}`;
     } catch {
-      state.notice = `« ${label} » n'est pas une case : indiquez une ligne de A à H puis une colonne de 1 à 10, par exemple E4.`;
+      state.notice = `« ${label} » : case invalide (A1 à H10).`;
     }
     render();
   };
@@ -431,10 +410,10 @@ export function startApp(root: HTMLElement, version: string): void {
   const testOnSolution = (label: string): void => {
     try {
       state.hypothesis = shoot(placedGems(state.solution), label);
-      state.notice = `Sur votre grille, le tir depuis ${label} ressortirait ${RESULT_COLOR_LABELS[state.hypothesis.color]} en ${state.hypothesis.exit}.`;
+      state.notice = `${label} → ${state.hypothesis.exit}, ${RESULT_COLOR_LABELS[state.hypothesis.color]}`;
     } catch {
       state.hypothesis = null;
-      state.notice = "Impossible de suivre le rayon : corrigez d'abord les gemmes mal placées.";
+      state.notice = 'Rayon impossible à suivre : corrigez les gemmes.';
     }
     render();
   };
@@ -492,10 +471,10 @@ export function startApp(root: HTMLElement, version: string): void {
         centerX > -0.5 && centerX < GRID_COLS + 0.5 && centerY > -0.5 && centerY < GRID_ROWS + 0.5;
       if (onBoard) {
         editSolution(dropGem(state.solution, gem, x, y), gem);
-        state.notice = `${GEM_SHAPES[gem].label} posée.`;
+        state.notice = `${GEM_SHAPES[gem].label} posée`;
       } else {
         editSolution(removeGem(state.solution, gem), null);
-        state.notice = `${GEM_SHAPES[gem].label} remise dans la réserve.`;
+        state.notice = `${GEM_SHAPES[gem].label} retirée`;
       }
     };
     const onUp = (e: PointerEvent): void => finish(e, false);
@@ -644,7 +623,7 @@ export function startApp(root: HTMLElement, version: string): void {
           state.pending = null;
           state.phase = 'ready';
           writeSeedToUrl(state.session.seed);
-          state.notice = 'Partie reprise.';
+          state.notice = 'Reprise';
         }
         return render();
       case 'discard-save':
@@ -686,7 +665,7 @@ export function startApp(root: HTMLElement, version: string): void {
       case 'copy-link':
         navigator.clipboard?.writeText(window.location.href).then(
           () => {
-            state.notice = 'Lien copié.';
+            state.notice = 'Lien copié';
             render();
           },
           () => undefined,

@@ -61,7 +61,7 @@ export function validatePlacements(placements: readonly Placement[]): Violation[
       violations.push({
         rule: 'b',
         gems: [index],
-        message: `${name(placement)} : chaque coin doit tomber sur un coin de la grille (règle b).`,
+        message: `${name(placement)} : hors grille (règle b)`,
       });
       return;
     }
@@ -71,7 +71,7 @@ export function validatePlacements(placements: readonly Placement[]): Violation[
       violations.push({
         rule: 'a',
         gems: [index],
-        message: `${name(placement)} ne peut pas être retournée : seule la gemme rouge a un quadrillage sur ses deux faces (règle a).`,
+        message: `${name(placement)} : pas retournable (règle a)`,
       });
     }
 
@@ -80,7 +80,7 @@ export function validatePlacements(placements: readonly Placement[]): Violation[
       violations.push({
         rule: 'c',
         gems: [index],
-        message: `${name(placement)} dépasse du plateau (règle c).`,
+        message: `${name(placement)} : dépasse (règle c)`,
       });
     }
   });
@@ -96,7 +96,7 @@ export function validatePlacements(placements: readonly Placement[]): Violation[
         violations.push({
           rule: 'duplicate',
           gems: [i, j],
-          message: `${name(first)} est posée plusieurs fois.`,
+          message: `${name(first)} : posée deux fois`,
         });
         continue;
       }
@@ -106,13 +106,13 @@ export function validatePlacements(placements: readonly Placement[]): Violation[
         violations.push({
           rule: 'overlap',
           gems: [i, j],
-          message: `${name(first)} et ${name(second)} se chevauchent.`,
+          message: `${name(first)} / ${name(second)} : chevauchement`,
         });
       } else if (contact === 'segment') {
         violations.push({
           rule: 'd',
           gems: [i, j],
-          message: `${name(first)} et ${name(second)} sont côte à côte : elles ne peuvent se toucher que par un point (règle d).`,
+          message: `${name(first)} / ${name(second)} : côte à côte (règle d)`,
         });
       }
     }

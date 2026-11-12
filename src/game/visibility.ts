@@ -44,7 +44,7 @@ export function visibilityViolations(placements: readonly Placement[]): Violatio
       {
         rule: 'e',
         gems: [index],
-        message: `${GEM_SHAPES[placement.gem].label} est cachée : aucun laser ne peut l'atteindre en ligne droite depuis un bord (règle e).`,
+        message: `${GEM_SHAPES[placement.gem].label} : cachée (règle e)`,
       },
     ];
   });

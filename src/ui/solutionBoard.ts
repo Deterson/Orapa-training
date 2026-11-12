@@ -77,7 +77,7 @@ export function gemSize(solution: Solution, gem: GemId): { width: number; height
 }
 
 export function solutionBoardSvg(view: SolutionView): string {
-  const tray = `<rect class="tray" x="0" y="${TRAY_TOP}" width="${GRID_COLS}" height="${TRAY_HEIGHT}" rx="0.3"/><text class="tray-label" x="0.3" y="${TRAY_TOP - 0.25}">Réserve de gemmes</text>`;
+  const tray = `<rect class="tray" x="0" y="${TRAY_TOP}" width="${GRID_COLS}" height="${TRAY_HEIGHT}" rx="0.3"/>`;
   const gems = BASE_GEM_IDS.map((gem) => gemSvg(view, gem)).join('');
   const ray = view.hypothesis
     ? `<polyline class="ray-outline" points="${points(view.hypothesis.path)}"/><polyline class="ray" points="${points(view.hypothesis.path)}" stroke="${RAY_COLOR[view.hypothesis.color]}"/>`

@@ -70,7 +70,7 @@ export function notesToolbar(view: NotesView): string {
   ).join('');
   const otherTools = OTHER_MARKS.map(
     (mark) =>
-      `<button type="button" class="tool" data-tool="${mark}" ${pressed(mark)}>${mark === 'empty' ? '✕ Vide' : '? Doute'}</button>`,
+      `<button type="button" class="tool" data-tool="${mark}" ${pressed(mark)} aria-label="${mark === 'empty' ? 'Case vide' : 'Doute'}">${mark === 'empty' ? '✕' : '?'}</button>`,
   ).join('');
   const inks = (['ink', 'red', 'yellow', 'blue', 'green'] as const)
     .map(
@@ -80,24 +80,14 @@ export function notesToolbar(view: NotesView): string {
     .join('');
   return `
     <div class="notes-tools" role="toolbar" aria-label="Outils de notes">
-      <button type="button" class="tool" data-tool="pencil" ${pressed('pencil')}>✎ Crayon</button>
-      <button type="button" class="tool" data-tool="eraser" ${pressed('eraser')}>⌫ Gomme</button>
+      <button type="button" class="tool" data-tool="pencil" ${pressed('pencil')}>Crayon</button>
+      <button type="button" class="tool" data-tool="eraser" ${pressed('eraser')}>Gomme</button>
       <span class="inks" role="group" aria-label="Couleur du crayon">${inks}</span>
     </div>
     <div class="notes-tools" role="toolbar" aria-label="Marques de cases">${colorTools}${otherTools}</div>
     <div class="notes-tools" role="toolbar" aria-label="Historique des notes">
-      <button type="button" class="ghost" data-action="undo"${history.past.length ? '' : ' disabled'}>↶ Annuler</button>
-      <button type="button" class="ghost" data-action="redo"${history.future.length ? '' : ' disabled'}>↷ Rétablir</button>
-      <button type="button" class="ghost" data-action="clear-notes"${Object.keys(history.present.marks).length + history.present.strokes.length ? '' : ' disabled'}>Tout effacer</button>
-    </div>
-    <p class="hint">${toolHint(tool)}</p>`;
-}
-
-function toolHint(tool: Tool): string {
-  if (tool === 'pencil') return 'Dessinez au doigt ou à la souris sur la grille.';
-  if (tool === 'eraser') return "Passez sur un trait ou touchez une case marquée pour l'effacer.";
-  if (tool === 'empty')
-    return "Touchez une case pour y poser une croix « vide » ; touchez-la encore pour l'enlever.";
-  if (tool === 'maybe') return "Touchez une case pour y poser un point d'interrogation.";
-  return `Touchez une case pour y noter une gemme ${MARK_LABEL[tool]}.`;
+      <button type="button" class="ghost" data-action="undo" aria-label="Annuler" title="Annuler"${history.past.length ? '' : ' disabled'}>↶</button>
+      <button type="button" class="ghost" data-action="redo" aria-label="Rétablir" title="Rétablir"${history.future.length ? '' : ' disabled'}>↷</button>
+      <button type="button" class="ghost" data-action="clear-notes"${Object.keys(history.present.marks).length + history.present.strokes.length ? '' : ' disabled'}>Effacer</button>
+    </div>`;
 }

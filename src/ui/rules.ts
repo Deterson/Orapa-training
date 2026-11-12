@@ -4,13 +4,7 @@
  * simulateur), donc ils ne peuvent pas dire autre chose que le jeu.
  */
 import { RESULT_COLOR_LABELS, mixColors, type GemColor } from '../game/colors';
-import {
-  GEM_SHAPES,
-  BASE_GEM_IDS,
-  distinctOrientations,
-  orientedPolygon,
-  placedPolygon,
-} from '../game/gems';
+import { GEM_SHAPES, BASE_GEM_IDS, orientedPolygon, placedPolygon } from '../game/gems';
 import { BOOKLET_LAYOUT } from '../game/examples';
 import { boundingBox } from '../game/geometry';
 import { shoot } from '../game/laser';
@@ -30,12 +24,11 @@ function gemFigure(id: (typeof BASE_GEM_IDS)[number]): string {
   const polygon = orientedPolygon(shape, { rotation: 0, flipped: false });
   const { maxX, maxY } = boundingBox(polygon);
   const pad = 0.25;
-  const orientations = distinctOrientations(shape).length;
   return `<figure class="gem-figure">
     <svg viewBox="${-pad} ${-pad} ${maxX + 2 * pad} ${maxY + 2 * pad}" role="img" aria-label="${shape.label}" style="width:${(maxX + 2 * pad) * 26}px">
       ${PATTERN_DEFS}${gemPolygons(points(polygon), shape.color, 'real-gem')}
     </svg>
-    <figcaption><b>${shape.label}</b><br>${maxX} × ${maxY} cases · ${orientations} position${orientations > 1 ? 's' : ''}${shape.flippable ? '<br><span class="flip-note">Peut être retournée</span>' : ''}</figcaption>
+    <figcaption><b>${shape.label}</b><br>${maxX} × ${maxY}${shape.flippable ? '<br><span class="flip-note">retournable</span>' : ''}</figcaption>
   </figure>`;
 }
 
@@ -65,7 +58,7 @@ function colorTable(): string {
       `<tr><td>${touched.map((c) => COLOR_NAME[c]).join(' + ')}</td><td><span class="chip" style="background:${RAY_COLOR[result]}" aria-hidden="true"></span> ${RESULT_COLOR_LABELS[result]}</td></tr>`,
     );
   }
-  return `<div class="scroll"><table class="rules-table"><thead><tr><th>Gemmes touchées</th><th>Couleur annoncée</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+  return `<div class="scroll"><table class="rules-table"><thead><tr><th>Gemmes</th><th>Couleur</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
 }
 
 const COLOR_NAME: Record<GemColor, string> = {
@@ -75,55 +68,45 @@ const COLOR_NAME: Record<GemColor, string> = {
   white: 'blanc',
 };
 
-export function rulesPage(): string {
+export function rulesPage(version: string): string {
   return `
     <article class="rules">
       <p><a class="back" href="#jeu">← ${t.nav.backToGame}</a></p>
-      <h1>Règles d'Orapa Mine</h1>
-      <p class="lede">Orapa Mine est un jeu de déduction de Junghee Choi et Wanjin Gill (Gameology, édition française Miraludo). Ici, la machine cache des gemmes dans une mine ; à vous de les retrouver en envoyant des rayons depuis les bords.</p>
+      <h1>Règles</h1>
 
-      <h2>But du jeu</h2>
-      <p>Retrouver la position <b>exacte</b> des 5 gemmes cachées. Chaque partie a <b>une seule réponse possible</b> : tout ce qu'il faut pour la deviner est dans les résultats des tirs. Si vous vous trompez, c'est que vous n'avez pas tiré assez de lasers.</p>
+      <h2>But</h2>
+      <p>Retrouver les 5 gemmes cachées. Une seule solution possible.</p>
 
-      <h2>La grille et les repères</h2>
-      <p>La mine est une grille de <b>10 colonnes × 8 lignes</b>. Une case se nomme par sa ligne (A à H, de haut en bas) puis sa colonne (1 à 10, de gauche à droite) : « E4 ».</p>
-      <p>Les <b>36 repères</b> du bord servent à tirer et à lire les résultats : <b>1 à 10</b> en haut (colonnes), <b>11 à 18</b> à droite (lignes), <b>I à R</b> en bas (colonnes) et <b>A à H</b> à gauche (lignes). Le rayon entre perpendiculairement au bord.</p>
+      <h2>Grille</h2>
+      <p>10 × 8. Case : ligne A–H + colonne 1–10 (<b>E4</b>). Repères du bord : 1–10 haut, 11–18 droite, I–R bas, A–H gauche.</p>
 
-      <h2>Les gemmes</h2>
-      <p>La partie compte <b>5 gemmes</b> : 1 rouge, 1 jaune, 1 bleue et 2 blanches. Chacune a un coin sur un coin de la grille et se pose bien droite.</p>
+      <h2>Gemmes</h2>
       <div class="gem-figures">${BASE_GEM_IDS.map(gemFigure).join('')}</div>
-      <p class="note-box"><b>Particularité de la gemme rouge.</b> Les pièces ont leur quadrillage sur une face. Seule la gemme rouge porte un quadrillage foncé sur ses <b>deux</b> faces : elle peut être <b>retournée</b> (penchée vers la droite ou vers la gauche). Toutes les autres gemmes se posent face quadrillée visible et ne se retournent jamais, seulement pivotées par quarts de tour.</p>
+      <p class="note-box"><b>La rouge se retourne</b> (quadrillage foncé des deux côtés). Les autres : jamais.</p>
 
-      <h2>Où peut-on poser les gemmes ?</h2>
-      <ol class="rule-list">
-        <li><b>Face visible.</b> Les lignes de la surface doivent être visibles (pas de retournement, sauf la rouge).</li>
-        <li><b>Sur la grille.</b> Chaque coin d'une gemme est sur un coin de la grille ; pas de pose de travers.</li>
-        <li><b>Dans le plateau.</b> Une gemme peut toucher le bord, pas le dépasser.</li>
-        <li><b>Pas côte à côte.</b> Deux gemmes ne se touchent que par un point (un coin contre un coin, ou un coin contre le milieu d'un côté), jamais le long d'un côté, et ne se chevauchent pas.</li>
-        <li><b>Accessible.</b> Chaque gemme doit pouvoir être atteinte en ligne droite par un laser parti d'un bord, sans rebond.</li>
-      </ol>
-
-      <h2>Le rayon</h2>
-      <p>Le rayon est transparent au départ. Il avance tout droit, horizontalement ou verticalement, au milieu des cases, jusqu'à toucher une gemme. Il ne la traverse jamais : il <b>rebondit</b>. Sur une face inclinée à 45° il tourne de 90° ; sur une face droite touchée de face, il repart en sens inverse. Il ressort toujours, parfois par son point d'entrée.</p>
-      <p>À chaque tir, vous apprenez deux choses : le <b>repère de sortie</b> et la <b>couleur</b> du rayon.</p>
-      ${exampleBoard()}
-      <p class="hint">Exemple du livret : depuis le repère 15, le rayon rebondit sur le losange blanc, le parallélogramme rouge et le grand triangle bleu, puis ressort <b>violet clair en 8</b>.</p>
-
-      <h2>Les couleurs</h2>
-      <p>Au contact d'une gemme, le rayon prend sa couleur ; plusieurs gemmes se mélangent. Si le rayon touche plusieurs fois la même couleur, <b>seule la première compte</b> : la couleur finale ne dépend que des couleurs différentes touchées, pas de leur nombre ni de leur ordre.</p>
-      ${colorTable()}
-      <p class="hint">Dans cette application, chaque couleur est aussi écrite en toutes lettres, et les gemmes portent un motif : rouge hachuré, jaune pointillé, bleu rayé, blanc uni.</p>
-
-      <h2>Jouer ici</h2>
+      <h2>Placement</h2>
       <ul class="rule-list">
-        <li><b>Tirs</b> : touchez un repère du bord. Le compteur compte les lasers ; redemander un repère déjà tiré est gratuit.</li>
-        <li><b>Sonder une case</b> : « Qu'y a-t-il en E4 ? » La réponse est « rien » ou la couleur de la gemme. Les sondages sont comptés à part des lasers.</li>
-        <li><b>Ma solution</b> : glissez les gemmes de la réserve vers la grille, pivotez-les (et retournez la rouge). Touchez un repère pour <b>tester un tir sur votre propre grille</b> : les repères déjà tirés s'entourent de vert si votre grille donne le même résultat, de rouge sinon.</li>
-        <li><b>Notes</b> : crayon, marques de cases, gomme, annuler et rétablir. Elles n'ont aucun effet sur la correction.</li>
-        <li><b>Soumettre</b> : seulement quand les 5 gemmes sont posées sans enfreindre de règle. <b>Une seule proposition</b> : une erreur met fin à la partie et révèle la mine, comme au jeu à deux.</li>
-        <li><b>Graine</b> : chaque mine a une graine. Copiez le lien pour rejouer ou comparer la même mine avec quelqu'un d'autre.</li>
-        <li><b>Sauvegarde</b> : la partie en cours est conservée dans ce navigateur ; vous pourrez la reprendre en revenant sur le site.</li>
+        <li>Sur la grille, dans le plateau, face quadrillée visible.</li>
+        <li>Pas côte à côte : contact par un point seulement.</li>
+        <li>Chaque gemme visible en ligne droite depuis un bord.</li>
+      </ul>
+
+      <h2>Rayon</h2>
+      <p>Il avance droit et rebondit : face à 45° → virage de 90°, face droite → demi-tour. Résultat : <b>sortie + couleur</b>.</p>
+      ${exampleBoard()}
+      <p class="hint">15 → violet clair en 8.</p>
+
+      <h2>Couleurs</h2>
+      <p>Seules les couleurs <b>différentes</b> touchées comptent.</p>
+      ${colorTable()}
+
+      <h2>Jouer</h2>
+      <ul class="rule-list">
+        <li><b>Tirs</b> : touchez un repère. <b>Sonder</b> : contenu d'une case.</li>
+        <li><b>Solution</b> : posez les gemmes ; touchez un repère pour tester un tir sur votre grille.</li>
+        <li><b>Soumettre</b> : une seule proposition.</li>
       </ul>
       <p><a class="back" href="#jeu">← ${t.nav.backToGame}</a></p>
+      <p class="hint">Orapa Mine : J. Choi et W. Gill (Gameology, Miraludo) · v${version}</p>
     </article>`;
 }

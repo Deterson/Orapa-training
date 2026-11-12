@@ -100,6 +100,12 @@ Résumé ; le détail et les tableaux sont dans `docs/regles.md`.
 Page unique, adaptée desktop **et** mobile/tactile (glisser-déposer au pointeur,
 pas seulement à la souris).
 
+**Texte minimal.** Le joueur ne doit lire presque rien : libellés courts (« Soumettre », « Retirer »),
+pas de paragraphe d'aide ni de phrase d'explication dans le jeu, symboles et schémas plutôt que
+des phrases. Les explications vivent dans la page « Règles », elle-même concise. Tous les textes
+sont dans `src/ui/strings.ts` ; les messages de règle (`game/placement.ts`) tiennent en une ligne.
+Les étiquettes d'accessibilité (`aria-label`, texte pour lecteurs d'écran) restent complètes.
+
 Zones :
 
 1. **Grille de tir** : les repères de bord sont cliquables pour tirer un laser. Le point
