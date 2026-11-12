@@ -106,6 +106,8 @@ des phrases. Les explications vivent dans la page « Règles », elle-même conc
 sont dans `src/ui/strings.ts` ; les messages de règle (`game/placement.ts`) tiennent en une ligne.
 Les étiquettes d'accessibilité (`aria-label`, texte pour lecteurs d'écran) restent complètes.
 
+**Gemmes.** Elles portent le **quadrillage des vraies pièces** : les lignes de la grille qui les traversent, un peu plus foncées que la gemme, pour aider à les aligner (`gridSegments` dans `game/geometry.ts`, `gemPolygons` dans `ui/palette.ts`).
+
 Zones :
 
 1. **Grille de tir** : les repères de bord sont cliquables pour tirer un laser, et **toucher une case la sonde**. Chaque tir ou sonde demande une confirmation en modale (« Laser en E ? », « Sonder E4 ? »), désactivable pour la partie ; redemander ce qui est déjà connu est gratuit. Le numéro du tir figure sur le repère d'entrée (en haut à droite) et, dans une pastille de la couleur obtenue (en bas à droite), sur le repère de sortie ; ces pastilles restent visibles en mode notes. **Le chemin du rayon n'est jamais tracé**

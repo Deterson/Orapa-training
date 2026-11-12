@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   type Polygon,
   boundingBox,
+  gridSegments,
   mirrorX,
   normalize,
   polygonKey,
@@ -161,5 +162,127 @@ describe('relation entre deux polygones convexes', () => {
       [1, 3],
     ];
     expect(relation(other, TRIANGLE)).toBe(relation(TRIANGLE, other));
+  });
+});
+
+describe('quadrillage des gemmes', () => {
+  const sorted = (segments: ReturnType<typeof gridSegments>) =>
+    segments.map((segment) => JSON.stringify(segment)).sort();
+
+  it('découpe les lignes de la grille dans le petit triangle', () => {
+    // Triangle (0,0) (2,0) (0,2) : une ligne verticale et une horizontale, chacune d'une case.
+    expect(sorted(gridSegments(TRIANGLE))).toEqual(
+      sorted([
+        [
+          [1, 0],
+          [1, 1],
+        ],
+        [
+          [0, 1],
+          [1, 1],
+        ],
+      ]),
+    );
+  });
+
+  it('découpe le grand triangle (base 4, hauteur 2) en lignes de longueurs 1, 2, 1 et un trait horizontal', () => {
+    const big: Polygon = [
+      [0, 0],
+      [4, 0],
+      [2, 2],
+    ];
+    expect(sorted(gridSegments(big))).toEqual(
+      sorted([
+        [
+          [1, 0],
+          [1, 1],
+        ],
+        [
+          [2, 0],
+          [2, 2],
+        ],
+        [
+          [3, 0],
+          [3, 1],
+        ],
+        [
+          [1, 1],
+          [3, 1],
+        ],
+      ]),
+    );
+  });
+
+  it('ne trace rien pour un polygone qui tient dans une case', () => {
+    expect(
+      gridSegments([
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+      ]),
+    ).toEqual([]);
+  });
+
+  it("ne trace que des traits horizontaux ou verticaux, à l'intérieur de la boîte du polygone", () => {
+    const rhombus: Polygon = [
+      [1, 0],
+      [2, 1],
+      [1, 2],
+      [0, 1],
+    ];
+    const box = boundingBox(rhombus);
+    const segments = gridSegments(rhombus);
+    expect(segments.length).toBeGreaterThan(0);
+    for (const [[x1, y1], [x2, y2]] of segments) {
+      expect(x1 === x2 || y1 === y2).toBe(true);
+      for (const [x, y] of [
+        [x1, y1],
+        [x2, y2],
+      ] as const) {
+        expect(x).toBeGreaterThanOrEqual(box.minX);
+        expect(x).toBeLessThanOrEqual(box.maxX);
+        expect(y).toBeGreaterThanOrEqual(box.minY);
+        expect(y).toBeLessThanOrEqual(box.maxY);
+      }
+    }
+  });
+
+  it('suit la gemme quand elle est déplacée : les traits restent sur la grille', () => {
+    const moved = translate(TRIANGLE, 3, 4);
+    expect(sorted(gridSegments(moved))).toEqual(
+      sorted([
+        [
+          [4, 4],
+          [4, 5],
+        ],
+        [
+          [3, 5],
+          [4, 5],
+        ],
+      ]),
+    );
+  });
+
+  it('une pièce à position fractionnaire garde son propre quadrillage', () => {
+    const shifted = translate(TRIANGLE, 0.4, 9.7);
+    const rounded = gridSegments(shifted).map((segment) =>
+      segment.map(([x, y]) => [Math.round(x * 100) / 100, Math.round(y * 100) / 100]),
+    );
+    // Mêmes traits que le triangle d'origine, décalés de (0,4 ; 9,7).
+    expect(rounded.map((segment) => JSON.stringify(segment)).sort()).toEqual(
+      [
+        [
+          [1.4, 9.7],
+          [1.4, 10.7],
+        ],
+        [
+          [0.4, 10.7],
+          [1.4, 10.7],
+        ],
+      ]
+        .map((segment) => JSON.stringify(segment))
+        .sort(),
+    );
   });
 });

@@ -24,7 +24,7 @@ pas tiré assez de lasers.
 - **Soumission** : correction stricte, une seule proposition, mine révélée et détail gemme par
   gemme ; chronomètre ; rejeu d'une même mine.
 - **Sauvegarde locale** de la partie en cours, reprise à la réouverture.
-- **Règles** du jeu dans le site (`#regles`), accessibilité (motifs, clavier, lecteurs d'écran),
+- **Règles** du jeu dans le site (`#regles`), accessibilité (clavier, lecteurs d'écran),
   thèmes clair et sombre, mobile.
 
 Pas de compte ni de serveur : tout tourne dans le navigateur. La version 2 ajoutera la connexion

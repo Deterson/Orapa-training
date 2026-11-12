@@ -732,10 +732,6 @@ h2 {
   flex: none;
 }
 
-.gem-pattern {
-  pointer-events: none;
-}
-
 .rules {
   max-width: 44rem;
   display: flex;
@@ -940,44 +936,6 @@ h2 {
   font-weight: 700;
 }
 
-/* Gemmes : même trait que dans les règles, partout (réserve, grille, résultat, transparence). */
-.real-gem,
-.gem-g polygon:not(.gem-pattern) {
-  stroke: #000;
-  stroke-opacity: 0.4;
-  stroke-width: 0.06;
-  stroke-linejoin: round;
-}
-
-.gem-pattern,
-.gem-g polygon.gem-pattern {
-  stroke: none;
-}
-
-.gem-g:focus-visible polygon:not(.gem-pattern),
-.gem-g.is-selected polygon:not(.gem-pattern) {
-  stroke: var(--accent);
-  stroke-opacity: 1;
-  stroke-width: 0.16;
-}
-
-.gem-g.is-bad polygon:not(.gem-pattern) {
-  stroke: #d33a2c;
-  stroke-opacity: 1;
-  stroke-width: 0.14;
-  stroke-dasharray: 0.25 0.15;
-}
-
-/* Gemmes en transparence : le fond s'efface, les traits restent aussi foncés que dans les règles. */
-.ghost-gems {
-  opacity: 1;
-}
-
-.ghost-gem {
-  fill-opacity: 0.22;
-  stroke-opacity: 0.65;
-}
-
 .gem-btn {
   cursor: pointer;
   outline: none;
@@ -1025,5 +983,12 @@ h2 {
   fill: none;
   stroke: var(--fg);
   stroke-width: 0.12;
+  pointer-events: none;
+}
+
+/* Quadrillage des gemmes : un peu plus foncé que la gemme, aligné sur la grille. */
+.gem-grid {
+  fill: none;
+  stroke-width: 0.045;
   pointer-events: none;
 }

@@ -141,3 +141,62 @@ export function relation(a: Polygon, b: Polygon): Relation {
   if (shared === 0) return 'point';
   return 'apart';
 }
+
+export type Segment = readonly [Point, Point];
+
+/**
+ * Traits du quadrillage à l'intérieur d'un polygone convexe : les lignes de la grille (aux
+ * coordonnées entières) découpées par le contour. Les pièces du jeu portent ce quadrillage sur leur
+ * surface, ce qui aide à les aligner sur la grille. Les bords de la boîte englobante ne sont pas
+ * repris : ce sont déjà des côtés de la pièce ou des cases voisines.
+ */
+export function gridSegments(polygon: Polygon): Segment[] {
+  // Le quadrillage est celui de la pièce : ses lignes partent de son coin haut-gauche. Une pièce
+  // posée sur la grille a ce coin sur un coin de case, donc ses traits suivent ceux de la grille ;
+  // une pièce dans la réserve (position quelconque) garde son propre quadrillage.
+  const { minX: originX, minY: originY } = boundingBox(polygon);
+  const round = (value: number): number => Math.round(value * 1e6) / 1e6;
+  const local: Polygon = polygon.map(([x, y]): Point => [round(x - originX), round(y - originY)]);
+  const { maxX, maxY } = boundingBox(local);
+  const segments: Segment[] = [];
+
+  /** Intervalle de l'autre coordonnée que la droite `axis = value` découpe dans le polygone. */
+  const span = (axis: 0 | 1, value: number): [number, number] | null => {
+    const other = axis === 0 ? 1 : 0;
+    const hits: number[] = [];
+    for (const [a, b] of edgesOf(local)) {
+      const aAxis = a[axis];
+      const bAxis = b[axis];
+      if (aAxis === bAxis) {
+        if (aAxis === value) hits.push(a[other], b[other]);
+        continue;
+      }
+      if (value < Math.min(aAxis, bAxis) || value > Math.max(aAxis, bAxis)) continue;
+      hits.push(a[other] + ((value - aAxis) * (b[other] - a[other])) / (bAxis - aAxis));
+    }
+    if (hits.length === 0) return null;
+    const low = Math.min(...hits);
+    const high = Math.max(...hits);
+    return high > low ? [low, high] : null;
+  };
+
+  for (let x = 1; x < maxX; x++) {
+    const range = span(0, x);
+    if (range) {
+      segments.push([
+        [x + originX, range[0] + originY],
+        [x + originX, range[1] + originY],
+      ]);
+    }
+  }
+  for (let y = 1; y < maxY; y++) {
+    const range = span(1, y);
+    if (range) {
+      segments.push([
+        [range[0] + originX, y + originY],
+        [range[1] + originX, y + originY],
+      ]);
+    }
+  }
+  return segments;
+}

@@ -1,4 +1,5 @@
 import type { GemColor, ResultColor } from '../game/colors';
+import { type Polygon, gridSegments } from '../game/geometry';
 
 /** Remplissage des gemmes. */
 export const GEM_FILL: Record<GemColor, string> = {
@@ -64,32 +65,41 @@ export const MARK_LABEL: Record<CellMark, string> = {
   maybe: 'doute',
 };
 
-/**
- * Motifs ajoutés aux couleurs des gemmes : la couleur ne doit pas être le seul moyen de les
- * distinguer (daltonisme, écran en noir et blanc). Rouge : hachures, jaune : points,
- * bleu : lignes horizontales, blanc : uni.
- */
+/** Motif des cases « vides » dans les notes : stries diagonales grises, transparentes. */
 export const PATTERN_DEFS = `<defs>
-  <pattern id="pat-red" width="0.3" height="0.3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="0.3" stroke="#000" stroke-opacity="0.38" stroke-width="0.07"/></pattern>
-  <pattern id="pat-yellow" width="0.32" height="0.32" patternUnits="userSpaceOnUse"><circle cx="0.16" cy="0.16" r="0.05" fill="#000" fill-opacity="0.45"/></pattern>
-  <pattern id="pat-blue" width="0.3" height="0.3" patternUnits="userSpaceOnUse"><line x1="0" y1="0.15" x2="0.3" y2="0.15" stroke="#fff" stroke-opacity="0.5" stroke-width="0.06"/></pattern>
   <pattern id="pat-empty" width="0.24" height="0.24" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="0.24" stroke="#6b7280" stroke-opacity="0.5" stroke-width="0.07"/></pattern>
-  <pattern id="pat-ghost-blue" width="0.3" height="0.3" patternUnits="userSpaceOnUse"><line x1="0" y1="0.15" x2="0.3" y2="0.15" stroke="#0b2a52" stroke-opacity="0.55" stroke-width="0.06"/></pattern>
 </defs>`;
 
-/** Gemme dessinée : couleur pleine puis motif par-dessus (le blanc reste uni). */
-export function gemPolygons(
-  points: string,
-  color: GemColor,
-  className = '',
-  title = '',
-  ghost = false,
-): string {
+/** Teinte un peu plus foncée de `hex` (#rrggbb) : `factor` < 1 assombrit. */
+function darken(hex: string, factor: number): string {
+  const channel = (start: number): string =>
+    Math.round(parseInt(hex.slice(start, start + 2), 16) * factor)
+      .toString(16)
+      .padStart(2, '0');
+  return `#${channel(1)}${channel(3)}${channel(5)}`;
+}
+
+/** Couleur du quadrillage de chaque gemme : un peu plus foncée que la gemme elle-même. */
+export const GEM_GRID_COLOR: Record<GemColor, string> = {
+  red: darken(GEM_FILL.red, 0.78),
+  yellow: darken(GEM_FILL.yellow, 0.78),
+  blue: darken(GEM_FILL.blue, 0.78),
+  white: darken(GEM_FILL.white, 0.8),
+};
+
+/**
+ * Gemme dessinée : couleur pleine et quadrillage (les lignes de la grille qui traversent la pièce,
+ * comme sur les vraies pièces), un peu plus foncé que la couleur de la gemme.
+ */
+export function gemPolygons(polygon: Polygon, color: GemColor, className = '', title = ''): string {
   const cls = className ? ` class="${className}"` : '';
   const label = title ? `<title>${title}</title>` : '';
-  const base = `<polygon${cls} points="${points}" fill="${GEM_FILL[color]}">${label}</polygon>`;
-  if (color === 'white') return base;
-  return `${base}<polygon class="gem-pattern" points="${points}" fill="url(#pat-${ghost && color === 'blue' ? 'ghost-blue' : color})" pointer-events="none"/>`;
+  const points = polygon.map(([x, y]) => `${x},${y}`).join(' ');
+  const path = gridSegments(polygon)
+    .map(([[x1, y1], [x2, y2]]) => `M${x1} ${y1}L${x2} ${y2}`)
+    .join('');
+  const grid = path ? `<path class="gem-grid" d="${path}" stroke="${GEM_GRID_COLOR[color]}"/>` : '';
+  return `<polygon${cls} points="${points}" fill="${GEM_FILL[color]}">${label}</polygon>${grid}`;
 }
 
 /** Couleur de texte lisible (sombre ou claire) sur un fond donné en #rrggbb. */

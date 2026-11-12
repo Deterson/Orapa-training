@@ -71,7 +71,7 @@ function gemSvg(view: SolutionView, gem: GemId): string {
   ]
     .filter(Boolean)
     .join(' ');
-  return `<g class="${classes}" data-gem="${gem}" tabindex="0" role="button" aria-label="${shape.label}, ${where}${bad ? ', règle enfreinte' : ''}">${gemPolygons(points(polygon), shape.color)}</g>`;
+  return `<g class="${classes}" data-gem="${gem}" tabindex="0" role="button" aria-label="${shape.label}, ${where}${bad ? ', règle enfreinte' : ''}">${gemPolygons(polygon, shape.color)}</g>`;
 }
 
 /** Taille d'une gemme dans son orientation actuelle (pour tester si elle est sur la grille). */

@@ -9,7 +9,7 @@ import { BOOKLET_LAYOUT } from '../game/examples';
 import { boundingBox } from '../game/geometry';
 import { shoot } from '../game/laser';
 import { boardFrame, entryLabelsSvg } from './board';
-import { PATTERN_DEFS, RAY_COLOR, gemPolygons } from './palette';
+import { RAY_COLOR, gemPolygons } from './palette';
 import { t } from './strings';
 
 const COLORS: readonly GemColor[] = ['red', 'yellow', 'blue', 'white'];
@@ -26,7 +26,7 @@ function gemFigure(id: (typeof BASE_GEM_IDS)[number]): string {
   const pad = 0.25;
   return `<figure class="gem-figure">
     <svg viewBox="${-pad} ${-pad} ${maxX + 2 * pad} ${maxY + 2 * pad}" role="img" aria-label="${shape.label}" style="width:${(maxX + 2 * pad) * 26}px">
-      ${PATTERN_DEFS}${gemPolygons(points(polygon), shape.color, 'real-gem')}
+      ${gemPolygons(polygon, shape.color, 'real-gem')}
     </svg>
     <figcaption><b>${shape.label}</b><br>${maxX} × ${maxY}${shape.flippable ? '<br><span class="flip-note">retournable</span>' : ''}</figcaption>
   </figure>`;
@@ -36,7 +36,7 @@ function gemFigure(id: (typeof BASE_GEM_IDS)[number]): string {
 function exampleBoard(): string {
   const gems = BOOKLET_LAYOUT.map((placement) => {
     const shape = GEM_SHAPES[placement.gem];
-    return gemPolygons(points(placedPolygon(placement)), shape.color, 'real-gem', shape.label);
+    return gemPolygons(placedPolygon(placement), shape.color, 'real-gem', shape.label);
   }).join('');
   const shot = shoot(BOOKLET_LAYOUT, '15');
   const path = points(shot.path);

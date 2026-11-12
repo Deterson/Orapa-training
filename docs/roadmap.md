@@ -238,7 +238,7 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
 - **Table de chaînes** (`ui/strings.ts`) : onglets, boutons, statuts, réponses aux sondes et
   messages d'aide principaux ; une autre langue ajouterait un objet de même forme.
 - **Accessibilité** :
-  - les gemmes ne sont plus distinguées par la seule couleur : **motifs** (rouge hachuré, jaune
+  - les gemmes n'étaient plus distinguées par la seule couleur : **motifs** (rouge hachuré, jaune
     pointillé, bleu rayé, blanc uni) ; les marques de notes portent une lettre ; chaque
     couleur de rayon est aussi écrite en toutes lettres ;
   - clavier : repères et gemmes focalisables, flèches pour déplacer les gemmes, flèches gauche
@@ -407,6 +407,11 @@ Règles de calcul à figer (voir questions ouvertes) :
   comme « vide ») ; **correction** : l'onglet Résultat redevient accessible après un autre onglet ;
   sur l'onglet Résultat, les **36 repères sont cliquables** : un laser libre est tiré dans la mine
   révélée et son trajet est tracé (gratuit, hors compteur).
+- **v1.0.7** : retour au dessin des gemmes d'avant la v1.0.5 (contour, transparence), puis les gemmes
+  portent le **quadrillage des vraies pièces** : les lignes de la grille qui les traversent, en une
+  teinte **un peu plus foncée que la gemme**, alignées sur les cases pour aider à les placer (réserve,
+  grille, résultat, règles, transparence). Il remplace les motifs hachurés, pointillés et rayés
+  de la v0.11. Calcul : `gridSegments` (`game/geometry.ts`, testé).
 
 ## Questions ouvertes
 

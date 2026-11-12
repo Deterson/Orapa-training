@@ -105,10 +105,6 @@ export function boardFrame(
     </svg>`;
 }
 
-function points(list: readonly (readonly [number, number])[]): string {
-  return list.map(([x, y]) => `${x},${y}`).join(' ');
-}
-
 export interface ShotBoardOptions {
   /** Gemmes posées par le joueur, affichées en transparence sous les repères. */
   gems?: readonly Placement[];
@@ -162,13 +158,7 @@ export function shotBoardSvg(marks: ShotMarks, options: ShotBoardOptions = {}): 
     ? `<g class="ghost-gems">${gems
         .map((placement) => {
           const shape = GEM_SHAPES[placement.gem];
-          return gemPolygons(
-            points(placedPolygon(placement)),
-            shape.color,
-            'real-gem ghost-gem',
-            '',
-            true,
-          );
+          return gemPolygons(placedPolygon(placement), shape.color, 'real-gem');
         })
         .join('')}</g>`
     : '';

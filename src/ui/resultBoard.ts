@@ -35,7 +35,7 @@ export function resultBoardSvg(
   const actual = diffs
     .map(({ actual: placement }) => {
       const shape = GEM_SHAPES[placement.gem];
-      return gemPolygons(points(placedPolygon(placement)), shape.color, 'real-gem', shape.label);
+      return gemPolygons(placedPolygon(placement), shape.color, 'real-gem', shape.label);
     })
     .join('');
   const guesses = diffs
