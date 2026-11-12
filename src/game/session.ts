@@ -54,6 +54,22 @@ export interface GameSummary {
   elapsedMs: number;
 }
 
+/**
+ * Tout ce qu'il faut pour reprendre une partie. Contient la mine : à réserver à la sauvegarde,
+ * l'interface ne doit pas s'en servir pour autre chose. Les tirs et sondes sont rejoués à la
+ * restauration, ce qui garantit leur cohérence avec la mine.
+ */
+export interface SessionSnapshot {
+  mine: Mine;
+  /** Repères tirés, dans l'ordre. */
+  shots: string[];
+  /** Cases sondées, dans l'ordre. */
+  probes: string[];
+  attempts: number;
+  status: GameStatus;
+  elapsedMs: number;
+}
+
 export interface SessionOptions {
   /** Horloge, injectable pour les tests. */
   now?: () => number;
@@ -82,6 +98,33 @@ export class GameSession {
   /** Nouvelle partie : génère la mine de cette graine (quelques dixièmes de seconde). */
   static start(seed: string): GameSession {
     return new GameSession(generateMine(seed));
+  }
+
+  /** Instantané pour la sauvegarde locale (voir SessionSnapshot). */
+  toSnapshot(): SessionSnapshot {
+    return {
+      mine: this.#mine,
+      shots: this.#shots.map((shot) => shot.entry),
+      probes: this.#probes.map((probe) => probe.cell),
+      attempts: this.#attempts,
+      status: this.#status,
+      elapsedMs: this.elapsedMs(),
+    };
+  }
+
+  /** Reprend une partie sauvegardée : les tirs et sondes sont rejoués sur la mine. */
+  static fromSnapshot(snapshot: SessionSnapshot, options: SessionOptions = {}): GameSession {
+    const session = new GameSession(snapshot.mine, options);
+    for (const entry of snapshot.shots) session.fire(entry);
+    for (const cell of snapshot.probes) session.probe(cell);
+    session.#attempts = snapshot.attempts;
+    session.#elapsedBefore = snapshot.elapsedMs;
+    session.#resumedAt = session.#now();
+    if (snapshot.status !== 'playing') {
+      session.#status = snapshot.status;
+      session.#finishedAt = session.#resumedAt;
+    }
+    return session;
   }
 
   get status(): GameStatus {

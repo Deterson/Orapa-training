@@ -5,8 +5,8 @@ Gameology ; édition française Miraludo). Le site génère une « mine » aléa
 gemmes cachées) et le joueur doit la reconstituer par déduction, en tirant des lasers, en
 prenant des notes et en plaçant ses propres gemmes, puis en soumettant sa solution.
 
-> Statut : étapes **v0.1 à v0.9** terminées (socle, géométrie et placement, simulateur de
-> laser, visibilité, générateur et solveur d'unicité, grille de tir, grille de solution, notes, soumission et résultat). La page du site est un banc d'essai provisoire de cette logique ;
+> Statut : étapes **v0.1 à v0.10** terminées (socle, géométrie et placement, simulateur de
+> laser, visibilité, générateur et solveur d'unicité, grille de tir, grille de solution, notes, soumission et résultat, sauvegarde locale). La page du site est un banc d'essai provisoire de cette logique ;
 > la vraie interface commence à l'étape v0.6. `CLAUDE.md` et `docs/` sont la spécification.
 
 ## Documentation (`docs/`)
@@ -174,6 +174,7 @@ src/
     session.ts     # ✔ partie en cours : mine privée, tirs, sondes, soumission ; seule porte d'entrée de l'UI
     verify.ts      # ✔ correction par égalité stricte, détail gemme par gemme
     probe.ts       # ✔ « Qu'y a-t-il en E4 ? »
+    save.ts        # ✔ format de la sauvegarde locale et validation stricte
     notes.ts       # ✔ notes : marques de cases, traits, gomme, annuler / rétablir
     solution.ts    # ✔ solution du joueur : poser, pivoter, retourner la rouge, règles, comparaison aux tirs
   ui/          # composants, interactions pointeur, rendu SVG
@@ -182,6 +183,7 @@ src/
     solutionBoard.ts # ✔ grille de solution et réserve de gemmes
     notesBoard.ts  # ✔ calque de notes et ses outils
     resultBoard.ts # ✔ écran de résultat : vraie mine et proposition
+    storage.ts     # ✔ accès protégé au localStorage
     palette.ts     # ✔ couleurs d'affichage des gemmes et des rayons
   main.ts
 tests/         # Vitest ; helpers.ts fournit `place`, un PRNG et des dispositions aléatoires valides
@@ -244,7 +246,7 @@ prépare : v0.1 à v0.11 construisent la **v1**, v1.1 à v1.6 construisent la **
 - v0.7 UI : grille de solution (glisser-déposer, rotation, retournement de la rouge) : **fait**.
 - v0.8 UI : notes et dessin : **fait**.
 - v0.9 Soumission, correction, écran de résultat : **fait**.
-- v0.10 Sauvegarde locale de la partie en cours.
+- v0.10 Sauvegarde locale de la partie en cours : **fait**.
 - v0.11 Page « Règles », accessibilité, mobile.
 
 **Vers la v2 : comptes, historique, profil**

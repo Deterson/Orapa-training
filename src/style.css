@@ -733,3 +733,26 @@ h2 {
     color: #ff8a7f;
   }
 }
+
+.resume {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.resume p {
+  margin: 0;
+}
+
+.warning {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid #d9a400;
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 0.9rem;
+}

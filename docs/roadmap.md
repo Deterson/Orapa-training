@@ -195,22 +195,35 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
   actions bloquées après la fin, rejeu de la graine.
 - **Fini quand :** une partie se joue de la génération au verdict sans erreur. ✔
 
-### v0.10 Sauvegarde locale (S à M)
+### v0.10 Sauvegarde locale (S à M) : fait
 
-- Sauvegarde automatique de la **partie en cours** dans le navigateur (`localStorage` ou
-  IndexedDB) : mine (les gemmes elles-mêmes, pas seulement la graine, pour survivre à un
-  changement du générateur), tirs effectués, notes, grille de solution, temps écoulé,
-  statut.
-- Format **versionné** (`schemaVersion`) avec migration ou abandon propre d'une sauvegarde
-  trop ancienne.
-- Au retour sur le site : proposer « Reprendre la partie » ou « Nouvelle partie ».
-- Tout accès au stockage dans un `try/catch` (navigation privée, stockage plein ou
-  désactivé) : le jeu fonctionne sans sauvegarde.
-- Effacement de la sauvegarde à la fin de partie.
-- **Hors périmètre v1 :** historique, statistiques, plusieurs parties sauvegardées,
-  synchronisation entre appareils.
-- **Fini quand :** fermer l'onglet en pleine partie puis rouvrir le site restaure
-  exactement l'état, chronomètre compris.
+- `game/save.ts` : format versionné (`SAVE_VERSION = 1`) et **validation stricte**.
+  `parseSave` ne renvoie une partie que si tout est cohérent : gemmes exactement celles de la
+  partie de base et posées selon les règles, repères et cases valides et sans doublon, statut,
+  tentatives et temps plausibles, solution et notes bien formées (taille bornée). Une
+  sauvegarde vide, ancienne, tronquée ou modifiée à la main donne `null`.
+- `GameSession.toSnapshot / fromSnapshot` : la sauvegarde contient **la mine elle-même**, pas
+  seulement la graine, pour survivre à un changement du générateur ; à la reprise les tirs et
+  sondes sont **rejoués** sur la mine, ce qui garantit leur cohérence.
+- **Temps** : le chronomètre reprend où il s'était arrêté, sans compter le temps passé hors de la
+  page (testé avec une horloge injectée).
+- `ui/storage.ts` : tout accès au navigateur est dans un `try/catch` (quota, navigation privée,
+  stockage désactivé, lecture qui lève une exception). Une sauvegarde illisible est supprimée
+  pour ne pas être reproposée. Sans stockage, un avertissement s'affiche et le jeu continue.
+- **Sauvegarde automatique** à chaque changement, toutes les 15 s, et quand la page se cache ou
+  se ferme (`pagehide`, `visibilitychange`). Sont sauvegardés : la mine, les tirs, les sondes,
+  la solution posée, les notes et le temps écoulé. L'historique d'annulation des notes n'est
+  pas conservé.
+- **Reprise** : à l'ouverture, une partie en cours est proposée (« Reprendre la partie » ou
+  « Nouvelle partie »). La sauvegarde est **effacée à la fin de la partie**.
+- Hors périmètre v1 (comme prévu) : historique, statistiques, plusieurs parties sauvegardées,
+  synchronisation entre appareils (v2).
+- Vérifié dans un navigateur : sauvegarde puis rechargement de la page, reprise des tirs, des
+  sondes, de la gemme posée, de la note et du temps ; abandon de la sauvegarde ; aucune
+  reprise proposée après une partie terminée ; trois types de sauvegarde corrompue ignorés sans
+  erreur ; `localStorage` qui lève une exception : avertissement et jeu normal.
+- **Fini quand :** fermer l'onglet en pleine partie puis rouvrir le site restaure exactement
+  l'état, chronomètre compris. ✔
 
 ### v0.11 Page « Règles » et finitions (M)
 

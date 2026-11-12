@@ -9,6 +9,7 @@ import { GEM_SHAPES, type GemId } from '../game/gems';
 import { type ShotResult, shoot } from '../game/laser';
 import { randomSeed } from '../game/rng';
 import { GameSession, type GameStatus, type ProbeRecord, type ShotRecord } from '../game/session';
+import { SAVE_VERSION, type SaveData } from '../game/save';
 import { compareSolution } from '../game/verify';
 import {
   type Solution,
@@ -41,9 +42,10 @@ import { shotBoardSvg } from './board';
 import { type Tool, notesBoardSvg, notesLayerSvg, notesToolbar } from './notesBoard';
 import { RAY_COLOR } from './palette';
 import { diffLine, resultBoardSvg } from './resultBoard';
+import { browserSaveStore } from './storage';
 import { gemOrigin, gemSize, solutionBoardSvg } from './solutionBoard';
 
-type Phase = 'loading' | 'ready' | 'error';
+type Phase = 'loading' | 'resume' | 'ready' | 'error';
 type Tab = 'shots' | 'solution' | 'notes' | 'result';
 
 interface State {
@@ -63,6 +65,8 @@ interface State {
   probing: boolean;
   /** Action définitive en attente de confirmation. */
   confirm: 'submit' | 'abandon' | null;
+  /** Partie sauvegardée proposée à la reprise. */
+  pending: SaveData | null;
   notice: string;
 }
 
@@ -141,8 +145,10 @@ export function startApp(root: HTMLElement, version: string): void {
     ink: 'ink',
     probing: false,
     confirm: null,
+    pending: null,
     notice: '',
   };
+  const store = browserSaveStore();
 
   // ---------- Affichage ----------
 
@@ -234,6 +240,36 @@ export function startApp(root: HTMLElement, version: string): void {
     }`;
   };
 
+  const resumePanel = (save: SaveData): string => {
+    const { session } = save;
+    const when = new Date(save.savedAt).toLocaleString('fr-FR', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    });
+    return `
+      <div class="resume" role="alertdialog" aria-label="Reprendre la partie en cours">
+        <h2>Une partie est en cours</h2>
+        <p>Mine <b>${session.mine.seed}</b> : ${session.shots.length} laser${plural(session.shots.length, '', 's')}, ${session.probes.length} sondage${plural(session.probes.length, '', 's')}, ${formatTime(session.elapsedMs)} de jeu. Sauvegardée le ${when}.</p>
+        <div class="actions">
+          <button type="button" data-action="resume">Reprendre la partie</button>
+          <button type="button" class="ghost" data-action="discard-save">Nouvelle partie</button>
+        </div>
+      </div>`;
+  };
+
+  /** Sauvegarde automatique de la partie en cours (rien à sauvegarder une fois terminée). */
+  const persist = (): void => {
+    const { session } = state;
+    if (state.phase !== 'ready' || !session || session.finished) return;
+    store.save({
+      version: SAVE_VERSION,
+      savedAt: Date.now(),
+      session: session.toSnapshot(),
+      solution: state.solution,
+      notes: state.notes.present,
+    });
+  };
+
   const render = (): void => {
     const { session } = state;
     const shots = session?.shots ?? [];
@@ -252,6 +288,8 @@ export function startApp(root: HTMLElement, version: string): void {
         const view = { history: state.notes, shots, tool: state.tool, ink: state.ink };
         board = `${notesBoardSvg(view)}${notesToolbar(view)}`;
       }
+    } else if (state.phase === 'resume' && state.pending) {
+      board = resumePanel(state.pending);
     } else {
       board = `<p class="placeholder" role="status">${
         state.phase === 'error' ? 'La génération a échoué.' : 'Génération de la mine…'
@@ -288,6 +326,7 @@ export function startApp(root: HTMLElement, version: string): void {
             <button type="button" data-action="new-game">Nouvelle partie</button>
           </div>
         </header>
+        ${store.available ? '' : '<p class="warning" role="status">La sauvegarde automatique est indisponible dans ce navigateur (navigation privée ?) : la partie ne sera pas conservée si vous fermez la page.</p>'}
         <div class="play">
           <section class="board-wrap" aria-label="Plateau">
             <div class="tabs" role="tablist">
@@ -312,11 +351,14 @@ export function startApp(root: HTMLElement, version: string): void {
         </div>
         <p class="sr-only" aria-live="polite">${state.notice}</p>
       </main>`;
+    persist();
   };
 
   // ---------- Actions ----------
 
   const startGame = (seed: string): void => {
+    store.clear();
+    state.pending = null;
     state.phase = 'loading';
     state.session = null;
     state.selected = null;
@@ -364,6 +406,7 @@ export function startApp(root: HTMLElement, version: string): void {
 
   /** Termine la partie et affiche le résultat. */
   const showResult = (): void => {
+    store.clear();
     state.confirm = null;
     state.probing = false;
     state.tab = 'result';
@@ -574,6 +617,20 @@ export function startApp(root: HTMLElement, version: string): void {
       case 'remove':
         if (state.selectedGem) editSolution(removeGem(state.solution, state.selectedGem), null);
         return;
+      case 'resume':
+        if (state.pending) {
+          const save = state.pending;
+          state.session = GameSession.fromSnapshot(save.session);
+          state.solution = save.solution;
+          state.notes = newHistory(save.notes);
+          state.pending = null;
+          state.phase = 'ready';
+          writeSeedToUrl(state.session.seed);
+          state.notice = 'Partie reprise.';
+        }
+        return render();
+      case 'discard-save':
+        return startGame(seedFromUrl() ?? randomSeed());
       case 'toggle-probe':
         state.probing = !state.probing;
         return render();
@@ -689,12 +746,27 @@ export function startApp(root: HTMLElement, version: string): void {
     }
   });
 
-  // Chronomètre : met à jour le texte sans refaire tout l'affichage.
+  // Chronomètre : met à jour le texte sans refaire tout l'affichage. Le temps écoulé est aussi
+  // sauvegardé régulièrement, au cas où la page serait fermée sans prévenir.
+  let ticks = 0;
   window.setInterval(() => {
     const session = state.session;
     const timer = root.querySelector('#timer');
     if (session && timer) timer.textContent = formatTime(session.elapsedMs());
+    if (++ticks % 15 === 0) persist();
   }, 1000);
+  window.addEventListener('pagehide', persist);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') persist();
+  });
 
-  startGame(seedFromUrl() ?? randomSeed());
+  // Une partie sauvegardée est proposée à la reprise ; sinon on en commence une neuve.
+  const saved = store.load();
+  if (saved && saved.session.status === 'playing') {
+    state.pending = saved;
+    state.phase = 'resume';
+    render();
+  } else {
+    startGame(seedFromUrl() ?? randomSeed());
+  }
 }
