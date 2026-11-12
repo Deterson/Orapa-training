@@ -108,16 +108,15 @@ Les étiquettes d'accessibilité (`aria-label`, texte pour lecteurs d'écran) re
 
 Zones :
 
-1. **Grille de tir** : les repères de bord sont cliquables pour tirer un laser, et **toucher une case la sonde**. Chaque tir ou sonde demande une confirmation en modale (« Laser en E ? », « Sonder E4 ? »), désactivable pour la partie ; redemander ce qui est déjà connu est gratuit. Le point
-   de sortie est marqué de la couleur obtenue. **Le chemin du rayon n'est jamais tracé**
+1. **Grille de tir** : les repères de bord sont cliquables pour tirer un laser, et **toucher une case la sonde**. Chaque tir ou sonde demande une confirmation en modale (« Laser en E ? », « Sonder E4 ? »), désactivable pour la partie ; redemander ce qui est déjà connu est gratuit. Le numéro du tir figure sur le repère d'entrée (en haut à droite) et, dans une pastille de la couleur obtenue (en bas à droite), sur le repère de sortie ; ces pastilles restent visibles en mode notes. **Le chemin du rayon n'est jamais tracé**
    (il trahirait les gemmes) ; il ne l'est que sur la grille de solution du joueur. Historique des tirs (numéroté) consultable et effaçable à
    l'affichage (mais le **compteur de tirs** ne baisse jamais). Les **gemmes posées** par le joueur et ses **notes** s'y affichent en **transparence** sous les repères ; une case à cocher « Notes » masque ou affiche les notes (les gemmes restent affichées).
 2. **Grille de notes / dessin** : calque libre pour annoter les cases (couleur,
    **grisée**, croix « vide », doute, crayon, gomme, annuler/rétablir). N'a aucun effet sur la
    correction.
 3. **Grille de solution** (onglet « Gemmes ») : le joueur y dépose les gemmes de sa réserve (les mêmes
-   que celles cachées), les déplace, les fait pivoter ; la gemme rouge a en plus un
-   bouton « retourner ». Les placements invalides (chevauchement, hors grille, contact
+   que celles cachées) et les déplace ; la gemme sélectionnée porte un **bouton rond ↻ (pivoter)** à son coin
+   haut-droit, et la rouge un bouton **⇋ (retourner)** ; pas de barre de boutons en bas. Les notes s'y affichent en transparence (même case « Notes »). Les placements invalides (chevauchement, hors grille, contact
    par un segment) sont refusés ou signalés avec la règle enfreinte.
 4. **Barre d'actions** : Nouvelle partie, Soumettre, Abandonner/Révéler, compteur
    de lasers, chronomètre.

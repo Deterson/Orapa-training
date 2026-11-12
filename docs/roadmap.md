@@ -393,6 +393,14 @@ Règles de calcul à figer (voir questions ouvertes) :
   (« Laser en E ? », « Sonder E4 ? ») avec la case « Ne plus demander » valable pour la partie
   (conservée dans la sauvegarde) ; redemander un repère ou une case déjà connus reste gratuit,
   sans confirmation ; plus de cercles rouges et verts autour des repères de l'onglet Gemmes.
+- **v1.0.5** : les notes s'affichent aussi **en transparence sur l'onglet Gemmes**, avec la même
+  case « Notes » ; sur les repères, le **numéro du tir** figure en haut à droite (entrée) et dans la
+  pastille de couleur en bas à droite (sortie), y compris dans l'onglet Notes (pour « transparent » :
+  le numéro seul, sans pastille) ; les gemmes ont **le même trait partout** (réserve, grille,
+  résultat, transparence), et en transparence le fond s'efface mais les traits restent aussi foncés
+  que dans les règles ; sur l'onglet Gemmes, une gemme sélectionnée porte un **bouton rond ↻** à son
+  coin haut-droit (et **⇋** pour la rouge) ; la barre « Pivoter / Retourner / Retirer » disparaît
+  (pour retirer une gemme : la glisser hors de la grille, ou `Suppr`).
 
 ## Questions ouvertes
 

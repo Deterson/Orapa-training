@@ -184,21 +184,15 @@ export function startApp(root: HTMLElement, version: string): void {
       issues,
       shots: session.shots,
       hypothesis: state.hypothesis,
+      notes: state.showNotes ? state.notes.present : null,
     });
-    const selected = state.selectedGem;
-    const flippable = selected !== null && GEM_SHAPES[selected].flippable;
-    const placedSelected = selected !== null && state.solution[selected] !== null;
     const hypothesis = state.hypothesis
       ? `<p class="hypo">${state.hypothesis.entry} → ${state.hypothesis.exit} · ${RESULT_COLOR_LABELS[state.hypothesis.color]}</p>`
       : '';
     const status = `${placed}/${total}${session.shots.length ? ` · ${matching}/${session.shots.length} tirs` : ''}`;
     return `
       ${board}
-      <div class="toolbar" role="toolbar" aria-label="Actions sur la gemme sélectionnée">
-        <button type="button" data-action="rotate"${placedSelected ? '' : ' disabled'}>${t.actions.rotate}</button>
-        <button type="button" data-action="flip"${placedSelected && flippable ? '' : ' disabled'} title="Rouge seulement">${t.actions.flip}</button>
-        <button type="button" class="ghost" data-action="remove"${placedSelected ? '' : ' disabled'}>${t.actions.putBack}</button>
-      </div>
+      ${optionsPanel()}
       <p class="status">${status}</p>
       ${hypothesis}
       ${
@@ -669,11 +663,12 @@ export function startApp(root: HTMLElement, version: string): void {
       case 'new-game':
         return startGame(randomSeed());
       case 'rotate':
-        return withSelectedGem(rotateGem);
+        withSelectedGem(rotateGem);
+        root.querySelector<SVGElement>('[data-action="rotate"]')?.focus();
+        return;
       case 'flip':
-        return withSelectedGem(flipGem);
-      case 'remove':
-        if (state.selectedGem) editSolution(removeGem(state.solution, state.selectedGem), null);
+        withSelectedGem(flipGem);
+        root.querySelector<SVGElement>('[data-action="flip"]')?.focus();
         return;
       case 'skip':
         event.preventDefault();
@@ -777,6 +772,12 @@ export function startApp(root: HTMLElement, version: string): void {
         event.preventDefault();
         askProbe(cellLabel(state.cursor));
       }
+      return;
+    }
+    const gemButton = target.closest('.gem-btn');
+    if (gemButton && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault();
+      gemButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       return;
     }
     const tabButton = target.closest<HTMLElement>('[role="tab"]');

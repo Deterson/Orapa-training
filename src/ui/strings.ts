@@ -26,9 +26,8 @@ export const fr = {
     replay: 'Rejouer',
     showNotes: 'Notes',
     resume: 'Reprendre',
-    rotate: '↻ Pivoter',
-    flip: '⇋ Retourner',
-    putBack: 'Retirer',
+    rotate: 'Pivoter',
+    flip: 'Retourner',
   },
   status: {
     playing: '',

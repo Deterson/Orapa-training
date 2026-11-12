@@ -9,7 +9,7 @@ import { GEM_SHAPES, type Placement, placedPolygon } from '../game/gems';
 import type { Notes } from '../game/notes';
 import type { ProbeRecord, ShotRecord } from '../game/session';
 import { notesLayerSvg } from './notesLayer';
-import { GEM_FILL, MARK_LETTER, PATTERN_DEFS, RAY_COLOR, gemPolygons } from './palette';
+import { GEM_FILL, MARK_LETTER, PATTERN_DEFS, RAY_COLOR, gemPolygons, readableOn } from './palette';
 
 export interface ShotMarks {
   shots: readonly ShotRecord[];
@@ -69,13 +69,21 @@ export function entryLabelsSvg(
     const badge = from
       ? `<circle class="badge" cx="${x + 0.34}" cy="${y - 0.34}" r="0.24"/><text class="badge-text" x="${x + 0.34}" y="${y - 0.34}">${from.n}</text>`
       : '';
-    // « transparent » : aucune pastille.
-    const dot =
-      to && to.color !== 'transparent'
-        ? `<circle class="dot" cx="${x + 0.3}" cy="${y + 0.3}" r="0.18" fill="${RAY_COLOR[to.color]}"/>`
-        : '';
+    // Pastille de sortie : le même numéro que l'entrée, dans la couleur obtenue. Pour
+    // « transparent », pas de pastille : le numéro seul.
+    let dot = '';
+    if (to) {
+      const dx = x + 0.34;
+      const dy = y + 0.34;
+      if (to.color === 'transparent') {
+        dot = `<text class="exit-number" x="${dx}" y="${dy}">${to.n}</text>`;
+      } else {
+        const fill = RAY_COLOR[to.color];
+        dot = `<circle class="dot" cx="${dx}" cy="${dy}" r="0.24" fill="${fill}"/><text class="dot-text" x="${dx}" y="${dy}" fill="${readableOn(fill)}">${to.n}</text>`;
+      }
+    }
     if (!interactive) {
-      return `<g class="${classes}" aria-hidden="true"><rect x="${x - 0.45}" y="${y - 0.45}" width="0.9" height="0.9" rx="0.2"/><text class="label" x="${x}" y="${y}">${entry.label}</text></g>`;
+      return `<g class="${classes}" aria-hidden="true"><rect x="${x - 0.45}" y="${y - 0.45}" width="0.9" height="0.9" rx="0.2"/><text class="label" x="${x}" y="${y}">${entry.label}</text>${badge}${dot}</g>`;
     }
     return `<g class="${classes}" data-${action}="${entry.label}" role="button" tabindex="0" aria-label="${action === 'fire' ? 'Tirer un laser depuis' : 'Tester sur votre grille un tir depuis'} le repère ${entry.label}"><rect x="${x - 0.45}" y="${y - 0.45}" width="0.9" height="0.9" rx="0.2"/><text class="label" x="${x}" y="${y}">${entry.label}</text>${badge}${dot}</g>`;
   }).join('');
@@ -154,7 +162,13 @@ export function shotBoardSvg(marks: ShotMarks, options: ShotBoardOptions = {}): 
     ? `<g class="ghost-gems">${gems
         .map((placement) => {
           const shape = GEM_SHAPES[placement.gem];
-          return gemPolygons(points(placedPolygon(placement)), shape.color, 'real-gem');
+          return gemPolygons(
+            points(placedPolygon(placement)),
+            shape.color,
+            'real-gem ghost-gem',
+            '',
+            true,
+          );
         })
         .join('')}</g>`
     : '';

@@ -7,10 +7,13 @@ import { GRID_COLS, GRID_ROWS } from '../game/constants';
 import { GEM_SHAPES, type GemId, BASE_GEM_IDS, orientedPolygon, placedPolygon } from '../game/gems';
 import { translate } from '../game/geometry';
 import type { ShotResult } from '../game/laser';
+import type { Notes } from '../game/notes';
 import type { ShotRecord } from '../game/session';
 import { type Solution, type SolutionIssue, sizeOf } from '../game/solution';
 import { boardFrame, entryLabelsSvg } from './board';
+import { notesLayerSvg } from './notesLayer';
 import { RAY_COLOR, gemPolygons } from './palette';
+import { t } from './strings';
 
 /** Haut de la réserve, sous la grille et ses repères. */
 export const TRAY_TOP = GRID_ROWS + 1.7;
@@ -42,6 +45,8 @@ export interface SolutionView {
   shots: readonly ShotRecord[];
   /** Tir simulé sur la grille du joueur, dont on dessine le trajet. */
   hypothesis: ShotResult | null;
+  /** Notes du joueur, en transparence sous les gemmes ; null pour les masquer. */
+  notes: Notes | null;
 }
 
 function points(list: readonly (readonly [number, number])[]): string {
@@ -74,6 +79,21 @@ export function gemSize(solution: Solution, gem: GemId): { width: number; height
   return sizeOf(gem, solution[gem]?.orientation ?? { rotation: 0, flipped: false });
 }
 
+/** Bouton rond posé au coin haut-droit de la gemme sélectionnée : pivoter, et retourner pour la rouge. */
+function gemButtonsSvg(view: SolutionView): string {
+  const gem = view.selected;
+  const placement = gem ? view.solution[gem] : null;
+  if (!gem || !placement) return '';
+  const { width } = sizeOf(gem, placement.orientation);
+  const cx = placement.col + width + 0.15;
+  const cy = placement.row - 0.15;
+  const button = (action: 'rotate' | 'flip', y: number, icon: string, label: string): string =>
+    `<g class="gem-btn" data-action="${action}" role="button" tabindex="0" aria-label="${label}"><title>${label}</title><circle cx="${cx}" cy="${y}" r="0.46"/><text x="${cx}" y="${y + 0.03}">${icon}</text></g>`;
+  const rotate = button('rotate', cy, '↻', t.actions.rotate);
+  const flip = GEM_SHAPES[gem].flippable ? button('flip', cy + 1.05, '⇋', t.actions.flip) : '';
+  return `${rotate}${flip}`;
+}
+
 export function solutionBoardSvg(view: SolutionView): string {
   const tray = `<rect class="tray" x="0" y="${TRAY_TOP}" width="${GRID_COLS}" height="${TRAY_HEIGHT}" rx="0.3"/>`;
   const gems = BASE_GEM_IDS.map((gem) => gemSvg(view, gem)).join('');
@@ -81,9 +101,10 @@ export function solutionBoardSvg(view: SolutionView): string {
     ? `<polyline class="ray-outline" points="${points(view.hypothesis.path)}"/><polyline class="ray" points="${points(view.hypothesis.path)}" stroke="${RAY_COLOR[view.hypothesis.color]}"/>`
     : '';
   const marks = { shots: view.shots, selected: null };
+  const ghostNotes = view.notes ? `<g class="ghost-notes">${notesLayerSvg(view.notes)}</g>` : '';
   return boardFrame(
     "Grille de solution : posez les gemmes à l'endroit où vous pensez qu'elles sont",
-    `${tray}${gems}${ray}${entryLabelsSvg(marks, 'hypo')}`,
+    `${tray}${ghostNotes}${gems}${ray}${entryLabelsSvg(marks, 'hypo')}${gemButtonsSvg(view)}`,
     'solution-svg',
     TRAY_EXTRA,
   );

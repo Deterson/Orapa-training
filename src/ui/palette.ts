@@ -74,13 +74,27 @@ export const PATTERN_DEFS = `<defs>
   <pattern id="pat-red" width="0.3" height="0.3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="0.3" stroke="#000" stroke-opacity="0.38" stroke-width="0.07"/></pattern>
   <pattern id="pat-yellow" width="0.32" height="0.32" patternUnits="userSpaceOnUse"><circle cx="0.16" cy="0.16" r="0.05" fill="#000" fill-opacity="0.45"/></pattern>
   <pattern id="pat-blue" width="0.3" height="0.3" patternUnits="userSpaceOnUse"><line x1="0" y1="0.15" x2="0.3" y2="0.15" stroke="#fff" stroke-opacity="0.5" stroke-width="0.06"/></pattern>
+  <pattern id="pat-ghost-blue" width="0.3" height="0.3" patternUnits="userSpaceOnUse"><line x1="0" y1="0.15" x2="0.3" y2="0.15" stroke="#0b2a52" stroke-opacity="0.55" stroke-width="0.06"/></pattern>
 </defs>`;
 
 /** Gemme dessinée : couleur pleine puis motif par-dessus (le blanc reste uni). */
-export function gemPolygons(points: string, color: GemColor, className = '', title = ''): string {
+export function gemPolygons(
+  points: string,
+  color: GemColor,
+  className = '',
+  title = '',
+  ghost = false,
+): string {
   const cls = className ? ` class="${className}"` : '';
   const label = title ? `<title>${title}</title>` : '';
   const base = `<polygon${cls} points="${points}" fill="${GEM_FILL[color]}">${label}</polygon>`;
   if (color === 'white') return base;
-  return `${base}<polygon class="gem-pattern" points="${points}" fill="url(#pat-${color})" pointer-events="none"/>`;
+  return `${base}<polygon class="gem-pattern" points="${points}" fill="url(#pat-${ghost && color === 'blue' ? 'ghost-blue' : color})" pointer-events="none"/>`;
+}
+
+/** Couleur de texte lisible (sombre ou claire) sur un fond donné en #rrggbb. */
+export function readableOn(hex: string): string {
+  const channel = (start: number): number => parseInt(hex.slice(start, start + 2), 16) / 255;
+  const luminance = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+  return luminance > 0.55 ? '#111111' : '#ffffff';
 }
