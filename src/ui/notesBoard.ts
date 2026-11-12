@@ -18,7 +18,7 @@ export interface NotesView {
 }
 
 const COLOR_MARKS = ['red', 'yellow', 'blue', 'white'] as const;
-const OTHER_MARKS = ['grey', 'empty', 'maybe'] as const;
+const OTHER_MARKS = ['empty', 'maybe'] as const;
 
 export function notesBoardSvg(view: NotesView): string {
   const content = `${entryLabelsSvg({ shots: view.shots, selected: null }, 'note', false)}<g id="note-layer">${notesLayerSvg(view.history.present)}</g><polyline id="note-preview" class="note-stroke" points="" stroke="${INK_COLOR[view.ink]}"/>`;
@@ -38,7 +38,7 @@ export function notesToolbar(view: NotesView): string {
   ).join('');
   const otherTools = OTHER_MARKS.map(
     (mark) =>
-      `<button type="button" class="tool" data-tool="${mark}" ${pressed(mark)} aria-label="${mark === 'grey' ? 'Griser une case' : mark === 'empty' ? 'Case vide' : 'Doute'}">${mark === 'grey' ? '<span class="grey-swatch" aria-hidden="true"></span>Gris' : mark === 'empty' ? '✕' : '?'}</button>`,
+      `<button type="button" class="tool" data-tool="${mark}" ${pressed(mark)} aria-label="${mark === 'empty' ? 'Case vide' : 'Doute'}">${mark === 'empty' ? '<span class="empty-swatch" aria-hidden="true"></span>Vide' : '?'}</button>`,
   ).join('');
   const inks = (['ink', 'red', 'yellow', 'blue', 'green'] as const)
     .map(

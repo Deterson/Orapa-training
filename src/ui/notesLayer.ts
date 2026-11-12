@@ -12,11 +12,8 @@ function markSvg(cell: string, mark: CellMark): string {
   const { col, row } = position;
   const x = col;
   const y = row;
-  if (mark === 'grey') {
-    return `<rect class="note-grey" x="${x}" y="${y}" width="1" height="1"/>`;
-  }
   if (mark === 'empty') {
-    return `<g class="note-mark"><line x1="${x + 0.25}" y1="${y + 0.25}" x2="${x + 0.75}" y2="${y + 0.75}"/><line x1="${x + 0.75}" y1="${y + 0.25}" x2="${x + 0.25}" y2="${y + 0.75}"/></g>`;
+    return `<rect class="note-empty" x="${x}" y="${y}" width="1" height="1"/>`;
   }
   if (mark === 'maybe') {
     return `<text class="note-maybe" x="${x + 0.5}" y="${y + 0.52}">?</text>`;

@@ -15,7 +15,7 @@ function sampleSave(): SaveData {
   session.probe('E4');
   let solution = dropGem(emptySolution(), 'blue-triangle', 2, 2);
   solution = rotateGem(solution, 'blue-triangle');
-  let notes = toggleMark(toggleMark(emptyNotes(), 'B3', 'red'), 'C4', 'grey');
+  let notes = toggleMark(toggleMark(emptyNotes(), 'B3', 'red'), 'C4', 'empty');
   notes = addStroke(notes, {
     ink: 'blue',
     points: [
@@ -94,6 +94,12 @@ describe("validation d'une sauvegarde", () => {
     const old = roundTrip(sampleSave()) as Record<string, unknown>;
     delete old['skipConfirm'];
     expect(parseSave(old)?.skipConfirm).toBe(false);
+  });
+
+  it("lit l'ancienne marque « grey » comme « vide »", () => {
+    const old = roundTrip(sampleSave()) as { notes: { marks: Record<string, string> } };
+    old.notes.marks['D5'] = 'grey';
+    expect(parseSave(old)?.notes.marks['D5']).toBe('empty');
   });
 
   it("refuse tout ce qui n'est pas une sauvegarde", () => {

@@ -401,6 +401,12 @@ Règles de calcul à figer (voir questions ouvertes) :
   que dans les règles ; sur l'onglet Gemmes, une gemme sélectionnée porte un **bouton rond ↻** à son
   coin haut-droit (et **⇋** pour la rouge) ; la barre « Pivoter / Retourner / Retirer » disparaît
   (pour retirer une gemme : la glisser hors de la grille, ou `Suppr`).
+- **v1.0.6** : l'historique des tirs **prolonge la page** au lieu d'être une liste à défiler ; la
+  marque « gris » des notes devient **« Vide »**, dessinée par des **stries diagonales grises
+  transparentes** (l'ancienne croix ✕ disparaît ; les anciennes sauvegardes « grisée » sont lues
+  comme « vide ») ; **correction** : l'onglet Résultat redevient accessible après un autre onglet ;
+  sur l'onglet Résultat, les **36 repères sont cliquables** : un laser libre est tiré dans la mine
+  révélée et son trajet est tracé (gratuit, hors compteur).
 
 ## Questions ouvertes
 

@@ -99,7 +99,7 @@ function parseSolution(value: unknown): Solution | null {
   return result as Solution;
 }
 
-const MARKS: readonly CellMark[] = ['red', 'yellow', 'blue', 'white', 'grey', 'empty', 'maybe'];
+const MARKS: readonly CellMark[] = ['red', 'yellow', 'blue', 'white', 'empty', 'maybe'];
 const INKS: readonly Ink[] = ['ink', 'red', 'yellow', 'blue', 'green'];
 const MAX_STROKES = 2000;
 const MAX_POINTS = 5000;
@@ -123,10 +123,16 @@ function parseNotes(value: unknown): Notes | null {
     return null;
   const marks: Record<string, CellMark> = {};
   for (const [cell, mark] of Object.entries(value['marks'])) {
-    if (parseCell(cell) === null || typeof mark !== 'string' || !MARKS.includes(mark as CellMark)) {
+    // « grey » : ancienne marque « grisée », devenue « vide » (stries).
+    const current = mark === 'grey' ? 'empty' : mark;
+    if (
+      parseCell(cell) === null ||
+      typeof current !== 'string' ||
+      !MARKS.includes(current as CellMark)
+    ) {
       return null;
     }
-    marks[cell] = mark as CellMark;
+    marks[cell] = current as CellMark;
   }
   if (value['strokes'].length > MAX_STROKES) return null;
   const strokes = value['strokes'].map(parseStroke);

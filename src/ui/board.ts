@@ -85,7 +85,7 @@ export function entryLabelsSvg(
     if (!interactive) {
       return `<g class="${classes}" aria-hidden="true"><rect x="${x - 0.45}" y="${y - 0.45}" width="0.9" height="0.9" rx="0.2"/><text class="label" x="${x}" y="${y}">${entry.label}</text>${badge}${dot}</g>`;
     }
-    return `<g class="${classes}" data-${action}="${entry.label}" role="button" tabindex="0" aria-label="${action === 'fire' ? 'Tirer un laser depuis' : 'Tester sur votre grille un tir depuis'} le repère ${entry.label}"><rect x="${x - 0.45}" y="${y - 0.45}" width="0.9" height="0.9" rx="0.2"/><text class="label" x="${x}" y="${y}">${entry.label}</text>${badge}${dot}</g>`;
+    return `<g class="${classes}" data-${action}="${entry.label}" role="button" tabindex="0" aria-label="${action === 'fire' || action === 'explore' ? 'Tirer un laser depuis' : 'Tester sur votre grille un tir depuis'} le repère ${entry.label}"><rect x="${x - 0.45}" y="${y - 0.45}" width="0.9" height="0.9" rx="0.2"/><text class="label" x="${x}" y="${y}">${entry.label}</text>${badge}${dot}</g>`;
   }).join('');
 }
 

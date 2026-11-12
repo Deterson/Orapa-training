@@ -66,6 +66,8 @@ interface State {
   selectedGem: GemId | null;
   /** Tir simulé sur la grille du joueur. */
   hypothesis: ShotResult | null;
+  /** Laser tiré après la fin de la partie, dans la mine révélée. */
+  explored: ShotResult | null;
   notes: NotesHistory;
   tool: Tool;
   ink: Ink;
@@ -157,6 +159,7 @@ export function startApp(root: HTMLElement, version: string): void {
     solution: emptySolution(),
     selectedGem: null,
     hypothesis: null,
+    explored: null,
     notes: newHistory(),
     tool: 'pencil',
     ink: 'ink',
@@ -208,7 +211,8 @@ export function startApp(root: HTMLElement, version: string): void {
     return `
       <div class="result is-${summary.status}">
         <h2>${t.status[summary.status]}</h2>
-        ${resultBoardSvg(diffs)}
+        ${resultBoardSvg(diffs, session.shots, state.explored)}
+        ${state.explored ? `<p class="hypo">${state.explored.entry} → ${state.explored.exit} · ${RESULT_COLOR_LABELS[state.explored.color]}</p>` : ''}
         <ul class="diff">${diffs.map((diff) => `<li class="${diff.status}">${diffLine(diff)}</li>`).join('')}</ul>
         <div class="actions">
           <button type="button" data-action="new-game">${t.actions.newGame}</button>
@@ -383,6 +387,7 @@ export function startApp(root: HTMLElement, version: string): void {
     state.solution = emptySolution();
     state.selectedGem = null;
     state.hypothesis = null;
+    state.explored = null;
     state.notes = newHistory();
     state.ask = null;
     state.skipConfirm = false;
@@ -463,6 +468,15 @@ export function startApp(root: HTMLElement, version: string): void {
     if (skip) state.skipConfirm = true;
     if (ask.kind === 'fire') doFire(ask.label);
     else doProbe(ask.cell);
+  };
+
+  /** Après la fin de la partie : tire un laser libre dans la mine révélée et en trace le trajet. */
+  const exploreMine = (label: string): void => {
+    const session = state.session;
+    if (!session || !session.finished) return;
+    state.explored = shoot(session.reveal(), label);
+    state.notice = `${label} → ${state.explored.exit}, ${RESULT_COLOR_LABELS[state.explored.color]}`;
+    render();
   };
 
   const testOnSolution = (label: string): void => {
@@ -635,10 +649,12 @@ export function startApp(root: HTMLElement, version: string): void {
     if (entry?.dataset['fire']) return askFire(entry.dataset['fire']);
     const probeTarget = target.closest<HTMLElement>('[data-probe]');
     if (probeTarget?.dataset['probe']) return askProbe(probeTarget.dataset['probe']);
+    const explore = target.closest<HTMLElement>('[data-explore]');
+    if (explore?.dataset['explore']) return exploreMine(explore.dataset['explore']);
     const hypo = target.closest<HTMLElement>('[data-hypo]');
     if (hypo?.dataset['hypo']) return testOnSolution(hypo.dataset['hypo']);
     const tab = target.closest<HTMLElement>('[data-tab]')?.dataset['tab'];
-    if (tab === 'shots' || tab === 'solution' || tab === 'notes') {
+    if (tab === 'shots' || tab === 'solution' || tab === 'notes' || tab === 'result') {
       state.tab = tab;
       return render();
     }
@@ -845,12 +861,16 @@ export function startApp(root: HTMLElement, version: string): void {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     const fireEntry = target.closest<HTMLElement>('[data-fire]')?.dataset['fire'];
     const hypoEntry = target.closest<HTMLElement>('[data-hypo]')?.dataset['hypo'];
+    const exploreEntry = target.closest<HTMLElement>('[data-explore]')?.dataset['explore'];
     if (fireEntry) {
       event.preventDefault();
       askFire(fireEntry);
     } else if (hypoEntry) {
       event.preventDefault();
       testOnSolution(hypoEntry);
+    } else if (exploreEntry) {
+      event.preventDefault();
+      exploreMine(exploreEntry);
     }
   });
 

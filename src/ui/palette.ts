@@ -60,7 +60,6 @@ export const MARK_LABEL: Record<CellMark, string> = {
   yellow: 'jaune',
   blue: 'bleue',
   white: 'blanche',
-  grey: 'grisée',
   empty: 'vide',
   maybe: 'doute',
 };
@@ -74,6 +73,7 @@ export const PATTERN_DEFS = `<defs>
   <pattern id="pat-red" width="0.3" height="0.3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="0.3" stroke="#000" stroke-opacity="0.38" stroke-width="0.07"/></pattern>
   <pattern id="pat-yellow" width="0.32" height="0.32" patternUnits="userSpaceOnUse"><circle cx="0.16" cy="0.16" r="0.05" fill="#000" fill-opacity="0.45"/></pattern>
   <pattern id="pat-blue" width="0.3" height="0.3" patternUnits="userSpaceOnUse"><line x1="0" y1="0.15" x2="0.3" y2="0.15" stroke="#fff" stroke-opacity="0.5" stroke-width="0.06"/></pattern>
+  <pattern id="pat-empty" width="0.24" height="0.24" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="0.24" stroke="#6b7280" stroke-opacity="0.5" stroke-width="0.07"/></pattern>
   <pattern id="pat-ghost-blue" width="0.3" height="0.3" patternUnits="userSpaceOnUse"><line x1="0" y1="0.15" x2="0.3" y2="0.15" stroke="#0b2a52" stroke-opacity="0.55" stroke-width="0.06"/></pattern>
 </defs>`;
 

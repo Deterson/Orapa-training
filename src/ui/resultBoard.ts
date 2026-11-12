@@ -4,15 +4,34 @@
  */
 import { cellLabel } from '../game/board';
 import { GEM_SHAPES, placedPolygon } from '../game/gems';
+import type { ShotResult } from '../game/laser';
+import { parseEntryLabel } from '../game/board';
+import type { ShotRecord } from '../game/session';
 import type { GemDiff } from '../game/verify';
-import { boardFrame } from './board';
-import { gemPolygons } from './palette';
+import { boardFrame, entryLabelsSvg, labelCenter } from './board';
+import { RAY_COLOR, gemPolygons } from './palette';
 
 function points(list: readonly (readonly [number, number])[]): string {
   return list.map(([x, y]) => `${x},${y}`).join(' ');
 }
 
-export function resultBoardSvg(diffs: readonly GemDiff[]): string {
+/** Anneau autour d'un repère du bord. */
+function ringSvg(label: string): string {
+  const entry = parseEntryLabel(label);
+  if (entry === null) return '';
+  const [x, y] = labelCenter(entry);
+  return `<rect class="explore-ring" x="${x - 0.5}" y="${y - 0.5}" width="1" height="1" rx="0.25"/>`;
+}
+
+/**
+ * La vraie mine et la proposition du joueur. Les 36 repères restent cliquables : la partie est
+ * finie, on peut donc tirer des lasers librement et en voir le trajet dans la mine révélée.
+ */
+export function resultBoardSvg(
+  diffs: readonly GemDiff[],
+  shots: readonly ShotRecord[] = [],
+  explored: ShotResult | null = null,
+): string {
   const actual = diffs
     .map(({ actual: placement }) => {
       const shape = GEM_SHAPES[placement.gem];
@@ -26,7 +45,15 @@ export function resultBoardSvg(diffs: readonly GemDiff[]): string {
         `<polygon class="guess-gem ${diff.status === 'correct' ? 'is-correct' : 'is-wrong'}" points="${points(placedPolygon(diff.guess!))}"/>`,
     )
     .join('');
-  return boardFrame('La vraie mine et votre proposition', `${actual}${guesses}`, 'result-svg');
+  const path = explored ? points(explored.path) : '';
+  const ray = explored
+    ? `<polyline class="ray-outline" points="${path}"/><polyline class="ray" points="${path}" stroke="${RAY_COLOR[explored.color]}"/>${ringSvg(explored.entry)}${ringSvg(explored.exit)}`
+    : '';
+  return boardFrame(
+    'La vraie mine et votre proposition : touchez un repère pour tirer un laser',
+    `${actual}${guesses}${ray}${entryLabelsSvg({ shots, selected: null }, 'explore')}`,
+    'result-svg',
+  );
 }
 
 function whereIs(placement: GemDiff['actual']): string {

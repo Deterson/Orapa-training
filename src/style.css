@@ -287,8 +287,6 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 28rem;
-  overflow-y: auto;
 }
 
 .shot {
@@ -842,9 +840,8 @@ h2 {
   touch-action: none;
 }
 
-.note-grey {
-  fill: var(--fg);
-  fill-opacity: 0.3;
+.note-empty {
+  fill: url(#pat-empty);
   pointer-events: none;
 }
 
@@ -873,7 +870,7 @@ h2 {
   accent-color: var(--accent);
 }
 
-.grey-swatch {
+.empty-swatch {
   display: inline-block;
   width: 1rem;
   height: 1rem;
@@ -881,7 +878,7 @@ h2 {
   vertical-align: -0.15rem;
   border-radius: 3px;
   border: 1px solid #0006;
-  background: #8a8f99;
+  background: repeating-linear-gradient(45deg, #8a8f9988 0 2px, transparent 2px 5px);
 }
 
 .chips {
@@ -1022,4 +1019,11 @@ h2 {
 
 .entry .exit-number {
   fill: var(--muted);
+}
+
+.explore-ring {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: 0.12;
+  pointer-events: none;
 }

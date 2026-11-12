@@ -6,8 +6,8 @@
 import { GRID_COLS, GRID_ROWS } from './constants';
 import { cellLabel } from './board';
 
-/** Marque posée sur une case : une couleur de gemme supposée, « grisée », « vide » ou « doute ». */
-export type CellMark = 'red' | 'yellow' | 'blue' | 'white' | 'grey' | 'empty' | 'maybe';
+/** Marque posée sur une case : une couleur de gemme supposée, « vide » (stries) ou « doute ». */
+export type CellMark = 'red' | 'yellow' | 'blue' | 'white' | 'empty' | 'maybe';
 
 /** Couleur d'encre du crayon. */
 export type Ink = 'ink' | 'red' | 'yellow' | 'blue' | 'green';
