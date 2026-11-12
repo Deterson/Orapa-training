@@ -1,15 +1,17 @@
 # Orapa Training
 
-Site web d'entraînement au jeu de société **Orapa Mine** (Sébastien Pauchon).
+Site web d'entraînement au jeu de société **Orapa Mine** (Junghee Choi et Wanjin Gill, Gameology ; édition française
+Miraludo).
 Le site génère une « mine » aléatoire (grille de gemmes cachées) et le joueur doit
 la reconstituer par déduction, en tirant des lasers, en prenant des notes et en
 plaçant ses propres gemmes, puis en soumettant sa solution.
 
 > Statut : le dépôt est vide, ce fichier est la spécification de départ.
-> Les règles du jeu ci-dessous viennent des règles officielles telles que
-> reprises par des sources publiques (voir « Sources des règles »). Ce qui reste
-> **(à valider)** n'est pas couvert par ces sources, en particulier la **forme
-> exacte des gemmes**, qu'on ne trouve que sur les schémas du livret physique.
+> Les règles ci-dessous viennent du **livret officiel** (édition française
+> Miraludo, photographié par le propriétaire du projet), complété par des sources
+> publiques pour ce que le livret ne dit pas (voir « Sources des règles »). Les
+> formes des gemmes ont été **lues sur les schémas** du livret : elles sont
+> marquées **(à valider)** tant qu'on ne les a pas vérifiées sur les pièces.
 
 ## Objectif produit
 
@@ -20,8 +22,9 @@ Permettre de s'entraîner seul·e à Orapa Mine, partie après partie :
    - **Tirer des lasers** depuis les bords de la grille et observer le résultat
      (sortie du rayon, couleur obtenue, absorption éventuelle) ;
    - **Dessiner / annoter** sur une grille de notes pour poser ses hypothèses ;
-   - **Déplacer des gemmes** sur sa propre grille de solution (glisser-déposer,
-     rotation, éventuellement retournement) ;
+   - **Déplacer des gemmes** sur sa propre grille de solution (glisser-déposer
+     et rotation par quarts de tour ; pas de retournement, voir les règles de
+     placement) ;
    - **Soumettre** sa solution et obtenir la correction.
 3. À la soumission : verdict (correct / incorrect), nombre de lasers utilisés,
    temps écoulé, et révélation de la vraie grille. Un bouton « nouvelle partie »
@@ -34,23 +37,54 @@ backend. Le site est **100 % statique, côté client**.
 
 - **Grille / mine** : grille de **10 colonnes × 8 lignes**. Garder
   largeur/hauteur en constantes, pas en dur.
-- **Gemme** : pièce polygonale dont chaque coin est aligné sur un coin de la
-  grille, posée droite (jamais « de travers »). Une gemme a une forme, une
-  couleur et une orientation. **Les formes exactes sont à valider** (voir
-  « Questions ouvertes ») : les décrire comme des données, pas dans le code.
+- **Coordonnées d'une case** : une **lettre A–H** (ligne, de haut en bas) suivie
+  d'un **nombre 1–10** (colonne, de gauche à droite). Exemples du livret : « E4 »,
+  « B3 ».
+- **Points d'entrée** : 36, repérés sur le bord du plateau comme sur le livret.
+  Le rayon entre perpendiculairement au bord :
+
+  | Bord | Repères | Sens de numérotation | Direction du rayon |
+  |---|---|---|---|
+  | haut | 1 à 10 | colonnes, gauche → droite | vers le bas |
+  | droite | 11 à 18 | lignes, haut → bas | vers la gauche |
+  | bas | I à R | colonnes, gauche → droite | vers le haut |
+  | gauche | A à H | lignes, haut → bas | vers la droite |
+
+  Donc le point 15 est la ligne E côté droit, et le point I est la colonne 1
+  côté bas. Les points de **sortie** utilisent les mêmes repères.
+- **Gemme** : pièce polygonale dont **chaque coin est sur un coin de la grille**
+  et dont les lignes visibles suivent la grille (jamais « de travers »). Une
+  gemme a une forme, une couleur et une orientation. Les pièces portent leur
+  quadrillage sur la face visible et **ne se retournent pas** : les orientations
+  possibles sont les **rotations par quarts de tour**, sans miroir.
 - **Jeu de gemmes** : 7 pièces par jeu. Partie de base : **5 gemmes = 1 rouge,
-  1 jaune, 1 bleue, 2 blanches**. Variantes optionnelles : le **Diamant**
-  (gemme transparente) et le **Corps noir** (gemme noire, absorbe le rayon).
-- **Points d'entrée** : 36 au total, repérés **1 à 18** et **A à R** sur le bord
-  (10 + 8 de chaque côté). Quels bords portent les chiffres ou les lettres, et
-  dans quel sens, est à valider : on peut définir notre propre convention tant
-  qu'elle est cohérente.
+  1 jaune, 1 bleue, 2 blanches**. Extensions optionnelles : le **Diamant** (gemme
+  transparente) et le **Corps noir** (absorbe le rayon). Soit 5 + 2 = 7.
+- **Formes des gemmes (à valider)**, lues sur les schémas du livret. Coordonnées
+  en cases, origine en haut à gauche de la boîte englobante, y vers le bas :
+
+  | Gemme | Forme | Sommets | Boîte | Orientations |
+  |---|---|---|---|---|
+  | Rouge | parallélogramme | (1,0) (3,0) (2,1) (0,1) | 3×1 | 2 (0°, 90°) |
+  | Jaune | petit triangle rectangle isocèle (côtés de l'angle droit = 2) | (0,0) (2,0) (0,2) | 2×2 | 4 |
+  | Bleue | grand triangle isocèle rectangle (hypoténuse = 4, hauteur = 2) | (0,0) (4,0) (2,2) | 4×2 | 4 |
+  | Blanche 1 | losange (carré posé sur la pointe) | (1,0) (2,1) (1,2) (0,1) | 2×2 | 1 |
+  | Blanche 2 | grand triangle, même forme que le bleu | (0,0) (4,0) (2,2) | 4×2 | 4 |
+  | Diamant (ext.) | transparent ; le pictogramme du livret montre un triangle | ? | ? | ? |
+  | Corps noir (ext.) | empreinte rectangulaire, pointe vers le haut | ? (≈ 2×1) | ? | ? |
+
+  Le parallélogramme rouge n'a pas de symétrie miroir : une seule chiralité
+  (celle des schémas, penchée vers la droite). Les gemmes de l'extension ne sont
+  utiles qu'une fois la partie de base terminée. Décrire les formes comme des
+  **données** (liste de sommets), pas dans le code.
 - **Laser** : rayon envoyé depuis un point d'entrée, droit, **uniquement
   horizontal ou vertical**.
 - **Résultat d'un tir** : point de sortie sur le bord et couleur finale du rayon,
   ou « le signal a été absorbé » (Corps noir).
 - **Sonder une case** : seconde action officielle, « Qu'y a-t-il en E4 ? »,
-  réponse « Rien » ou « Une gemme <couleur> ». Elle coûte un tour comme un tir.
+  réponse « Rien » ou « Une gemme blanche », etc. Elle coûte un tour comme un tir.
+  Le livret autorise aussi à redemander une réponse déjà donnée sans coût : ici
+  l'historique des tirs remplit ce rôle.
 - **Mine cachée** vs **grille joueur** : deux états distincts, jamais mélangés
   dans le même objet pour éviter toute fuite d'information dans l'UI.
 
@@ -58,18 +92,34 @@ backend. Le site est **100 % statique, côté client**.
 
 À implémenter dans un module pur, sans dépendance au DOM.
 
-**Officiel (sources publiques) :**
+**Règles du livret officiel :**
 
 - Le rayon est **transparent au départ**. Il file en ligne droite, horizontale ou
-  verticale, jusqu'à toucher une gemme, **rebondit selon l'angle** de la face
-  touchée, et ressort quelque part sur le bord.
+  verticale, jusqu'à rencontrer une gemme ; il **se réfléchit dessus selon son
+  inclinaison** avant de ressortir de la mine. Il ne traverse jamais une gemme.
+- **Géométrie** (déduite des schémas du livret, que les tests doivent reproduire) :
+  - le rayon suit le **milieu des lignes et des colonnes** (les centres des cases),
+    pas les lignes de la grille ;
+  - sur une face **inclinée à 45°**, il tourne de **90°** ;
+  - sur une face **perpendiculaire** à sa direction (côté aligné sur la grille
+    touché de face), il **repart en sens inverse** ;
+  - comme tous les sommets sont sur des coins de la grille et que le rayon est
+    sur des demi-cases, **il ne touche jamais un sommet exactement** ;
+  - les réflexions sont réversibles : **aucune boucle possible**, le rayon finit
+    toujours par sortir, éventuellement par son point d'entrée.
+- Exemples du livret (schéma de la page 2) à reprendre comme tests : depuis le
+  point **I** le rayon ressort **rouge en I** (face horizontale du parallélogramme
+  rouge touchée de face) ; depuis le point **15** il ressort **violet clair en 8**
+  (losange blanc, puis parallélogramme rouge, puis grand triangle bleu : blanc +
+  rouge + bleu). Relever les positions des gemmes sur le schéma pour monter le test.
 - Le rayon se **teinte** au contact des gemmes. Si le rayon touche plusieurs fois
   la même couleur, **seule la première interaction avec cette couleur compte** :
   la couleur finale dépend donc de l'**ensemble des couleurs distinctes**
   touchées, pas de leur nombre ni de leur ordre.
-- Table des couleurs (ensemble des couleurs touchées → couleur annoncée). C'est la
-  table complète de Board Game Arena ; le livret en français n'en donne qu'une
-  partie et ne la contredit pas, sauf pour bleu + jaune + blanc (voir plus bas) :
+- Table des couleurs (ensemble des couleurs touchées → couleur annoncée). Le
+  livret en montre la plupart en schémas (orange, vert, violet, noir, rose, bleu
+  clair, jaune clair, vert clair, violet clair, gris) ; seul orange clair vient de
+  la table de Board Game Arena :
 
   | Couleurs touchées | Résultat |
   |---|---|
@@ -87,22 +137,21 @@ backend. Le site est **100 % statique, côté client**.
   | rouge + jaune + blanc | orange clair |
   | rouge + bleu + jaune + blanc | gris |
 
-  Le livret français note « bleu + jaune + blanc = vert » alors que BGA et
-  RulesPal disent « vert clair » (et « vert » pour bleu + jaune seul). On retient
-  **vert clair**, plus cohérent avec le reste de la table.
+  Le livret confirme **bleu + jaune + blanc = vert clair** (le « vert » du
+  résumé de regles-du-jeu.net est une erreur de ce résumé).
 - **Diamant** (optionnel) : fait rebondir le rayon comme les autres gemmes mais
   **ne change pas sa couleur**. Si le rayon touche aussi d'autres gemmes, la
   couleur ne dépend que de celles-ci.
 - **Corps noir** (optionnel) : absorbe le rayon. Pas de point de sortie, pas de
   couleur : on annonce « Le signal a été absorbé ».
 
-**À valider (non précisé par les sources) :**
+**À valider :**
 
-- Géométrie exacte du rebond sur chaque forme (angles, face perpendiculaire qui
-  renvoie le rayon vers son entrée, etc.). Hypothèse de travail : le rayon est
-  **réfléchi** par la face touchée et ne traverse pas la gemme.
-- Cas limites : rayon qui frappe un sommet exactement, boucles éventuelles,
-  rayon qui ressort par son point d'entrée.
+- Comportement exact sur les gemmes des extensions (Diamant, Corps noir) dont on
+  ne connaît pas encore la forme.
+- Un rayon qui se réfléchit plusieurs fois sur la même gemme (par exemple dans
+  l'angle d'un triangle) ne compte qu'une fois sa couleur, comme toute couleur
+  déjà touchée ; c'est la règle générale, à confirmer sur un cas réel.
 
 Toute règle tranchée doit être reportée ici **et** couverte par un test.
 
@@ -111,28 +160,31 @@ Toute règle tranchée doit être reportée ici **et** couverte par un test.
 - Utiliser un **PRNG à graine** (ex. mulberry32) plutôt que `Math.random()` :
   chaque partie a une graine affichée/partageable (`?seed=...`) pour rejouer ou
   comparer une même mine.
-- **Placement officiel des gemmes** (« règles d'or ») :
-  - chaque gemme est posée droite, **chaque coin aligné sur un coin de la
-    grille** ;
-  - une gemme peut **toucher les bords** du plateau mais **pas dépasser** ;
-  - **pas de chevauchement**, et deux gemmes ne peuvent pas se toucher
-    « côte à côte » : seul un contact par un **coin** est permis. Le livret
-    français est ambigu (« uniquement par un coin ou une arête ») ; RulesPal dit
-    que les bords de deux pièces ne peuvent pas se toucher directement et que
-    seuls les coins peuvent se rejoindre. **À valider** : on retient d'abord
-    « contact par un coin seulement, jamais de côté partagé » ;
-  - partie de base : tirer 5 gemmes (1 rouge, 1 jaune, 1 bleue, 2 blanches) parmi
+- **Placement officiel des gemmes** (règles a à e du livret, « Placement ») :
+  - **a.** les lignes de la surface des gemmes doivent être visibles : la pièce est
+    posée sur sa face quadrillée, **jamais retournée** (rotations seulement) ;
+  - **b.** chaque coin de gemme sur un coin de la grille, lignes visibles alignées
+    sur la grille : pas de pose « de travers » ;
+  - **c.** une gemme peut **toucher le bord** du plateau mais **pas en dépasser** ;
+  - **d.** « Deux gemmes ne peuvent pas être placées côte à côte. Elles ne peuvent
+    se toucher que par un coin ou une ligne. » Lecture retenue (**à valider**) :
+    l'intersection de deux gemmes est **vide ou réduite à un point** (sommet contre
+    sommet, ou sommet contre le milieu d'un côté) ; **jamais de segment partagé**,
+    et bien sûr pas de chevauchement. C'est ce que montre le schéma d du livret :
+    le losange blanc, collé au parallélogramme rouge le long d'un côté, porte une
+    croix ; le contact par un coin entre le parallélogramme et le grand triangle
+    blanc porte un rond ;
+  - **e.** chaque gemme doit être **accessible depuis au moins un bord** du plateau
+    (« il doit être possible de tracer une ligne pour l'atteindre »).
+  - Partie de base : tirer 5 gemmes (1 rouge, 1 jaune, 1 bleue, 2 blanches) parmi
     le jeu de 7, avec Diamant / Corps noir en options.
   Rejeter et retirer en cas d'échec (backtracking simple ou re-tirage complet).
-- **Contrainte de visibilité (règle de ce projet, plus stricte que le livret)** :
-  chaque gemme doit être **directement atteignable par au moins un laser envoyé
-  depuis un bord**. Concrètement, il existe un point d'entrée dont le rayon,
-  allant tout droit sans aucun rebond préalable, touche cette gemme comme
-  **première** gemme rencontrée. Une gemme qui n'est atteinte qu'après un rebond
-  sur une autre gemme ne compte pas. Une mine qui viole cette règle est rejetée
-  et regénérée. (Le livret dit seulement : « aucune gemme ne doit être
-  entièrement masquée par une autre depuis un bord du plateau » ; notre règle
-  l'implique.)
+- **Contrainte de visibilité (règle e)** : chaque gemme doit être **directement
+  atteignable par au moins un laser envoyé depuis un bord**. Concrètement, il
+  existe un point d'entrée dont le rayon, allant tout droit sans aucun rebond
+  préalable, touche cette gemme comme **première** gemme rencontrée. Une gemme qui
+  n'est atteinte qu'après un rebond sur une autre ne compte pas. Une mine qui
+  viole cette règle est rejetée et regénérée.
 - **Contrainte d'unicité** : la mine doit être la **seule** configuration possible
   (avec l'ensemble de gemmes donné) qui produit les résultats de l'ensemble des
   tirs possibles. Pour cela, après génération :
@@ -190,13 +242,21 @@ ce résultat ? »).
   tiré assez de lasers pour lever l'ambiguïté : c'est le cœur de l'entraînement.
 - Pas besoin de comparer des signatures à la soumission ; le simulateur sert
   seulement au tir et à l'outil de vérification d'hypothèse du joueur.
+- Règles officielles de fin de partie, pour mémoire : à deux joueurs, une
+  proposition fausse fait **perdre immédiatement** ; à 3 joueurs ou plus, on a
+  **deux chances**. En entraînement le choix est ouvert (voir « Questions
+  ouvertes »).
 - Après soumission : afficher les différences (gemmes manquantes / mal placées /
   en trop) et la vraie mine.
 
 ## Sources des règles
 
-- Règles d'Orapa Mine (livret en français, repris par regles-du-jeu.net) :
-  https://www.regles-du-jeu.net/?p=10051
+- **Livret officiel** (édition française Miraludo, 2024) : source de référence,
+  photographiée par le propriétaire du projet. En cas de désaccord, c'est lui qui
+  l'emporte sur tout le reste.
+- Résumé du livret en français : https://www.regles-du-jeu.net/?p=10051
+  (approximatif : sa phrase sur le contact entre gemmes est contradictoire et son
+  tableau des couleurs est incomplet.)
 - Résumé du livret en anglais : https://rulespal.com/orapa-mine/rulebook
 - Adaptation Board Game Arena, avec la table complète des couleurs :
   https://en.doc.boardgamearena.com/Gamehelporapamine
@@ -204,8 +264,9 @@ ce résultat ? »).
   par exemple « deux gemmes blanches ne peuvent pas être parfaitement
   symétriques » ; ce n'est pas une règle du jeu physique.)
 
-Ces sources ne contiennent **pas** le dessin des gemmes. En cas de désaccord entre
-elles, noter la décision prise dans la section concernée.
+Les dimensions des gemmes ne sont données que par les schémas du livret, pas par
+du texte. En cas de désaccord entre sources, noter la décision prise dans la
+section concernée.
 
 ## Stack et conventions
 
@@ -224,7 +285,7 @@ Architecture :
 src/
   game/        # logique pure, sans DOM, entièrement testable
     board.ts       # dimensions, coordonnées, collisions
-    gems.ts        # définitions des formes/couleurs, rotation, miroir
+    gems.ts        # définitions des formes/couleurs, rotation (pas de miroir)
     laser.ts       # propagation et mélange de couleurs
     generate.ts    # génération aléatoire à graine
     verify.ts      # correction de la soumission
@@ -267,11 +328,12 @@ npm run build      # build statique
 
 ## Questions ouvertes
 
-- **Formes exactes des 7 gemmes** (géométrie sur la grille) et règles de rebond
-  détaillées : aucune source texte ne les donne. Il faut le schéma du livret ou
-  des photos du matériel ; à fournir avant d'écrire `gems.ts` et `laser.ts`.
-- Convention de numérotation des 36 points d'entrée (1–18, A–R) : quels côtés,
-  quel sens.
+- **Dimensions des gemmes** : lues sur les schémas, à confirmer sur les pièces
+  (surtout le grand triangle, supposé identique en bleu et en blanc, et le
+  losange blanc). Formes du Diamant et du Corps noir encore inconnues.
+- Contact entre gemmes (règle d) : le livret dit « par un coin ou une ligne ».
+  Confirmer qu'un sommet posé contre le milieu d'un côté est permis et qu'un
+  segment partagé ne l'est pas.
 - Soumission en entraînement : une seule tentative (comme le jeu officiel, une
   erreur = défaite) ou plusieurs essais ?
 - Proposer l'action « sonder une case » (« Qu'y a-t-il en E4 ? ») et la compter
