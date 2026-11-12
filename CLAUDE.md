@@ -5,9 +5,9 @@ Gameology ; édition française Miraludo). Le site génère une « mine » aléa
 gemmes cachées) et le joueur doit la reconstituer par déduction, en tirant des lasers, en
 prenant des notes et en plaçant ses propres gemmes, puis en soumettant sa solution.
 
-> Statut : étapes **v0.1 à v0.11** terminées (socle, géométrie et placement, simulateur de
-> laser, visibilité, générateur et solveur d'unicité, grille de tir, grille de solution, notes, soumission et résultat, sauvegarde locale, page Règles et finitions). La page du site est un banc d'essai provisoire de cette logique ;
-> la vraie interface commence à l'étape v0.6. `CLAUDE.md` et `docs/` sont la spécification.
+> Statut : **v1 livrée (v1.0.0)**. Les étapes v0.1 à v0.11 sont terminées : jeu complet de la
+> partie de base, sauvegarde locale, page Règles. Prochaine étape : v1.1 (choix du backend de la
+> v2). `CLAUDE.md` et `docs/` sont la spécification.
 
 ## Documentation (`docs/`)
 

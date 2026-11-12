@@ -257,12 +257,18 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
 - **Fini quand :** le parcours complet est validé sur ordinateur et sur téléphone. ✔ (en
   émulation ; un essai sur un vrai téléphone reste souhaitable)
 
-### Critères de sortie : livraison de la v1
+### Critères de sortie : livraison de la v1 : atteints (v1.0.0)
 
-- Toutes les règles de [`regles.md`](regles.md) implémentées et testées.
-- Toute mine générée est valide, visible et unique.
-- La sauvegarde locale restaure une partie en cours.
-- Déployée, CI verte.
+- ✔ Toutes les règles de [`regles.md`](regles.md) de la partie de base sont implémentées et
+  testées (201 tests). Seules les extensions Diamant et Corps noir manquent : leurs formes
+  sont inconnues.
+- ✔ Toute mine générée est valide, visible et unique (100 graines testées ; solveur vérifié contre
+  une énumération exhaustive).
+- ✔ La sauvegarde locale restaure une partie en cours.
+- ✔ Déployée sur GitHub Pages, CI verte.
+
+**Reste à faire avant de s'y fier :** essayer le site sur un vrai téléphone (les tests tactiles
+utilisent des événements émulés) et confirmer les dimensions des gemmes sur les pièces.
 
 ---
 
