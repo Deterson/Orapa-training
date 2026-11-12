@@ -330,3 +330,121 @@ h2 {
   min-width: 5.5rem;
   text-align: right;
 }
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tab {
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  padding: 8px 16px;
+  font-weight: 600;
+}
+
+.tab.is-active {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+}
+
+.entry.is-ok rect {
+  stroke: #1e9e50;
+  stroke-width: 0.14;
+}
+
+.entry.is-bad rect {
+  stroke: #d33a2c;
+  stroke-width: 0.14;
+}
+
+.tray {
+  fill: var(--bg);
+  stroke: var(--line);
+  stroke-width: 0.05;
+  stroke-dasharray: 0.2 0.15;
+}
+
+.tray-label {
+  fill: var(--muted);
+  font-size: 0.45px;
+}
+
+.gem-g {
+  cursor: grab;
+  touch-action: none;
+  outline: none;
+}
+
+.gem-g polygon {
+  stroke: #000;
+  stroke-opacity: 0.4;
+  stroke-width: 0.06;
+  stroke-linejoin: round;
+}
+
+.gem-g:focus-visible polygon,
+.gem-g.is-selected polygon {
+  stroke: var(--accent);
+  stroke-opacity: 1;
+  stroke-width: 0.16;
+}
+
+.gem-g.is-bad polygon {
+  stroke: #d33a2c;
+  stroke-opacity: 1;
+  stroke-width: 0.14;
+  stroke-dasharray: 0.25 0.15;
+}
+
+.gem-g.is-dragging {
+  cursor: grabbing;
+  opacity: 0.85;
+}
+
+.ray,
+.ray-outline {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.ray-outline {
+  stroke: #000;
+  stroke-opacity: 0.55;
+  stroke-width: 0.2;
+}
+
+.ray {
+  stroke-width: 0.12;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 8px;
+}
+
+.status,
+.hypo {
+  margin: 6px 0;
+}
+
+.issues {
+  margin: 8px 0 0;
+  padding-left: 1.2rem;
+  color: #d33a2c;
+}
+
+@media (prefers-color-scheme: dark) {
+  .issues {
+    color: #ff8a7f;
+  }
+}

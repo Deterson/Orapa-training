@@ -126,15 +126,32 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
   débordement horizontal, aucune gemme dans le DOM.
 - **Fini quand :** on peut tirer des lasers sur une mine générée et lire les résultats. ✔
 
-### v0.7 Interface : grille de solution (L)
+### v0.7 Interface : grille de solution (L) : fait
 
-- Réserve de gemmes, glisser-déposer au pointeur (souris et tactile), aimantation à la
-  grille.
-- Rotation par quarts de tour ; **bouton « retourner » uniquement pour la gemme rouge**.
-- Placements invalides refusés ou signalés avec la règle enfreinte (a à e).
-- Outil de vérification d'hypothèse : lancer la simulation sur **sa propre grille** et
-  comparer au résultat réel d'un tir.
-- **Fini quand :** le joueur peut construire une solution complète et valide à la main.
+- `game/solution.ts` (logique pure, testée) : une solution est une pose ou « réserve » par
+  gemme. `dropGem`, `nudgeGem`, `rotateGem`, `flipGem` (**la rouge seulement**), `removeGem` ;
+  toute pose est ramenée dans le plateau (règle c) ; `solutionIssues` signale les règles a à d,
+  le recouvrement et la règle e ; `isSubmittable` demande 5 gemmes posées et aucune violation ;
+  `compareWithShots` dit, pour chaque tir déjà fait, si la grille du joueur donne le même
+  résultat (il n'utilise que les réponses annoncées, jamais la mine).
+- Onglet **Ma solution** (`ui/solutionBoard.ts`, `ui/app.ts`) :
+  - glisser-déposer au pointeur (souris et doigt) depuis la réserve ou la grille ; relâcher hors
+    de la grille remet la gemme dans la réserve ; aimantation à la case ;
+  - toucher une gemme la sélectionne ; boutons **Pivoter**, **Retourner** (actif pour la gemme
+    rouge seulement) et **Remettre dans la réserve** ;
+  - clavier : flèches pour déplacer, `R` pivoter, `F` retourner, `Suppr` retirer, `Entrée`
+    sélectionner ;
+  - les placements fautifs sont gardés mais signalés (contour rouge en pointillés) avec la
+    règle enfreinte en français, plutôt que refusés : le joueur peut corriger en deux gestes ;
+  - **outil de vérification d'hypothèse** : toucher un repère simule le tir sur *sa propre*
+    grille et en trace le chemin ; sur la grille, chaque repère de tir déjà fait est cerclé de
+    vert si la grille du joueur reproduit le résultat, de rouge sinon ; un résumé donne
+    « votre grille reproduit k tirs sur n ».
+- Vérifié dans un navigateur (souris) : dépôt depuis la réserve, rotation avec remise dans le
+  plateau, retournement de la rouge, retournement refusé pour le jaune, flèches, retour à la
+  réserve, comparaison avec les tirs. Le glisser au doigt repose sur les mêmes événements
+  pointeur ; il reste à le valider sur un vrai téléphone.
+- **Fini quand :** le joueur peut construire à la main une solution complète et valide. ✔
 
 ### v0.8 Interface : notes et dessin (M)
 

@@ -43,18 +43,24 @@ export function gridLinesSvg(): string {
 }
 
 /** Repères du bord, cliquables, avec les marques des tirs déjà faits. */
-export function entryLabelsSvg(marks: ShotMarks | null, action = 'fire'): string {
+export function entryLabelsSvg(
+  marks: ShotMarks | null,
+  action = 'fire',
+  matches?: ReadonlyMap<number, boolean>,
+): string {
   return ENTRY_POINTS.map((entry) => {
     const [x, y] = labelCenter(entry);
     const from = marks?.shots.find((shot) => shot.entry === entry.label);
     const to = marks?.shots.filter((shot) => shot.exit === entry.label).at(-1);
     const highlighted = marks?.shots.find((shot) => shot.n === marks.selected);
     const selected = highlighted?.entry === entry.label || highlighted?.exit === entry.label;
+    const verdict = from && matches ? (matches.get(from.n) ? 'is-ok' : 'is-bad') : '';
     const classes = [
       'entry',
       from ? 'is-from' : '',
       to ? 'is-to' : '',
       selected ? 'is-selected' : '',
+      verdict,
     ]
       .filter(Boolean)
       .join(' ');
@@ -64,13 +70,18 @@ export function entryLabelsSvg(marks: ShotMarks | null, action = 'fire'): string
     const dot = to
       ? `<circle class="dot" cx="${x + 0.3}" cy="${y + 0.3}" r="0.18" fill="${RAY_COLOR[to.color]}"/>`
       : '';
-    return `<g class="${classes}" data-${action}="${entry.label}" role="button" tabindex="0" aria-label="Tirer un laser depuis le repère ${entry.label}"><rect x="${x - 0.45}" y="${y - 0.45}" width="0.9" height="0.9" rx="0.2"/><text class="label" x="${x}" y="${y}">${entry.label}</text>${badge}${dot}</g>`;
+    return `<g class="${classes}" data-${action}="${entry.label}" role="button" tabindex="0" aria-label="${action === 'fire' ? 'Tirer un laser depuis' : 'Tester sur votre grille un tir depuis'} le repère ${entry.label}"><rect x="${x - 0.45}" y="${y - 0.45}" width="0.9" height="0.9" rx="0.2"/><text class="label" x="${x}" y="${y}">${entry.label}</text>${badge}${dot}</g>`;
   }).join('');
 }
 
 /** Cadre commun des grilles : viewBox, fond et lignes. */
-export function boardFrame(label: string, content: string, extraClass = ''): string {
-  const size = `${-BOARD_MARGIN} ${-BOARD_MARGIN} ${GRID_COLS + 2 * BOARD_MARGIN} ${GRID_ROWS + 2 * BOARD_MARGIN}`;
+export function boardFrame(
+  label: string,
+  content: string,
+  extraClass = '',
+  extraHeight = 0,
+): string {
+  const size = `${-BOARD_MARGIN} ${-BOARD_MARGIN} ${GRID_COLS + 2 * BOARD_MARGIN} ${GRID_ROWS + 2 * BOARD_MARGIN + extraHeight}`;
   return `<svg class="board-svg ${extraClass}" viewBox="${size}" role="group" aria-label="${label}">
       <rect class="board" x="0" y="0" width="${GRID_COLS}" height="${GRID_ROWS}"/>
       ${gridLinesSvg()}
