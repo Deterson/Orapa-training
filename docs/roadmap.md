@@ -1,7 +1,12 @@
 # Roadmap
 
-Deux versions : **v1** = le jeu complet, jouable hors ligne, avec une simple sauvegarde
-locale ; **v2** = comptes Google, historique et page de profil.
+Deux versions livrables : **v1** = le jeu complet, jouable hors ligne, avec une simple
+sauvegarde locale ; **v2** = comptes Google, historique et page de profil.
+
+**Numérotation.** Une étape porte le numéro de la version qu'elle prépare, pas de celle
+qu'elle livre : les étapes **v0.1 à v0.11** construisent la **v1**, qui sort quand la
+v0.11 est terminée ; les étapes **v1.1 à v1.6** construisent la **v2**, qui sort quand la
+v1.6 est terminée. La version v1.0 est donc la première version complète du jeu.
 
 Tailles indicatives : S (≈ une demi-journée), M (1 à 2 jours), L (3 jours ou plus).
 Chaque étape se termine par des tests verts et un commit.
@@ -11,21 +16,26 @@ génération, de l'interface et de la soumission sont dans [`../CLAUDE.md`](../C
 
 ---
 
-## v1 : le jeu complet, sauvegarde locale
+## Vers la v1 : le jeu complet, sauvegarde locale (étapes v0.1 à v0.11)
 
 **Objectif :** toutes les règles du jeu implémentées et un site statique jouable de bout en
 bout. Aucun compte, aucun serveur. La seule persistance est une sauvegarde locale de la
 partie en cours, pour la reprendre plus tard dans le même navigateur.
 
-### 1.0 Socle du projet (S)
+### v0.1 Socle du projet (S) : fait
 
-- Vite + TypeScript, Vitest, ESLint/Prettier.
-- Arborescence `src/game/`, `src/ui/`, `tests/` (voir CLAUDE.md).
-- CI GitHub Actions : lint + tests + build à chaque push.
-- Déploiement statique (GitHub Pages) sur la branche principale.
-- **Fini quand :** une page vide se déploie et la CI est verte.
+- Vite + TypeScript (mode strict), Vitest, ESLint et Prettier.
+- Arborescence `src/game/`, `src/ui/`, `tests/`. ESLint interdit à `src/game/` d'utiliser
+  `window`, `document` ou le stockage du navigateur.
+- CI GitHub Actions (`.github/workflows/ci.yml`) : lint, format, typecheck, tests et build à
+  chaque push.
+- Déploiement GitHub Pages (`.github/workflows/deploy.yml`) à chaque push sur `main`.
+  **Une fois :** Settings → Pages → Source : « GitHub Actions ».
+- Page provisoire qui affiche la version, la grille 10×8 et les 36 points d'entrée :
+  elle sert à vérifier le déploiement, y compris sur téléphone.
+- **Fini quand :** la page se déploie, s'ouvre sur un téléphone et la CI est verte.
 
-### 1.1 Modèle de données et géométrie (M)
+### v0.2 Modèle de données et géométrie (M)
 
 - Grille 10×8, coordonnées de cases (« E4 »), points d'entrée/sortie (1–18, A–R) avec
   conversions dans les deux sens.
@@ -39,7 +49,7 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
 - **Fini quand :** on peut poser des gemmes dans une grille de données et en tirer un
   verdict de validité fiable.
 
-### 1.2 Simulateur de laser (M)
+### v0.3 Simulateur de laser (M)
 
 - Propagation sur les centres de cases : virage de 90° sur face à 45°, demi-tour sur face
   perpendiculaire.
@@ -52,7 +62,7 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
 - **Fini quand :** les 36 entrées d'une mine quelconque donnent un résultat, et les tests
   des exemples du livret passent.
 
-### 1.3 Visibilité des gemmes (S)
+### v0.4 Visibilité des gemmes (S)
 
 - Règle e : pour chaque gemme, existe-t-il un tir **sans rebond préalable** qui la touche
   en premier ?
@@ -60,7 +70,7 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
 - **Fini quand :** `isVisible(mine)` est fiable ; il servira à la génération **et** à
   l'aide de validation de la grille joueur.
 
-### 1.4 Générateur à graine et unicité (L)
+### v0.5 Générateur à graine et unicité (L)
 
 - PRNG à graine (`?seed=`), version du générateur incluse dans la graine/sauvegarde.
 - Tirage des gemmes (partie de base : 1 rouge, 1 jaune, 1 bleue, 2 blanches), position et
@@ -75,7 +85,7 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
 - **Fini quand :** « nouvelle mine » répond en un temps acceptable et toute mine produite
   vérifie les trois propriétés.
 
-### 1.5 Interface : grille et tirs (M)
+### v0.6 Interface : grille et tirs (M)
 
 - Rendu SVG de la grille 10×8, repères de bord (1–10, 11–18, I–R, A–H).
 - Clic sur un repère = tir ; tracé du chemin du rayon, point de sortie coloré.
@@ -84,7 +94,7 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
   de tir.
 - **Fini quand :** on peut tirer des lasers sur une mine générée et lire les résultats.
 
-### 1.6 Interface : grille de solution (L)
+### v0.7 Interface : grille de solution (L)
 
 - Réserve de gemmes, glisser-déposer au pointeur (souris et tactile), aimantation à la
   grille.
@@ -94,14 +104,14 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
   comparer au résultat réel d'un tir.
 - **Fini quand :** le joueur peut construire une solution complète et valide à la main.
 
-### 1.7 Interface : notes et dessin (M)
+### v0.8 Interface : notes et dessin (M)
 
 - Calque d'annotation par case : couleur, croix « vide », crayon, gomme, annuler/rétablir.
 - Aucun effet sur la correction.
 - **Fini quand :** les notes se superposent à la grille de tir ou s'affichent à côté,
   sans gêner les autres interactions.
 
-### 1.8 Soumission et fin de partie (M)
+### v0.9 Soumission et fin de partie (M)
 
 - Soumission : égalité stricte entre la grille joueur et la mine.
 - Écran de résultat : verdict, lasers tirés, temps, mine révélée, différences (gemmes
@@ -111,7 +121,7 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
   questions ouvertes).
 - **Fini quand :** une partie se joue de la génération au verdict sans erreur.
 
-### 1.9 Sauvegarde locale (S à M)
+### v0.10 Sauvegarde locale (S à M)
 
 - Sauvegarde automatique de la **partie en cours** dans le navigateur (`localStorage` ou
   IndexedDB) : mine (les gemmes elles-mêmes, pas seulement la graine, pour survivre à un
@@ -128,7 +138,7 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
 - **Fini quand :** fermer l'onglet en pleine partie puis rouvrir le site restaure
   exactement l'état, chronomètre compris.
 
-### 1.10 Page « Règles » et finitions (M)
+### v0.11 Page « Règles » et finitions (M)
 
 - Page de règles dans le site, issue de [`regles.md`](regles.md), qui mentionne la
   particularité de la **gemme rouge retournable** (deux faces quadrillées, seule pièce
@@ -140,7 +150,7 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
 - Option : variantes de difficulté (Diamant, Corps noir) une fois leurs formes confirmées.
 - **Fini quand :** parcours complet validé sur ordinateur et téléphone.
 
-### Critères de sortie de la v1
+### Critères de sortie : livraison de la v1
 
 - Toutes les règles de [`regles.md`](regles.md) implémentées et testées.
 - Toute mine générée est valide, visible et unique.
@@ -149,7 +159,7 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
 
 ---
 
-## v2 : comptes, historique, profil
+## Vers la v2 : comptes, historique, profil (étapes v1.1 à v1.6)
 
 **Objectif :** connexion Google, historique des parties et page de profil avec deux
 statistiques.
@@ -157,7 +167,7 @@ statistiques.
 Cela impose un **backend**, ce que la v1 évite. Le jeu reste jouable **sans compte** : se
 connecter ajoute l'historique, rien de plus.
 
-### 2.0 Choix du backend (S)
+### v1.1 Choix du backend (S)
 
 Un service géré évite d'écrire un serveur. Deux options réalistes :
 
@@ -172,7 +182,7 @@ Un service géré évite d'écrire un serveur. Deux options réalistes :
 agrégats naturels en SQL et que la sécurité par ligne est simple à écrire. Décision à
 confirmer avant de commencer.
 
-### 2.1 Authentification Google (M)
+### v1.2 Authentification Google (M)
 
 - Connexion et déconnexion OAuth Google ; session persistante.
 - Jouer sans être connecté reste possible (sauvegarde locale de la v1 inchangée).
@@ -180,7 +190,7 @@ confirmer avant de commencer.
 - Configuration OAuth (écran de consentement, URI de redirection par environnement).
 - **Fini quand :** on peut se connecter, se déconnecter, recharger la page et rester connecté.
 
-### 2.2 Modèle de données et sécurité (M)
+### v1.3 Modèle de données et sécurité (M)
 
 Table `games` (une ligne par partie terminée), au minimum :
 
@@ -199,7 +209,7 @@ Table `games` (une ligne par partie terminée), au minimum :
 - **Fini quand :** un utilisateur A ne peut jamais lire ni modifier les parties de B
   (test d'accès automatisé).
 
-### 2.3 Enregistrement et historique (M)
+### v1.4 Enregistrement et historique (M)
 
 - À la fin d'une partie, si connecté : enregistrer la ligne `games`. Gérer l'échec réseau
   (file locale, nouvel essai).
@@ -210,7 +220,7 @@ Table `games` (une ligne par partie terminée), au minimum :
 - **Fini quand :** les parties terminées apparaissent dans l'historique, sur n'importe quel
   navigateur où l'on se connecte.
 
-### 2.4 Page de profil (S à M)
+### v1.5 Page de profil (S à M)
 
 Deux statistiques, **calculées à partir de `games`** :
 
@@ -229,14 +239,14 @@ Règles de calcul à figer (voir questions ouvertes) :
 - **Fini quand :** les valeurs affichées correspondent à un calcul à la main sur un jeu de
   parties de test, cas limites compris.
 
-### 2.5 Vie privée et exploitation (S)
+### v1.6 Vie privée et exploitation (S)
 
 - Ne conserver que le nécessaire de Google (identifiant, nom, avatar).
 - Page de confidentialité ; suppression du compte avec **effacement de ses parties**.
 - Séparation des environnements (développement / production) et gestion des secrets hors du
   dépôt.
 
-### Critères de sortie de la v2
+### Critères de sortie : livraison de la v2
 
 - Connexion Google fonctionnelle en production.
 - L'historique et le profil reflètent exactement les parties terminées.

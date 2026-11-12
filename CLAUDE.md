@@ -5,8 +5,8 @@ Gameology ; édition française Miraludo). Le site génère une « mine » aléa
 gemmes cachées) et le joueur doit la reconstituer par déduction, en tirant des lasers, en
 prenant des notes et en plaçant ses propres gemmes, puis en soumettant sa solution.
 
-> Statut : le dépôt ne contient pas encore de code. `CLAUDE.md` et `docs/` sont la
-> spécification de départ.
+> Statut : étape **v0.1** terminée (socle technique, page provisoire). Le jeu lui-même
+> commence à l'étape v0.2. `CLAUDE.md` et `docs/` sont la spécification.
 
 ## Documentation (`docs/`)
 
@@ -184,39 +184,57 @@ Règles :
   endroit.
 - Tout accès au stockage du navigateur dans un `try/catch` : le jeu doit fonctionner sans.
 
-## Commandes (à compléter après initialisation du projet)
+## Commandes
 
 ```
-npm install        # dépendances
-npm run dev        # serveur de développement
-npm test           # tests Vitest
-npm run build      # build statique
+npm install          # dépendances
+npm run dev          # serveur de développement (http://localhost:5173, joignable sur le réseau local)
+npm test             # tests Vitest
+npm run lint         # ESLint
+npm run format       # Prettier (format:check pour vérifier seulement)
+npm run typecheck    # TypeScript sans émission
+npm run build        # contrôle des types + build statique dans dist/
+npm run preview      # sert dist/ comme en production
 ```
+
+La CI (`.github/workflows/ci.yml`) lance lint, format, typecheck, tests et build à chaque
+push. Le déploiement (`deploy.yml`) publie `dist/` sur GitHub Pages à chaque push sur `main`.
+
+### Tester sur téléphone
+
+- **Localement :** `npm run dev` écoute sur toutes les interfaces ; ouvrir l'adresse
+  « Network » affichée, depuis un téléphone sur le même réseau Wi-Fi.
+- **Depuis le cloud :** le serveur de développement tourne dans le conteneur de la session
+  et son port n'est pas public. L'application Claude peut l'afficher (la session signale le
+  port 5173) ; sinon, passer par GitHub Pages.
+- **URL publique :** GitHub Pages, après avoir fusionné sur `main` et activé Pages
+  (Settings → Pages → Source : « GitHub Actions »).
 
 ## Feuille de route
 
 Résumé ; détail, tailles et critères de fin d'étape dans
-[`docs/roadmap.md`](docs/roadmap.md).
+[`docs/roadmap.md`](docs/roadmap.md). Une étape porte le numéro de la version qu'elle
+prépare : v0.1 à v0.11 construisent la **v1**, v1.1 à v1.6 construisent la **v2**.
 
-**v1 : jeu complet + sauvegarde locale**
+**Vers la v1 : jeu complet + sauvegarde locale**
 
-1. Socle (Vite, TS, Vitest, CI, déploiement).
-2. Modèle de données et géométrie, règles de placement a à d.
-3. Simulateur de laser (tests : exemples du livret).
-4. Visibilité des gemmes (règle e).
-5. Générateur à graine + solveur d'unicité (**risque de performance : prototyper tôt**).
-6. UI : grille et tirs.
-7. UI : grille de solution (glisser-déposer, rotation, retournement de la rouge).
-8. UI : notes et dessin.
-9. Soumission, correction, écran de résultat.
-10. Sauvegarde locale de la partie en cours.
-11. Page « Règles », accessibilité, mobile.
+- v0.1 Socle (Vite, TS, Vitest, CI, déploiement) : **fait**.
+- v0.2 Modèle de données et géométrie, règles de placement a à d.
+- v0.3 Simulateur de laser (tests : exemples du livret).
+- v0.4 Visibilité des gemmes (règle e).
+- v0.5 Générateur à graine + solveur d'unicité (**risque de performance : prototyper tôt**).
+- v0.6 UI : grille et tirs.
+- v0.7 UI : grille de solution (glisser-déposer, rotation, retournement de la rouge).
+- v0.8 UI : notes et dessin.
+- v0.9 Soumission, correction, écran de résultat.
+- v0.10 Sauvegarde locale de la partie en cours.
+- v0.11 Page « Règles », accessibilité, mobile.
 
-**v2 : comptes, historique, profil**
+**Vers la v2 : comptes, historique, profil**
 
-1. Choix du backend. 2. Connexion Google. 3. Modèle de données et sécurité par utilisateur.
-4. Enregistrement et page Historique. 5. Page de profil (moyenne de lasers avant victoire,
-% de victoires). 6. Vie privée et exploitation.
+- v1.1 Choix du backend. v1.2 Connexion Google. v1.3 Modèle de données et sécurité par
+  utilisateur. v1.4 Enregistrement et page Historique. v1.5 Page de profil (moyenne de lasers
+  avant victoire, % de victoires). v1.6 Vie privée et exploitation.
 
 ## Questions ouvertes
 
