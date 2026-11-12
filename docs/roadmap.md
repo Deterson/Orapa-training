@@ -35,40 +35,50 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
   elle sert à vérifier le déploiement, y compris sur téléphone.
 - **Fini quand :** la page se déploie, s'ouvre sur un téléphone et la CI est verte.
 
-### v0.2 Modèle de données et géométrie (M)
+### v0.2 Modèle de données et géométrie (M) : fait
 
-- Grille 10×8, coordonnées de cases (« E4 »), points d'entrée/sortie (1–18, A–R) avec
-  conversions dans les deux sens.
-- Gemmes décrites comme **données** (listes de sommets), avec rotations par quarts de tour
-  et **retournement réservé à la gemme rouge** (4 positions distinctes).
-- Primitives géométriques : intersection de polygones sur coordonnées entières.
-- Validation du placement, règles a à d : alignement sur la grille, pas de dépassement,
-  **intersection vide ou réduite à un point** entre deux gemmes.
-- Tests : chaque forme et chaque orientation ; cas d'intersection (segment partagé refusé,
-  contact par un sommet accepté, sommet contre milieu de côté accepté).
+- `board.ts` : grille 10×8, cases (« E4 »), 36 points d'entrée/sortie (1–18, A–R), lecture
+  et écriture des repères.
+- `gems.ts` : les 5 gemmes de la partie de base **comme données** (listes de sommets),
+  rotations par quarts de tour, **retournement réservé à la gemme rouge** (4 positions
+  distinctes pour la rouge, le jaune, le bleu et le grand blanc ; 1 pour le losange).
+- `geometry.ts` : polygones convexes sur coordonnées entières, comparaison exacte de deux
+  polygones : `apart`, `point`, `segment` (côte à côte) ou `overlap`.
+- `placement.ts` : `validatePlacements` signale les règles a (face visible), b (alignement),
+  c (dans le plateau), d (pas de segment partagé), le recouvrement et les doublons, avec un
+  message en français par violation.
+- Tests : chaque forme et chaque orientation ; segment partagé refusé, contact par un sommet
+  accepté, sommet contre le milieu d'un côté accepté ; schéma d du livret.
 - **Fini quand :** on peut poser des gemmes dans une grille de données et en tirer un
-  verdict de validité fiable.
+  verdict de validité fiable. ✔
 
-### v0.3 Simulateur de laser (M)
+### v0.3 Simulateur de laser (M) : fait
 
-- Propagation sur les centres de cases : virage de 90° sur face à 45°, demi-tour sur face
-  perpendiculaire.
-- Accumulation des couleurs distinctes et table de mélange complète.
-- Résultat : point de sortie + couleur (ou « signal absorbé » pour le Corps noir).
-- Tests : les **deux exemples du livret** (I → rouge en I ; 15 → violet clair en 8) ;
-  chaque ligne de la table des couleurs ; propriété **réversibilité** (tirer depuis le point
-  de sortie ramène au point d'entrée, avec le même ensemble de couleurs) ; aucun rayon ne
-  boucle.
-- **Fini quand :** les 36 entrées d'une mine quelconque donnent un résultat, et les tests
-  des exemples du livret passent.
+- `laser.ts` : le rayon suit le milieu des cases ; virage de 90° sur une face à 45°, demi-tour
+  sur une face perpendiculaire. `shoot` tire depuis un repère, `shootAll` depuis les 36
+  (la « signature » d'une mine). Le résultat donne l'entrée, la sortie, la couleur, les
+  couleurs touchées, les contacts et le trajet à dessiner.
+- `colors.ts` : table de mélange des 16 combinaisons, indexée par l'ensemble des couleurs
+  distinctes touchées.
+- Pas encore de « signal absorbé » : il n'existe que pour le Corps noir, dont la forme est
+  inconnue (extension, hors v1).
+- Tests : les **deux exemples du livret** (I → rouge en I ; 15 → violet clair en 8, avec le
+  trajet exact) ; chaque ligne de la table des couleurs ; une couleur touchée par deux gemmes
+  ne compte qu'une fois ; **réversibilité** et absence de boucle sur 300 dispositions valides
+  tirées au hasard (les 36 sorties sont toujours distinctes).
+- **Fini quand :** les 36 entrées d'une mine quelconque donnent un résultat, et les exemples
+  du livret passent. ✔
 
-### v0.4 Visibilité des gemmes (S)
+### v0.4 Visibilité des gemmes (S) : fait
 
-- Règle e : pour chaque gemme, existe-t-il un tir **sans rebond préalable** qui la touche
-  en premier ?
-- Tests sur des configurations construites à la main (gemme encerclée = refusée).
-- **Fini quand :** `isVisible(mine)` est fiable ; il servira à la génération **et** à
-  l'aide de validation de la grille joueur.
+- `visibility.ts` : `visibleGemIndices`, `hiddenGemIndices`, `isVisible` et
+  `visibilityViolations` (règle e, une violation par gemme cachée). Une gemme est visible
+  si un rayon droit, sans rebond préalable, la touche **en premier** depuis l'un des 36 bords.
+- Tests : disposition du livret (5 sur 5), gemme encerclée par quatre bouchons (cachée, même
+  si un rayon la touche après un rebond), retrait de n'importe quel bouchon (redevient
+  visible), 300 dispositions aléatoires.
+- **Fini quand :** `isVisible(mine)` est fiable ; il servira à la génération **et** à l'aide de
+  validation de la grille joueur. ✔
 
 ### v0.5 Générateur à graine et unicité (L)
 

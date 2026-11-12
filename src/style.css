@@ -103,3 +103,108 @@ h1 {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+
+.bench {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bench h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.bench-grid svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 40rem;
+  touch-action: manipulation;
+}
+
+.bench .board {
+  fill: var(--surface);
+  stroke: var(--line);
+  stroke-width: 0.05;
+}
+
+.bench .grid line {
+  stroke: var(--line);
+  stroke-width: 0.03;
+}
+
+.bench .gem {
+  stroke: #000;
+  stroke-opacity: 0.4;
+  stroke-width: 0.05;
+  stroke-linejoin: round;
+}
+
+.bench .ray,
+.bench .ray-outline {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.bench .ray-outline {
+  stroke: #000;
+  stroke-opacity: 0.55;
+  stroke-width: 0.2;
+}
+
+.bench .ray {
+  stroke-width: 0.12;
+}
+
+.bench .entry {
+  cursor: pointer;
+  outline: none;
+}
+
+.bench .entry rect {
+  fill: var(--surface);
+  stroke: var(--line);
+  stroke-width: 0.04;
+}
+
+.bench .entry text {
+  fill: var(--fg);
+  font-size: 0.5px;
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+.bench .entry:hover rect,
+.bench .entry:focus-visible rect {
+  stroke: var(--accent);
+  stroke-width: 0.08;
+}
+
+.bench .entry.is-entry rect {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+
+.bench .entry.is-entry text {
+  fill: var(--bg);
+}
+
+.bench .entry.is-exit rect {
+  stroke: var(--accent);
+  stroke-width: 0.1;
+}
+
+.bench-result,
+.bench-rules {
+  margin: 0;
+}
+
+.bench-rules {
+  color: var(--muted);
+  font-size: 0.9rem;
+}

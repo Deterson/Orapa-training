@@ -5,8 +5,9 @@ Gameology ; édition française Miraludo). Le site génère une « mine » aléa
 gemmes cachées) et le joueur doit la reconstituer par déduction, en tirant des lasers, en
 prenant des notes et en plaçant ses propres gemmes, puis en soumettant sa solution.
 
-> Statut : étape **v0.1** terminée (socle technique, page provisoire). Le jeu lui-même
-> commence à l'étape v0.2. `CLAUDE.md` et `docs/` sont la spécification.
+> Statut : étapes **v0.1 à v0.4** terminées (socle, géométrie et placement, simulateur de
+> laser, visibilité). La page du site est un banc d'essai provisoire de cette logique ;
+> la vraie interface commence à l'étape v0.6. `CLAUDE.md` et `docs/` sont la spécification.
 
 ## Documentation (`docs/`)
 
@@ -143,7 +144,7 @@ compris la particularité de la gemme rouge retournable.
 
 ## Stack et conventions
 
-Recommandation (modifiable tant que rien n'est codé) :
+Choix techniques :
 
 - **TypeScript + Vite**, rendu en **SVG** (ou canvas si les performances l'exigent) ;
   framework léger optionnel (Preact/Svelte) ou DOM direct.
@@ -153,21 +154,29 @@ Recommandation (modifiable tant que rien n'est codé) :
 - Interface et textes en **français** (prévoir une table de chaînes pour une
   éventuelle internationalisation).
 
-Architecture :
+Architecture (les fichiers marqués ✔ existent) :
 
 ```
 src/
   game/        # logique pure, sans DOM, entièrement testable
-    board.ts       # dimensions, coordonnées, collisions
-    gems.ts        # formes/couleurs en données ; rotation, retournement (rouge seule)
-    laser.ts       # propagation et mélange de couleurs
-    generate.ts    # génération aléatoire à graine
-    solve.ts       # solveur d'unicité
-    verify.ts      # correction de la soumission
-    rng.ts         # PRNG à graine
+    constants.ts   # ✔ dimensions de la grille
+    geometry.ts    # ✔ polygones convexes entiers, relation apart/point/segment/overlap
+    board.ts       # ✔ cases, 36 points d'entrée/sortie, directions
+    colors.ts      # ✔ couleurs des gemmes, table de mélange du rayon
+    gems.ts        # ✔ formes en données ; rotation, retournement (rouge seule), poses
+    placement.ts   # ✔ règles de placement a à d, recouvrement, doublons
+    laser.ts       # ✔ propagation du rayon, shoot / shootAll
+    visibility.ts  # ✔ règle e : gemmes atteignables en ligne droite
+    examples.ts    # ✔ disposition du schéma du livret (tests et banc d'essai)
+    rng.ts         # PRNG à graine (v0.5)
+    generate.ts    # génération aléatoire à graine (v0.5)
+    solve.ts       # solveur d'unicité (v0.5)
+    verify.ts      # correction de la soumission (v0.9)
   ui/          # composants, interactions pointeur, rendu SVG
+    home.ts        # ✔ page provisoire
+    bench.ts       # ✔ banc d'essai provisoire (remplacé en v0.6)
   main.ts
-tests/
+tests/         # Vitest ; helpers.ts fournit `place`, un PRNG et des dispositions aléatoires valides
 docs/          # règles du jeu et roadmap
 ```
 
@@ -219,9 +228,9 @@ prépare : v0.1 à v0.11 construisent la **v1**, v1.1 à v1.6 construisent la **
 **Vers la v1 : jeu complet + sauvegarde locale**
 
 - v0.1 Socle (Vite, TS, Vitest, CI, déploiement) : **fait**.
-- v0.2 Modèle de données et géométrie, règles de placement a à d.
-- v0.3 Simulateur de laser (tests : exemples du livret).
-- v0.4 Visibilité des gemmes (règle e).
+- v0.2 Modèle de données et géométrie, règles de placement a à d : **fait**.
+- v0.3 Simulateur de laser (tests : exemples du livret) : **fait**.
+- v0.4 Visibilité des gemmes (règle e) : **fait**.
 - v0.5 Générateur à graine + solveur d'unicité (**risque de performance : prototyper tôt**).
 - v0.6 UI : grille et tirs.
 - v0.7 UI : grille de solution (glisser-déposer, rotation, retournement de la rouge).
