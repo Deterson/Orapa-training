@@ -25,7 +25,9 @@ export type ResultColor =
   | 'light-orange'
   | 'gray';
 
-const BIT: Record<GemColor, number> = { red: 1, yellow: 2, blue: 4, white: 8 };
+/** Bit de chaque couleur dans le masque des couleurs touchées. */
+export const GEM_COLOR_BIT: Record<GemColor, number> = { red: 1, yellow: 2, blue: 4, white: 8 };
+const BIT = GEM_COLOR_BIT;
 
 /** Table de mélange indexée par le masque des couleurs distinctes touchées (rouge=1, jaune=2, bleu=4, blanc=8). */
 const MIX_TABLE: readonly ResultColor[] = [
@@ -61,6 +63,15 @@ export function mixColors(touched: Iterable<GemColor>): ResultColor {
     throw new Error(`Masque de couleurs invalide : ${mask}`);
   }
   return result;
+}
+
+const MASK_OF_RESULT = new Map<ResultColor, number>(MIX_TABLE.map((color, mask) => [color, mask]));
+
+/** Masque des couleurs de gemmes touchées qui donne cette couleur (l'inverse de mixColors). */
+export function colorMask(result: ResultColor): number {
+  const mask = MASK_OF_RESULT.get(result);
+  if (mask === undefined) throw new Error(`Couleur inconnue : ${result}`);
+  return mask;
 }
 
 export const RESULT_COLOR_LABELS: Record<ResultColor, string> = {

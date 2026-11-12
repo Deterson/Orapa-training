@@ -5,8 +5,8 @@ Gameology ; édition française Miraludo). Le site génère une « mine » aléa
 gemmes cachées) et le joueur doit la reconstituer par déduction, en tirant des lasers, en
 prenant des notes et en plaçant ses propres gemmes, puis en soumettant sa solution.
 
-> Statut : étapes **v0.1 à v0.4** terminées (socle, géométrie et placement, simulateur de
-> laser, visibilité). La page du site est un banc d'essai provisoire de cette logique ;
+> Statut : étapes **v0.1 à v0.5** terminées (socle, géométrie et placement, simulateur de
+> laser, visibilité, générateur et solveur d'unicité). La page du site est un banc d'essai provisoire de cette logique ;
 > la vraie interface commence à l'étape v0.6. `CLAUDE.md` et `docs/` sont la spécification.
 
 ## Documentation (`docs/`)
@@ -168,9 +168,9 @@ src/
     laser.ts       # ✔ propagation du rayon, shoot / shootAll
     visibility.ts  # ✔ règle e : gemmes atteignables en ligne droite
     examples.ts    # ✔ disposition du schéma du livret (tests et banc d'essai)
-    rng.ts         # PRNG à graine (v0.5)
-    generate.ts    # génération aléatoire à graine (v0.5)
-    solve.ts       # solveur d'unicité (v0.5)
+    rng.ts         # ✔ PRNG à graine
+    generate.ts    # ✔ génération aléatoire à graine, version du générateur
+    solve.ts       # ✔ solveur d'unicité guidé par les rayons
     verify.ts      # correction de la soumission (v0.9)
   ui/          # composants, interactions pointeur, rendu SVG
     home.ts        # ✔ page provisoire
@@ -231,7 +231,7 @@ prépare : v0.1 à v0.11 construisent la **v1**, v1.1 à v1.6 construisent la **
 - v0.2 Modèle de données et géométrie, règles de placement a à d : **fait**.
 - v0.3 Simulateur de laser (tests : exemples du livret) : **fait**.
 - v0.4 Visibilité des gemmes (règle e) : **fait**.
-- v0.5 Générateur à graine + solveur d'unicité (**risque de performance : prototyper tôt**).
+- v0.5 Générateur à graine + solveur d'unicité : **fait** (123 ms en moyenne par mine).
 - v0.6 UI : grille et tirs.
 - v0.7 UI : grille de solution (glisser-déposer, rotation, retournement de la rouge).
 - v0.8 UI : notes et dessin.

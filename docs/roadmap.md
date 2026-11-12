@@ -80,20 +80,29 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
 - **Fini quand :** `isVisible(mine)` est fiable ; il servira à la génération **et** à l'aide de
   validation de la grille joueur. ✔
 
-### v0.5 Générateur à graine et unicité (L)
+### v0.5 Générateur à graine et unicité (L) : fait
 
-- PRNG à graine (`?seed=`), version du générateur incluse dans la graine/sauvegarde.
-- Tirage des gemmes (partie de base : 1 rouge, 1 jaune, 1 bleue, 2 blanches), position et
-  orientation aléatoires, rejet si une règle de placement est violée.
-- Filtre de visibilité, puis **solveur d'unicité** : backtracking élagué par la signature
-  complète (36 tirs) ; la mine n'est gardée que si elle est la seule solution.
-- Mesurer : taux de rejet, temps de génération. Budget visé < 1 s ; sinon Web Worker, puis
-  précalcul d'une banque de mines.
-- Tests sur des centaines de graines : mines valides, visibles, uniques ; même graine =
-  même mine.
-- **Risque :** le solveur peut être lent ou rejeter beaucoup. Prototyper tôt, avant l'UI.
+- `rng.ts` : PRNG mulberry32 à graine texte ; `Math.random()` n'est utilisé que pour proposer
+  une nouvelle graine (`randomSeed`). `GENERATOR_VERSION` (1) accompagne chaque mine.
+- `generate.ts` : tirage des 5 gemmes de la partie de base (position et orientation au hasard,
+  rejet si une règle de placement est violée), puis filtre de visibilité (règle e), puis
+  unicité. Même graine et même version : même mine.
+- `solve.ts` : solveur d'unicité **guidé par les rayons**. Il rejoue les tirs de la signature
+  et laisse les gemmes inconnues apparaître au fil du rayon ; la couleur et le point de sortie
+  annoncés coupent presque toutes les branches. Une première version, qui énumérait les poses
+  des gemmes, ne terminait pas en un temps raisonnable (plus de 10 s par mine).
+- Performance mesurée sur 150 mines aléatoires visibles : **123 ms en moyenne, 1,2 s au pire**
+  par vérification d'unicité ; 149 mines sur 150 étaient uniques, donc le rejet est rare
+  (moins de 3 tirages par mine en moyenne). Pas besoin de Web Worker ni de banque de mines
+  pour l'instant ; à revoir si le pire cas gêne l'interface (le solveur a un garde-fou
+  `maxNodes` : une recherche interrompue compte comme « non unique »).
+- Tests : le solveur donne **exactement les mêmes solutions qu'une énumération exhaustive**
+  sur 12 cas à deux gemmes ; il retrouve toujours la mine d'origine ; une mine réellement
+  ambiguë (le triangle jaune peut être une colonne plus loin sans qu'aucun tir ne le
+  révèle) est refusée avec ses deux solutions ; 100 graines donnent des mines valides,
+  visibles et uniques ; même graine, même mine.
 - **Fini quand :** « nouvelle mine » répond en un temps acceptable et toute mine produite
-  vérifie les trois propriétés.
+  vérifie les trois propriétés. ✔
 
 ### v0.6 Interface : grille et tirs (M)
 
