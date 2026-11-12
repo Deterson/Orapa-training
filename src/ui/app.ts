@@ -21,12 +21,27 @@ import {
   rotateGem,
   solutionIssues,
 } from '../game/solution';
+import {
+  type Ink,
+  type NotePoint,
+  type NotesHistory,
+  addStroke,
+  cellAt,
+  commit,
+  emptyNotes,
+  eraseAt,
+  newHistory,
+  redo,
+  toggleMark,
+  undo,
+} from '../game/notes';
 import { shotBoardSvg } from './board';
+import { type Tool, notesBoardSvg, notesLayerSvg, notesToolbar } from './notesBoard';
 import { RAY_COLOR } from './palette';
 import { gemOrigin, gemSize, solutionBoardSvg } from './solutionBoard';
 
 type Phase = 'loading' | 'ready' | 'error';
-type Tab = 'shots' | 'solution';
+type Tab = 'shots' | 'solution' | 'notes';
 
 interface State {
   phase: Phase;
@@ -38,6 +53,9 @@ interface State {
   selectedGem: GemId | null;
   /** Tir simulé sur la grille du joueur. */
   hypothesis: ShotResult | null;
+  notes: NotesHistory;
+  tool: Tool;
+  ink: Ink;
   notice: string;
 }
 
@@ -89,6 +107,9 @@ export function startApp(root: HTMLElement, version: string): void {
     solution: emptySolution(),
     selectedGem: null,
     hypothesis: null,
+    notes: newHistory(),
+    tool: 'pencil',
+    ink: 'ink',
     notice: '',
   };
 
@@ -142,10 +163,14 @@ export function startApp(root: HTMLElement, version: string): void {
     const shots = session?.shots ?? [];
     let board: string;
     if (state.phase === 'ready' && session) {
-      board =
-        state.tab === 'shots'
-          ? shotBoardSvg({ shots, selected: state.selected })
-          : solutionPanel(session);
+      if (state.tab === 'shots') {
+        board = shotBoardSvg({ shots, selected: state.selected });
+      } else if (state.tab === 'solution') {
+        board = solutionPanel(session);
+      } else {
+        const view = { history: state.notes, shots, tool: state.tool, ink: state.ink };
+        board = `${notesBoardSvg(view)}${notesToolbar(view)}`;
+      }
     } else {
       board = `<p class="placeholder" role="status">${
         state.phase === 'error' ? 'La génération a échoué.' : 'Génération de la mine…'
@@ -181,6 +206,7 @@ export function startApp(root: HTMLElement, version: string): void {
             <div class="tabs" role="tablist">
               <button type="button" role="tab" class="tab${state.tab === 'shots' ? ' is-active' : ''}" aria-selected="${state.tab === 'shots'}" data-tab="shots">Tirs</button>
               <button type="button" role="tab" class="tab${state.tab === 'solution' ? ' is-active' : ''}" aria-selected="${state.tab === 'solution'}" data-tab="solution">Ma solution</button>
+              <button type="button" role="tab" class="tab${state.tab === 'notes' ? ' is-active' : ''}" aria-selected="${state.tab === 'notes'}" data-tab="notes">Notes</button>
             </div>
             ${board}
           </section>
@@ -203,6 +229,7 @@ export function startApp(root: HTMLElement, version: string): void {
     state.solution = emptySolution();
     state.selectedGem = null;
     state.hypothesis = null;
+    state.notes = newHistory();
     state.tab = 'shots';
     state.notice = '';
     render();
@@ -302,10 +329,87 @@ export function startApp(root: HTMLElement, version: string): void {
     window.addEventListener('pointercancel', onCancel);
   };
 
+  /** Crayon, gomme et marques de cases sur la grille de notes. */
+  const beginNotes = (event: PointerEvent): void => {
+    const board = (): SVGSVGElement | null => root.querySelector<SVGSVGElement>('.notes-svg');
+    const point = (e: PointerEvent): NotePoint => {
+      const svg = board();
+      return svg ? toBoardPoint(svg, e.clientX, e.clientY) : [0, 0];
+    };
+    const start = point(event);
+    if (cellAt(start) === null) return;
+    event.preventDefault();
+    const { tool, ink } = state;
+    const base = state.notes;
+    let moved = false;
+    const points: NotePoint[] = [start];
+    let working = base.present;
+
+    const eraseTo = (p: NotePoint): void => {
+      const next = eraseAt(working, p);
+      if (next === working) return;
+      working = next;
+      state.notes = { ...base, present: working };
+      const layer = root.querySelector('#note-layer');
+      if (layer) layer.innerHTML = notesLayerSvg(working);
+    };
+    if (tool === 'eraser') eraseTo(start);
+
+    const onMove = (e: PointerEvent): void => {
+      const p = point(e);
+      if (Math.hypot(p[0] - start[0], p[1] - start[1]) > 0.15) moved = true;
+      if (tool === 'pencil') {
+        const last = points.at(-1) ?? start;
+        const inside: NotePoint = [
+          Math.min(Math.max(p[0], 0), GRID_COLS),
+          Math.min(Math.max(p[1], 0), GRID_ROWS),
+        ];
+        if (Math.hypot(inside[0] - last[0], inside[1] - last[1]) < 0.06) return;
+        points.push(inside);
+        root
+          .querySelector('#note-preview')
+          ?.setAttribute('points', points.map(([x, y]) => `${x},${y}`).join(' '));
+      } else if (tool === 'eraser') {
+        eraseTo(p);
+      }
+    };
+    const finish = (e: PointerEvent, cancelled: boolean): void => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
+      state.notes = base;
+      if (!cancelled) {
+        if (tool === 'pencil') {
+          const rounded = points.map(([x, y]): NotePoint => [
+            Math.round(x * 100) / 100,
+            Math.round(y * 100) / 100,
+          ]);
+          state.notes = commit(base, addStroke(base.present, { ink, points: rounded }));
+        } else if (tool === 'eraser') {
+          state.notes = commit(base, working);
+        } else if (!moved) {
+          const cell = cellAt(point(e));
+          if (cell) state.notes = commit(base, toggleMark(base.present, cell, tool));
+        }
+      }
+      render();
+    };
+    const onUp = (e: PointerEvent): void => finish(e, false);
+    const onCancel = (e: PointerEvent): void => finish(e, true);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
+  };
+
   // ---------- Événements ----------
 
   root.addEventListener('pointerdown', (event) => {
-    if (state.tab !== 'solution' || event.button > 0) return;
+    if (event.button > 0) return;
+    if (state.tab === 'notes') {
+      if ((event.target as Element).closest('.notes-svg')) beginNotes(event);
+      return;
+    }
+    if (state.tab !== 'solution') return;
     const element = (event.target as Element).closest<SVGGElement>('[data-gem]');
     const gem = element?.dataset['gem'] as GemId | undefined;
     if (element && gem) beginDrag(event, element, gem);
@@ -318,8 +422,19 @@ export function startApp(root: HTMLElement, version: string): void {
     const hypo = target.closest<HTMLElement>('[data-hypo]');
     if (hypo?.dataset['hypo']) return testOnSolution(hypo.dataset['hypo']);
     const tab = target.closest<HTMLElement>('[data-tab]')?.dataset['tab'];
-    if (tab === 'shots' || tab === 'solution') {
+    if (tab === 'shots' || tab === 'solution' || tab === 'notes') {
       state.tab = tab;
+      return render();
+    }
+    const tool = target.closest<HTMLElement>('[data-tool]')?.dataset['tool'];
+    if (tool) {
+      state.tool = tool as Tool;
+      return render();
+    }
+    const ink = target.closest<HTMLElement>('[data-ink]')?.dataset['ink'];
+    if (ink) {
+      state.ink = ink as Ink;
+      if (state.tool !== 'pencil') state.tool = 'pencil';
       return render();
     }
     const shot = target.closest<HTMLElement>('[data-shot]');
@@ -338,6 +453,15 @@ export function startApp(root: HTMLElement, version: string): void {
       case 'remove':
         if (state.selectedGem) editSolution(removeGem(state.solution, state.selectedGem), null);
         return;
+      case 'undo':
+        state.notes = undo(state.notes);
+        return render();
+      case 'redo':
+        state.notes = redo(state.notes);
+        return render();
+      case 'clear-notes':
+        state.notes = commit(state.notes, emptyNotes());
+        return render();
       case 'copy-link':
         navigator.clipboard?.writeText(window.location.href).then(
           () => {
@@ -351,6 +475,19 @@ export function startApp(root: HTMLElement, version: string): void {
 
   root.addEventListener('keydown', (event) => {
     const target = event.target as Element;
+    if (state.tab === 'notes' && (event.ctrlKey || event.metaKey)) {
+      const key = event.key.toLowerCase();
+      if (key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        state.notes = undo(state.notes);
+        return render();
+      }
+      if (key === 'y' || (key === 'z' && event.shiftKey)) {
+        event.preventDefault();
+        state.notes = redo(state.notes);
+        return render();
+      }
+    }
     const gemElement = target.closest<HTMLElement>('[data-gem]');
     if (gemElement?.dataset['gem'] && state.tab === 'solution') {
       const gem = gemElement.dataset['gem'] as GemId;

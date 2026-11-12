@@ -153,12 +153,22 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
   pointeur ; il reste à le valider sur un vrai téléphone.
 - **Fini quand :** le joueur peut construire à la main une solution complète et valide. ✔
 
-### v0.8 Interface : notes et dessin (M)
+### v0.8 Interface : notes et dessin (M) : fait
 
-- Calque d'annotation par case : couleur, croix « vide », crayon, gomme, annuler/rétablir.
-- Aucun effet sur la correction.
-- **Fini quand :** les notes se superposent à la grille de tir ou s'affichent à côté,
-  sans gêner les autres interactions.
+- `game/notes.ts` (logique pure, testée) : marques de cases (couleur de gemme supposée,
+  « vide » ✕, « doute » ?), traits au crayon en cinq encres, gomme (efface la marque de la case
+  et les traits qui passent à proximité), **annuler / rétablir** (200 étapes), « tout effacer »
+  (lui-même annulable, donc sans confirmation). Les notes sont sérialisables (pour la
+  sauvegarde de la v0.10) et n'ont **aucun effet sur la correction**.
+- Onglet **Notes** (`ui/notesBoard.ts`) : la grille avec les résultats des tirs en repère, sous
+  le calque d'annotation. Poser deux fois la même marque l'enlève. Les marques de couleur
+  portent aussi une lettre (R, J, B, Bl) pour ne pas dépendre de la teinte seule.
+- Crayon et gomme bloquent le défilement au toucher sur la grille (`touch-action: none`) ;
+  les marques de cases le laissent actif. Raccourcis `Ctrl/Cmd + Z` et `Ctrl/Cmd + Y`.
+- Vérifié dans un navigateur : trait au crayon, changement d'encre, marques de couleur, ✕ et ?,
+  retrait d'une marque, gomme sur un trait, annuler, rétablir, tout effacer puis annuler.
+- **Fini quand :** les notes se superposent à la grille de tir ou s'affichent à côté, sans gêner
+  les autres interactions. ✔ (onglet dédié, avec les tirs en repère)
 
 ### v0.9 Soumission et fin de partie (M)
 

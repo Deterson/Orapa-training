@@ -27,3 +27,39 @@ export const RAY_COLOR: Record<ResultColor, string> = {
   'light-orange': '#ffbf80',
   gray: '#8a8a8a',
 };
+
+import type { CellMark, Ink } from '../game/notes';
+
+/** Couleur de l'encre du crayon. */
+export const INK_COLOR: Record<Ink, string> = {
+  ink: 'var(--fg)',
+  red: '#d33a2c',
+  yellow: '#e8b100',
+  blue: '#2f6fb5',
+  green: '#1e9e50',
+};
+
+export const INK_LABEL: Record<Ink, string> = {
+  ink: 'noir',
+  red: 'rouge',
+  yellow: 'jaune',
+  blue: 'bleu',
+  green: 'vert',
+};
+
+/** Marques de couleur : lettre affichée en plus de la teinte, pour ne pas dépendre de la couleur seule. */
+export const MARK_LETTER: Partial<Record<CellMark, string>> = {
+  red: 'R',
+  yellow: 'J',
+  blue: 'B',
+  white: 'Bl',
+};
+
+export const MARK_LABEL: Record<CellMark, string> = {
+  red: 'rouge',
+  yellow: 'jaune',
+  blue: 'bleue',
+  white: 'blanche',
+  empty: 'vide',
+  maybe: 'doute',
+};

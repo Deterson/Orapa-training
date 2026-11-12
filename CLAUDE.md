@@ -5,8 +5,8 @@ Gameology ; édition française Miraludo). Le site génère une « mine » aléa
 gemmes cachées) et le joueur doit la reconstituer par déduction, en tirant des lasers, en
 prenant des notes et en plaçant ses propres gemmes, puis en soumettant sa solution.
 
-> Statut : étapes **v0.1 à v0.7** terminées (socle, géométrie et placement, simulateur de
-> laser, visibilité, générateur et solveur d'unicité, grille de tir, grille de solution). La page du site est un banc d'essai provisoire de cette logique ;
+> Statut : étapes **v0.1 à v0.8** terminées (socle, géométrie et placement, simulateur de
+> laser, visibilité, générateur et solveur d'unicité, grille de tir, grille de solution, notes). La page du site est un banc d'essai provisoire de cette logique ;
 > la vraie interface commence à l'étape v0.6. `CLAUDE.md` et `docs/` sont la spécification.
 
 ## Documentation (`docs/`)
@@ -173,11 +173,13 @@ src/
     solve.ts       # ✔ solveur d'unicité guidé par les rayons
     verify.ts      # correction de la soumission (v0.9)
     session.ts     # ✔ partie en cours : mine privée, tirs ; seule porte d'entrée de l'UI
+    notes.ts       # ✔ notes : marques de cases, traits, gomme, annuler / rétablir
     solution.ts    # ✔ solution du joueur : poser, pivoter, retourner la rouge, règles, comparaison aux tirs
   ui/          # composants, interactions pointeur, rendu SVG
     app.ts         # ✔ état de l'application, partie, historique des tirs
     board.ts       # ✔ grille SVG, repères du bord, marques des tirs
     solutionBoard.ts # ✔ grille de solution et réserve de gemmes
+    notesBoard.ts  # ✔ calque de notes et ses outils
     palette.ts     # ✔ couleurs d'affichage des gemmes et des rayons
   main.ts
 tests/         # Vitest ; helpers.ts fournit `place`, un PRNG et des dispositions aléatoires valides
@@ -238,7 +240,7 @@ prépare : v0.1 à v0.11 construisent la **v1**, v1.1 à v1.6 construisent la **
 - v0.5 Générateur à graine + solveur d'unicité : **fait** (123 ms en moyenne par mine).
 - v0.6 UI : grille et tirs : **fait**.
 - v0.7 UI : grille de solution (glisser-déposer, rotation, retournement de la rouge) : **fait**.
-- v0.8 UI : notes et dessin.
+- v0.8 UI : notes et dessin : **fait**.
 - v0.9 Soumission, correction, écran de résultat.
 - v0.10 Sauvegarde locale de la partie en cours.
 - v0.11 Page « Règles », accessibilité, mobile.
