@@ -74,6 +74,14 @@ export function colorMask(result: ResultColor): number {
   return mask;
 }
 
+/** Les couleurs de gemmes qui composent une couleur de rayon (vide pour « transparent »). */
+export function componentColors(result: ResultColor): GemColor[] {
+  const mask = colorMask(result);
+  return (Object.keys(GEM_COLOR_BIT) as GemColor[]).filter(
+    (color) => (mask & GEM_COLOR_BIT[color]) !== 0,
+  );
+}
+
 export const RESULT_COLOR_LABELS: Record<ResultColor, string> = {
   transparent: 'transparent',
   red: 'rouge',

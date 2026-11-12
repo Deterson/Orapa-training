@@ -913,3 +913,12 @@ h2 {
   border: 1px solid #0006;
   background: #8a8f99;
 }
+
+.chips {
+  display: inline-flex;
+  flex: none;
+}
+
+.chips .chip + .chip {
+  margin-left: -0.3rem;
+}

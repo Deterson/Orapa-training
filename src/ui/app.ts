@@ -3,7 +3,7 @@
  * l'historique des tirs. L'état de l'interface est petit : la partie, la solution du joueur,
  * l'onglet affiché et la sélection.
  */
-import { RESULT_COLOR_LABELS } from '../game/colors';
+import { RESULT_COLOR_LABELS, componentColors } from '../game/colors';
 import { GRID_COLS, GRID_ROWS } from '../game/constants';
 import { GEM_SHAPES, type GemId } from '../game/gems';
 import { type ShotResult, shoot } from '../game/laser';
@@ -105,8 +105,16 @@ function viewFromHash(): View {
   }
 }
 
-function chip(color: ShotRecord['color']): string {
-  return `<span class="chip" style="background:${RAY_COLOR[color]}" aria-hidden="true"></span>`;
+/**
+ * Pastilles d'un résultat : une par couleur de gemme qui le compose (violet clair = rouge, bleu et
+ * blanc), ou une seule pastille pour une couleur simple et pour « transparent ». Le nom reste écrit.
+ */
+function chips(color: ShotRecord['color']): string {
+  const parts = componentColors(color);
+  const dots = (parts.length ? parts : [color])
+    .map((part) => `<span class="chip" style="background:${RAY_COLOR[part]}"></span>`)
+    .join('');
+  return `<span class="chips" aria-hidden="true">${dots}</span>`;
 }
 
 function describe(shot: ShotRecord): string {
@@ -307,7 +315,7 @@ export function startApp(root: HTMLElement, version: string): void {
       ? `<ol class="history" aria-label="Tirs">${shots
           .map(
             (shot) =>
-              `<li><button type="button" class="shot${state.selected === shot.n ? ' is-selected' : ''}" data-shot="${shot.n}"><span class="n">${shot.n}</span><span class="path"><b>${shot.entry}</b> → <b>${shot.exit}</b></span>${chip(shot.color)}<span class="color-name">${RESULT_COLOR_LABELS[shot.color]}</span></button></li>`,
+              `<li><button type="button" class="shot${state.selected === shot.n ? ' is-selected' : ''}" data-shot="${shot.n}"><span class="n">${shot.n}</span><span class="path"><b>${shot.entry}</b> → <b>${shot.exit}</b></span>${chips(shot.color)}<span class="color-name">${RESULT_COLOR_LABELS[shot.color]}</span></button></li>`,
           )
           .join('')}</ol>`
       : '';

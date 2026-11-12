@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type GemColor, type ResultColor, mixColors } from '../src/game/colors';
+import { type GemColor, type ResultColor, componentColors, mixColors } from '../src/game/colors';
 
 // Table du livret et du schéma des couleurs (docs/regles.md).
 const TABLE: [GemColor[], ResultColor][] = [
@@ -39,5 +39,23 @@ describe('mélange des couleurs', () => {
   it("ne compte qu'une fois chaque couleur", () => {
     expect(mixColors(['white', 'white', 'red'])).toBe('pink');
     expect(mixColors(['red', 'red', 'red'])).toBe('red');
+  });
+});
+
+describe('couleurs qui composent un résultat', () => {
+  it('retrouve les gemmes touchées pour chaque ligne de la table', () => {
+    for (const [touched, result] of TABLE) {
+      expect(componentColors(result).sort()).toEqual([...touched].sort());
+    }
+  });
+
+  it('donne une seule couleur pour une couleur simple, aucune pour transparent', () => {
+    expect(componentColors('red')).toEqual(['red']);
+    expect(componentColors('transparent')).toEqual([]);
+  });
+
+  it('donne trois couleurs pour violet clair et quatre pour gris', () => {
+    expect(componentColors('light-violet').sort()).toEqual(['blue', 'red', 'white']);
+    expect(componentColors('gray')).toHaveLength(4);
   });
 });
