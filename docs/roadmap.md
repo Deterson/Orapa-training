@@ -170,15 +170,30 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
 - **Fini quand :** les notes se superposent à la grille de tir ou s'affichent à côté, sans gêner
   les autres interactions. ✔ (onglet dédié, avec les tirs en repère)
 
-### v0.9 Soumission et fin de partie (M)
+### v0.9 Soumission et fin de partie (M) : fait
 
-- Soumission : égalité stricte entre la grille joueur et la mine.
-- Écran de résultat : verdict, lasers tirés, temps, mine révélée, différences (gemmes
-  manquantes, mal placées, en trop).
-- Actions : nouvelle partie, abandonner/révéler.
-- Action « sonder une case » (« Qu'y a-t-il en E4 ? ») et sa règle de comptage (voir
-  questions ouvertes).
-- **Fini quand :** une partie se joue de la génération au verdict sans erreur.
+- `game/verify.ts` : correction par **égalité stricte**, gemme par gemme, en comparant les
+  polygones occupés (deux poses équivalentes, comme le parallélogramme tourné de 180°, sont
+  égales) ; `compareSolution` donne, par gemme, « bien placée », « mal placée » ou « non posée ».
+- `game/probe.ts` : « Qu'y a-t-il en E4 ? » répond « rien » ou la couleur de la gemme ; une case
+  que la gemme ne couvre qu'à moitié compte comme occupée.
+- `game/session.ts` : statuts `playing`, `won`, `lost`, `abandoned` ; `submit`, `abandon`,
+  `probe`, `summary`, chronomètre (horloge injectable pour les tests) ; **une fois la partie
+  terminée, plus aucune action n'est possible** ; `reveal()` n'est permis qu'après la fin.
+- **Une seule proposition** (`MAX_ATTEMPTS = 1`), comme le jeu officiel à deux joueurs : une
+  erreur fait perdre la partie et révèle la mine. La constante permet un mode plus indulgent.
+- **Sondages comptés à part des lasers** (« 2 sondages ») ; redemander une case est gratuit.
+  Mode « Sonder une case » dans l'onglet Tirs : toucher une case, ou saisir son nom (accessible
+  au clavier). Les réponses restent affichées sur la grille et dans la liste des sondages.
+- Interface : boutons **Soumettre ma solution** (actif seulement si les 5 gemmes sont posées sans
+  violation) et **Abandonner**, chacun avec confirmation ; chronomètre ; onglet **Résultat**
+  avec le verdict, les lasers, les sondages, le temps, la graine, la vraie mine, la
+  proposition en pointillés (vert / rouge) et une phrase par gemme (« vous l'aviez en F7, elle
+  est en A4 ») ; **Nouvelle partie** et **Rejouer cette mine** (même graine).
+- Vérifié de bout en bout dans un navigateur : sondes valides et invalides, abandon, victoire
+  (les 5 gemmes de la mine reposées à la main), défaite (les gemmes d'une autre mine),
+  actions bloquées après la fin, rejeu de la graine.
+- **Fini quand :** une partie se joue de la génération au verdict sans erreur. ✔
 
 ### v0.10 Sauvegarde locale (S à M)
 

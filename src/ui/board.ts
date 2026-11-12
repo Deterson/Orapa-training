@@ -2,10 +2,11 @@
  * Dessin de la grille en SVG : cases, repères du bord et marques des tirs.
  * Aucune logique de jeu ici, seulement de l'affichage.
  */
-import { ENTRY_POINTS, type EntryPoint } from '../game/board';
+import { ENTRY_POINTS, type EntryPoint, cellLabel, parseCell } from '../game/board';
+import { GEM_COLOR_LABELS } from '../game/colors';
 import { GRID_COLS, GRID_ROWS } from '../game/constants';
-import type { ShotRecord } from '../game/session';
-import { RAY_COLOR } from './palette';
+import type { ProbeRecord, ShotRecord } from '../game/session';
+import { GEM_FILL, MARK_LETTER, RAY_COLOR } from './palette';
 
 export interface ShotMarks {
   shots: readonly ShotRecord[];
@@ -89,10 +90,46 @@ export function boardFrame(
     </svg>`;
 }
 
-/** Grille de tir : aucune gemme n'est visible, seulement les résultats des tirs. */
-export function shotBoardSvg(marks: ShotMarks): string {
+export interface ShotBoardOptions {
+  probes?: readonly ProbeRecord[];
+  /** Mode « sonder une case » : chaque case devient cliquable. */
+  probing?: boolean;
+}
+
+function probeMarksSvg(probes: readonly ProbeRecord[]): string {
+  return probes
+    .map((probe) => {
+      const cell = parseCell(probe.cell);
+      if (cell === null) return '';
+      const cx = cell.col + 0.5;
+      const cy = cell.row + 0.5;
+      if (probe.content === 'nothing') {
+        return `<circle class="probe-nothing" cx="${cx}" cy="${cy}" r="0.17"><title>Case ${probe.cell} : rien</title></circle>`;
+      }
+      return `<g class="probe-gem"><rect x="${cell.col + 0.18}" y="${cell.row + 0.18}" width="0.64" height="0.64" rx="0.1" fill="${GEM_FILL[probe.content]}"/><text x="${cx}" y="${cy + 0.02}">${MARK_LETTER[probe.content] ?? ''}</text><title>Case ${probe.cell} : gemme ${GEM_COLOR_LABELS[probe.content]}</title></g>`;
+    })
+    .join('');
+}
+
+function probeTargetsSvg(): string {
+  const targets: string[] = [];
+  for (let row = 0; row < GRID_ROWS; row++) {
+    for (let col = 0; col < GRID_COLS; col++) {
+      const label = cellLabel({ row, col });
+      targets.push(
+        `<rect class="probe-target" x="${col}" y="${row}" width="1" height="1" data-probe="${label}"/>`,
+      );
+    }
+  }
+  return targets.join('');
+}
+
+/** Grille de tir : aucune gemme n'est visible, seulement les résultats des tirs et des sondes. */
+export function shotBoardSvg(marks: ShotMarks, options: ShotBoardOptions = {}): string {
+  const { probes = [], probing = false } = options;
   return boardFrame(
     'Grille de tir : 10 colonnes, 8 lignes, repères du bord cliquables',
-    entryLabelsSvg(marks),
+    `${entryLabelsSvg(marks)}${probeMarksSvg(probes)}${probing ? probeTargetsSvg() : ''}`,
+    probing ? 'is-probing' : '',
   );
 }

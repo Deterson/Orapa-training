@@ -5,8 +5,8 @@ Gameology ; édition française Miraludo). Le site génère une « mine » aléa
 gemmes cachées) et le joueur doit la reconstituer par déduction, en tirant des lasers, en
 prenant des notes et en plaçant ses propres gemmes, puis en soumettant sa solution.
 
-> Statut : étapes **v0.1 à v0.8** terminées (socle, géométrie et placement, simulateur de
-> laser, visibilité, générateur et solveur d'unicité, grille de tir, grille de solution, notes). La page du site est un banc d'essai provisoire de cette logique ;
+> Statut : étapes **v0.1 à v0.9** terminées (socle, géométrie et placement, simulateur de
+> laser, visibilité, générateur et solveur d'unicité, grille de tir, grille de solution, notes, soumission et résultat). La page du site est un banc d'essai provisoire de cette logique ;
 > la vraie interface commence à l'étape v0.6. `CLAUDE.md` et `docs/` sont la spécification.
 
 ## Documentation (`docs/`)
@@ -136,9 +136,9 @@ compris la particularité de la gemme rouge retournable.
   de l'entraînement.
 - Pas besoin de comparer des signatures à la soumission ; le simulateur sert seulement au
   tir et à l'outil de vérification d'hypothèse du joueur.
-- Fin de partie officielle, pour mémoire : à deux joueurs, une proposition fausse fait
-  perdre immédiatement ; à 3 ou plus, on a deux chances. En entraînement le choix est
-  ouvert (voir « Questions ouvertes »).
+- Fin de partie officielle : à deux joueurs, une proposition fausse fait perdre
+  immédiatement. En entraînement, **une seule proposition** (`MAX_ATTEMPTS = 1` dans
+  `game/session.ts`) ; la constante permet un mode plus indulgent.
 - Après soumission : afficher les différences (gemmes manquantes / mal placées /
   en trop) et la vraie mine.
 
@@ -171,8 +171,9 @@ src/
     rng.ts         # ✔ PRNG à graine
     generate.ts    # ✔ génération aléatoire à graine, version du générateur
     solve.ts       # ✔ solveur d'unicité guidé par les rayons
-    verify.ts      # correction de la soumission (v0.9)
-    session.ts     # ✔ partie en cours : mine privée, tirs ; seule porte d'entrée de l'UI
+    session.ts     # ✔ partie en cours : mine privée, tirs, sondes, soumission ; seule porte d'entrée de l'UI
+    verify.ts      # ✔ correction par égalité stricte, détail gemme par gemme
+    probe.ts       # ✔ « Qu'y a-t-il en E4 ? »
     notes.ts       # ✔ notes : marques de cases, traits, gomme, annuler / rétablir
     solution.ts    # ✔ solution du joueur : poser, pivoter, retourner la rouge, règles, comparaison aux tirs
   ui/          # composants, interactions pointeur, rendu SVG
@@ -180,6 +181,7 @@ src/
     board.ts       # ✔ grille SVG, repères du bord, marques des tirs
     solutionBoard.ts # ✔ grille de solution et réserve de gemmes
     notesBoard.ts  # ✔ calque de notes et ses outils
+    resultBoard.ts # ✔ écran de résultat : vraie mine et proposition
     palette.ts     # ✔ couleurs d'affichage des gemmes et des rayons
   main.ts
 tests/         # Vitest ; helpers.ts fournit `place`, un PRNG et des dispositions aléatoires valides
@@ -241,7 +243,7 @@ prépare : v0.1 à v0.11 construisent la **v1**, v1.1 à v1.6 construisent la **
 - v0.6 UI : grille et tirs : **fait**.
 - v0.7 UI : grille de solution (glisser-déposer, rotation, retournement de la rouge) : **fait**.
 - v0.8 UI : notes et dessin : **fait**.
-- v0.9 Soumission, correction, écran de résultat.
+- v0.9 Soumission, correction, écran de résultat : **fait**.
 - v0.10 Sauvegarde locale de la partie en cours.
 - v0.11 Page « Règles », accessibilité, mobile.
 
@@ -259,10 +261,8 @@ prépare : v0.1 à v0.11 construisent la **v1**, v1.1 à v1.6 construisent la **
 - Contact entre gemmes (règle d) : le livret dit « par un coin ou une ligne ». Confirmer
   qu'un sommet posé contre le milieu d'un côté est permis et qu'un segment partagé ne
   l'est pas.
-- Soumission en entraînement : une seule tentative (comme le jeu officiel, une erreur =
-  défaite) ou plusieurs essais ?
-- « Sonder une case » (« Qu'y a-t-il en E4 ? ») : proposer l'action ? la compter comme un
-  tir ? Proposition : la proposer, la compter à part.
+- ~~Soumission en entraînement~~ : décidé en v0.9, une seule tentative (`MAX_ATTEMPTS`).
+- ~~« Sonder une case »~~ : décidé en v0.9, proposée et comptée à part des lasers.
 - Une partie abandonnée compte-t-elle comme perdue dans le pourcentage de victoires (v2) ?
   Proposition : oui.
 - Limite de lasers imposée, ou simple compteur indicatif ?

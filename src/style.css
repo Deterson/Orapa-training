@@ -554,3 +554,182 @@ h2 {
   border-radius: 50%;
   border: 1px solid #0006;
 }
+
+.meta {
+  margin: 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.confirm {
+  padding: 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.confirm p {
+  margin: 0 0 8px;
+}
+
+.probe-list {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.probe-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.probe-form input {
+  width: 5rem;
+  min-height: 44px;
+  padding: 4px 10px;
+  font: inherit;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-transform: uppercase;
+}
+
+.probe-target {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.probe-target:hover {
+  fill: var(--accent);
+  fill-opacity: 0.18;
+}
+
+.probe-nothing {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 0.06;
+  pointer-events: none;
+}
+
+.probe-gem rect {
+  stroke: #000;
+  stroke-opacity: 0.4;
+  stroke-width: 0.04;
+  pointer-events: none;
+}
+
+.probe-gem text {
+  fill: #111;
+  font-size: 0.34px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.result h2 {
+  font-size: 1.4rem;
+}
+
+.result.is-won h2 {
+  color: #1e9e50;
+}
+
+.result.is-lost h2 {
+  color: #d33a2c;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.stats div {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.stats dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.stats dd {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.real-gem {
+  stroke: #000;
+  stroke-opacity: 0.4;
+  stroke-width: 0.06;
+  stroke-linejoin: round;
+}
+
+.guess-gem {
+  fill: none;
+  stroke-width: 0.14;
+  stroke-dasharray: 0.3 0.18;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.guess-gem.is-correct {
+  stroke: #1e9e50;
+}
+
+.guess-gem.is-wrong {
+  stroke: #d33a2c;
+}
+
+.diff {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.diff .correct {
+  color: #1e9e50;
+}
+
+.diff .wrong,
+.diff .missing {
+  color: #d33a2c;
+}
+
+@media (prefers-color-scheme: dark) {
+  .diff .correct,
+  .result.is-won h2 {
+    color: #5fd48c;
+  }
+
+  .diff .wrong,
+  .diff .missing,
+  .result.is-lost h2 {
+    color: #ff8a7f;
+  }
+}
