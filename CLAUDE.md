@@ -5,8 +5,8 @@ Gameology ; édition française Miraludo). Le site génère une « mine » aléa
 gemmes cachées) et le joueur doit la reconstituer par déduction, en tirant des lasers, en
 prenant des notes et en plaçant ses propres gemmes, puis en soumettant sa solution.
 
-> Statut : étapes **v0.1 à v0.5** terminées (socle, géométrie et placement, simulateur de
-> laser, visibilité, générateur et solveur d'unicité). La page du site est un banc d'essai provisoire de cette logique ;
+> Statut : étapes **v0.1 à v0.6** terminées (socle, géométrie et placement, simulateur de
+> laser, visibilité, générateur et solveur d'unicité, grille de tir). La page du site est un banc d'essai provisoire de cette logique ;
 > la vraie interface commence à l'étape v0.6. `CLAUDE.md` et `docs/` sont la spécification.
 
 ## Documentation (`docs/`)
@@ -102,9 +102,9 @@ pas seulement à la souris).
 
 Zones :
 
-1. **Grille de tir** : les repères de bord sont cliquables pour tirer un laser. Le
-   chemin du rayon est tracé sur la grille ; le point de sortie est marqué de la
-   couleur obtenue. Historique des tirs (numéroté) consultable et effaçable à
+1. **Grille de tir** : les repères de bord sont cliquables pour tirer un laser. Le point
+   de sortie est marqué de la couleur obtenue. **Le chemin du rayon n'est jamais tracé**
+   (il trahirait les gemmes) ; il ne l'est que sur la grille de solution du joueur. Historique des tirs (numéroté) consultable et effaçable à
    l'affichage (mais le **compteur de tirs** ne baisse jamais).
 2. **Grille de notes / dessin** : calque libre pour annoter les cases (couleur,
    croix « vide », crayon, gomme, annuler/rétablir). N'a aucun effet sur la
@@ -172,9 +172,11 @@ src/
     generate.ts    # ✔ génération aléatoire à graine, version du générateur
     solve.ts       # ✔ solveur d'unicité guidé par les rayons
     verify.ts      # correction de la soumission (v0.9)
+    session.ts     # ✔ partie en cours : mine privée, tirs ; seule porte d'entrée de l'UI
   ui/          # composants, interactions pointeur, rendu SVG
-    home.ts        # ✔ page provisoire
-    bench.ts       # ✔ banc d'essai provisoire (remplacé en v0.6)
+    app.ts         # ✔ état de l'application, partie, historique des tirs
+    board.ts       # ✔ grille SVG, repères du bord, marques des tirs
+    palette.ts     # ✔ couleurs d'affichage des gemmes et des rayons
   main.ts
 tests/         # Vitest ; helpers.ts fournit `place`, un PRNG et des dispositions aléatoires valides
 docs/          # règles du jeu et roadmap
@@ -232,7 +234,7 @@ prépare : v0.1 à v0.11 construisent la **v1**, v1.1 à v1.6 construisent la **
 - v0.3 Simulateur de laser (tests : exemples du livret) : **fait**.
 - v0.4 Visibilité des gemmes (règle e) : **fait**.
 - v0.5 Générateur à graine + solveur d'unicité : **fait** (123 ms en moyenne par mine).
-- v0.6 UI : grille et tirs.
+- v0.6 UI : grille et tirs : **fait**.
 - v0.7 UI : grille de solution (glisser-déposer, rotation, retournement de la rouge).
 - v0.8 UI : notes et dessin.
 - v0.9 Soumission, correction, écran de résultat.

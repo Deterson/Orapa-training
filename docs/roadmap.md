@@ -104,14 +104,27 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
 - **Fini quand :** « nouvelle mine » répond en un temps acceptable et toute mine produite
   vérifie les trois propriétés. ✔
 
-### v0.6 Interface : grille et tirs (M)
+### v0.6 Interface : grille et tirs (M) : fait
 
-- Rendu SVG de la grille 10×8, repères de bord (1–10, 11–18, I–R, A–H).
-- Clic sur un repère = tir ; tracé du chemin du rayon, point de sortie coloré.
-- Historique numéroté des tirs, compteur de lasers.
-- Gemmes **jamais** exposées à l'UI avant la fin de partie : l'UI n'appelle que la fonction
-  de tir.
-- **Fini quand :** on peut tirer des lasers sur une mine générée et lire les résultats.
+- `game/session.ts` : `GameSession` garde la mine dans un champ privé du langage (`#mine`,
+  invisible pour `JSON.stringify`) et n'expose que `fire`, `shots` et `laserCount`. Le résultat
+  d'un tir est `{ n, entry, exit, color }` : **ni le trajet du rayon, ni les gemmes touchées**,
+  qui trahiraient la mine. Redemander un repère déjà tiré renvoie la même réponse sans compter
+  un nouveau laser (le livret l'autorise).
+- `ui/board.ts` : grille SVG 10×8 avec les 36 repères cliquables (1–10, 11–18, I–R, A–H).
+  Sur le repère d'entrée d'un tir : un badge avec son numéro ; sur le repère de sortie : un
+  point de la couleur annoncée.
+- `ui/app.ts` : nouvelle partie (graine aléatoire ou `?seed=` dans l'adresse), copie du lien,
+  compteur de lasers, historique numéroté (cliquer un tir le met en avant sur la grille),
+  message vocal pour les lecteurs d'écran.
+- **Décision :** le chemin du rayon n'est **pas** tracé dans la grille de tir, contrairement à ce
+  que prévoyait la première version de la roadmap : dans le vrai jeu on ne voit que la sortie et
+  la couleur, et tracer le chemin révélerait les gemmes. Le chemin ne sera tracé que sur la
+  grille de solution du joueur, pour tester une hypothèse (v0.7).
+- Génération de la mine à l'ouverture : environ 0,5 s sur le serveur de développement.
+- Vérifié dans un navigateur au format iPhone 13 : tirs, historique, mise en avant, pas de
+  débordement horizontal, aucune gemme dans le DOM.
+- **Fini quand :** on peut tirer des lasers sur une mine générée et lire les résultats. ✔
 
 ### v0.7 Interface : grille de solution (L)
 

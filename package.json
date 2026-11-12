@@ -1,7 +1,7 @@
 {
   "name": "orapa-training",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Site d'entraînement au jeu de société Orapa Mine",
   "type": "module",
   "engines": {

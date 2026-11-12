@@ -1,9 +1,9 @@
 import './style.css';
-import { renderHome } from './ui/home';
+import { startApp } from './ui/app';
 
 const root = document.getElementById('app');
 if (!root) {
   throw new Error('Élément #app introuvable');
 }
 
-renderHome(root, { version: __APP_VERSION__ });
+startApp(root, __APP_VERSION__);
