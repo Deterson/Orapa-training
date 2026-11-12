@@ -6,7 +6,7 @@ import { ENTRY_POINTS, type EntryPoint, cellLabel, parseCell } from '../game/boa
 import { GEM_COLOR_LABELS } from '../game/colors';
 import { GRID_COLS, GRID_ROWS } from '../game/constants';
 import type { ProbeRecord, ShotRecord } from '../game/session';
-import { GEM_FILL, MARK_LETTER, RAY_COLOR } from './palette';
+import { GEM_FILL, MARK_LETTER, PATTERN_DEFS, RAY_COLOR } from './palette';
 
 export interface ShotMarks {
   shots: readonly ShotRecord[];
@@ -48,6 +48,7 @@ export function entryLabelsSvg(
   marks: ShotMarks | null,
   action = 'fire',
   matches?: ReadonlyMap<number, boolean>,
+  interactive = true,
 ): string {
   return ENTRY_POINTS.map((entry) => {
     const [x, y] = labelCenter(entry);
@@ -71,6 +72,9 @@ export function entryLabelsSvg(
     const dot = to
       ? `<circle class="dot" cx="${x + 0.3}" cy="${y + 0.3}" r="0.18" fill="${RAY_COLOR[to.color]}"/>`
       : '';
+    if (!interactive) {
+      return `<g class="${classes}" aria-hidden="true"><rect x="${x - 0.45}" y="${y - 0.45}" width="0.9" height="0.9" rx="0.2"/><text class="label" x="${x}" y="${y}">${entry.label}</text></g>`;
+    }
     return `<g class="${classes}" data-${action}="${entry.label}" role="button" tabindex="0" aria-label="${action === 'fire' ? 'Tirer un laser depuis' : 'Tester sur votre grille un tir depuis'} le repère ${entry.label}"><rect x="${x - 0.45}" y="${y - 0.45}" width="0.9" height="0.9" rx="0.2"/><text class="label" x="${x}" y="${y}">${entry.label}</text>${badge}${dot}</g>`;
   }).join('');
 }
@@ -84,6 +88,7 @@ export function boardFrame(
 ): string {
   const size = `${-BOARD_MARGIN} ${-BOARD_MARGIN} ${GRID_COLS + 2 * BOARD_MARGIN} ${GRID_ROWS + 2 * BOARD_MARGIN + extraHeight}`;
   return `<svg class="board-svg ${extraClass}" viewBox="${size}" role="group" aria-label="${label}">
+      ${PATTERN_DEFS}
       <rect class="board" x="0" y="0" width="${GRID_COLS}" height="${GRID_ROWS}"/>
       ${gridLinesSvg()}
       ${content}

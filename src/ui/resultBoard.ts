@@ -6,7 +6,7 @@ import { cellLabel } from '../game/board';
 import { GEM_SHAPES, placedPolygon } from '../game/gems';
 import type { GemDiff } from '../game/verify';
 import { boardFrame } from './board';
-import { GEM_FILL } from './palette';
+import { gemPolygons } from './palette';
 
 function points(list: readonly (readonly [number, number])[]): string {
   return list.map(([x, y]) => `${x},${y}`).join(' ');
@@ -16,7 +16,7 @@ export function resultBoardSvg(diffs: readonly GemDiff[]): string {
   const actual = diffs
     .map(({ actual: placement }) => {
       const shape = GEM_SHAPES[placement.gem];
-      return `<polygon class="real-gem" points="${points(placedPolygon(placement))}" fill="${GEM_FILL[shape.color]}"><title>${shape.label}</title></polygon>`;
+      return gemPolygons(points(placedPolygon(placement)), shape.color, 'real-gem', shape.label);
     })
     .join('');
   const guesses = diffs

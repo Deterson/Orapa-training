@@ -225,17 +225,37 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
 - **Fini quand :** fermer l'onglet en pleine partie puis rouvrir le site restaure exactement
   l'état, chronomètre compris. ✔
 
-### v0.11 Page « Règles » et finitions (M)
+### v0.11 Page « Règles » et finitions (M) : fait
 
-- Page de règles dans le site, issue de [`regles.md`](regles.md), qui mentionne la
-  particularité de la **gemme rouge retournable** (deux faces quadrillées, seule pièce
-  concernée).
-- Accessibilité : noms des couleurs en texte et motifs en plus de la teinte (daltonisme),
-  navigation clavier.
-- Mobile et tactile : tailles de cibles, glisser-déposer testé au doigt.
-- Textes dans une table de chaînes (français d'abord).
-- Option : variantes de difficulté (Diamant, Corps noir) une fois leurs formes confirmées.
-- **Fini quand :** parcours complet validé sur ordinateur et téléphone.
+- **Page « Règles »** (`ui/rules.ts`, adresse `#regles`, lien dans l'en-tête) : but du jeu, grille et
+  repères, gemmes (dessinées avec leurs dimensions), règles de placement a à e, trajet du
+  rayon avec l'exemple du livret tracé par le simulateur, table des 15 mélanges de couleurs
+  générée par `mixColors`, mode d'emploi du site. Elle signale la **particularité de la gemme
+  rouge retournable** dans un encadré. Les schémas utilisent les mêmes données que le jeu : ils
+  ne peuvent pas contredire le simulateur.
+- **Chronomètre en pause** pendant la lecture des règles et quand la page est cachée
+  (`GameSession.pause / resume`, testés avec une horloge injectée).
+- **Table de chaînes** (`ui/strings.ts`) : onglets, boutons, statuts, réponses aux sondes et
+  messages d'aide principaux ; une autre langue ajouterait un objet de même forme.
+- **Accessibilité** :
+  - les gemmes ne sont plus distinguées par la seule couleur : **motifs** (rouge hachuré, jaune
+    pointillé, bleu rayé, blanc uni) ; les marques de notes portent une lettre ; chaque
+    couleur de rayon est aussi écrite en toutes lettres ;
+  - clavier : repères et gemmes focalisables, flèches pour déplacer les gemmes, flèches gauche
+    et droite entre les onglets, lien d'accès rapide au plateau, formulaire de sonde au clavier ;
+  - rôles `tablist` / `tab`, zone `aria-live` pour les résultats, étiquettes explicites ;
+    focus toujours visible ; `prefers-reduced-motion` respecté ; thèmes clair et sombre.
+- **Mobile et tactile** : onglets défilables, boutons de 44 px, aucune barre de défilement
+  horizontale à 360 px, 412 px et 820 px de large ; la grille de solution désactive le défilement
+  au doigt (`touch-action: none`) pour que le glisser-déposer ne fasse pas défiler la page, la
+  grille de notes aussi quand le crayon ou la gomme est actif.
+- Vérifié dans un navigateur : page Règles (5 gemmes, 15 lignes de couleurs), pause du
+  chronomètre pendant 3 s de lecture, flèches entre onglets, motifs présents, glisser d'une gemme
+  et dessin au crayon avec de **vrais événements tactiles** (profil Pixel 7), aucune erreur.
+- Non fait : variantes de difficulté (Diamant, Corps noir), dont les formes sont toujours
+  inconnues ; test sur un vrai téléphone.
+- **Fini quand :** le parcours complet est validé sur ordinateur et sur téléphone. ✔ (en
+  émulation ; un essai sur un vrai téléphone reste souhaitable)
 
 ### Critères de sortie : livraison de la v1
 

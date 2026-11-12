@@ -85,7 +85,8 @@ export class GameSession {
   #status: GameStatus = 'playing';
   #attempts = 0;
   #elapsedBefore = 0;
-  #resumedAt: number;
+  /** Début de la période de jeu en cours, ou null quand le chronomètre est en pause. */
+  #resumedAt: number | null;
   #finishedAt: number | null = null;
 
   constructor(mine: Mine, { now = Date.now }: SessionOptions = {}) {
@@ -121,8 +122,9 @@ export class GameSession {
     session.#elapsedBefore = snapshot.elapsedMs;
     session.#resumedAt = session.#now();
     if (snapshot.status !== 'playing') {
+      session.pause();
       session.#status = snapshot.status;
-      session.#finishedAt = session.#resumedAt;
+      session.#finishedAt = session.#now();
     }
     return session;
   }
@@ -156,8 +158,22 @@ export class GameSession {
 
   /** Temps de jeu écoulé, figé à la fin de la partie. */
   elapsedMs(): number {
+    if (this.#resumedAt === null) return this.#elapsedBefore;
     const until = this.#finishedAt ?? this.#now();
     return this.#elapsedBefore + (until - this.#resumedAt);
+  }
+
+  /** Met le chronomètre en pause (règles ouvertes, page cachée). Sans effet une fois terminée. */
+  pause(): void {
+    if (this.#resumedAt === null || this.finished) return;
+    this.#elapsedBefore += this.#now() - this.#resumedAt;
+    this.#resumedAt = null;
+  }
+
+  /** Relance le chronomètre après une pause. */
+  resume(): void {
+    if (this.#resumedAt !== null || this.finished) return;
+    this.#resumedAt = this.#now();
   }
 
   get summary(): GameSummary {
@@ -178,6 +194,7 @@ export class GameSession {
   }
 
   #finish(status: GameStatus): void {
+    this.pause();
     this.#status = status;
     this.#finishedAt = this.#now();
   }

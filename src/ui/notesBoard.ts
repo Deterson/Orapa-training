@@ -53,7 +53,7 @@ export function notesLayerSvg(notes: Notes): string {
 }
 
 export function notesBoardSvg(view: NotesView): string {
-  const content = `${entryLabelsSvg({ shots: view.shots, selected: null }, 'note')}<g id="note-layer">${notesLayerSvg(view.history.present)}</g><polyline id="note-preview" class="note-stroke" points="" stroke="${INK_COLOR[view.ink]}"/>`;
+  const content = `${entryLabelsSvg({ shots: view.shots, selected: null }, 'note', undefined, false)}<g id="note-layer">${notesLayerSvg(view.history.present)}</g><polyline id="note-preview" class="note-stroke" points="" stroke="${INK_COLOR[view.ink]}"/>`;
   return boardFrame(
     'Grille de notes : posez des marques sur les cases ou dessinez au crayon',
     content,

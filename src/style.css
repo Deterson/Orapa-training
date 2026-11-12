@@ -756,3 +756,149 @@ h2 {
   background: var(--surface);
   font-size: 0.9rem;
 }
+
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -4rem;
+  z-index: 10;
+  padding: 8px 12px;
+  color: var(--bg);
+  background: var(--accent);
+  border-radius: 0 0 8px 8px;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 8px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+#plateau:focus {
+  outline: none;
+}
+
+.tabs {
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: thin;
+}
+
+.tab {
+  flex: none;
+}
+
+.gem-pattern {
+  pointer-events: none;
+}
+
+.rules {
+  max-width: 44rem;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rules h2 {
+  margin-top: 12px;
+  font-size: 1.3rem;
+}
+
+.rules p {
+  margin: 0;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.gem-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 20px;
+}
+
+.gem-figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.gem-figure svg {
+  display: block;
+  max-width: 7rem;
+  height: auto;
+}
+
+.flip-note {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.note-box {
+  padding: 12px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.rule-list {
+  margin: 0;
+  padding-left: 1.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rules-board {
+  max-width: 34rem;
+}
+
+.scroll {
+  overflow-x: auto;
+}
+
+.rules-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+
+.rules-table th,
+.rules-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+.rules-table td:last-child {
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Glisser-déposer des gemmes au doigt : le navigateur ne doit pas faire défiler la page. */
+.board-svg.solution-svg {
+  touch-action: none;
+}

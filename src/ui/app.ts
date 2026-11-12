@@ -8,7 +8,7 @@ import { GRID_COLS, GRID_ROWS } from '../game/constants';
 import { GEM_SHAPES, type GemId } from '../game/gems';
 import { type ShotResult, shoot } from '../game/laser';
 import { randomSeed } from '../game/rng';
-import { GameSession, type GameStatus, type ProbeRecord, type ShotRecord } from '../game/session';
+import { GameSession, type ShotRecord } from '../game/session';
 import { SAVE_VERSION, type SaveData } from '../game/save';
 import { compareSolution } from '../game/verify';
 import {
@@ -42,14 +42,19 @@ import { shotBoardSvg } from './board';
 import { type Tool, notesBoardSvg, notesLayerSvg, notesToolbar } from './notesBoard';
 import { RAY_COLOR } from './palette';
 import { diffLine, resultBoardSvg } from './resultBoard';
+import { rulesPage } from './rules';
 import { browserSaveStore } from './storage';
+import { t } from './strings';
 import { gemOrigin, gemSize, solutionBoardSvg } from './solutionBoard';
 
 type Phase = 'loading' | 'resume' | 'ready' | 'error';
 type Tab = 'shots' | 'solution' | 'notes' | 'result';
+type View = 'game' | 'rules';
 
 interface State {
   phase: Phase;
+  /** Page affichée : la partie ou les règles (adresse « #regles »). */
+  view: View;
   session: GameSession | null;
   tab: Tab;
   /** Tir mis en avant dans l'historique. */
@@ -89,6 +94,14 @@ function writeSeedToUrl(seed: string): void {
   }
 }
 
+function viewFromHash(): View {
+  try {
+    return window.location.hash === '#regles' ? 'rules' : 'game';
+  } catch {
+    return 'game';
+  }
+}
+
 function chip(color: ShotRecord['color']): string {
   return `<span class="chip" style="background:${RAY_COLOR[color]}" aria-hidden="true"></span>`;
 }
@@ -116,24 +129,10 @@ function formatTime(ms: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-const PROBE_TEXT: Record<ProbeRecord['content'], string> = {
-  nothing: 'rien',
-  red: 'une gemme rouge',
-  yellow: 'une gemme jaune',
-  blue: 'une gemme bleue',
-  white: 'une gemme blanche',
-};
-
-const STATUS_TITLE: Record<GameStatus, string> = {
-  playing: '',
-  won: 'Bravo, mine reconstituée !',
-  lost: 'Raté : la proposition était fausse',
-  abandoned: 'Partie abandonnée',
-};
-
 export function startApp(root: HTMLElement, version: string): void {
   const state: State = {
     phase: 'loading',
+    view: viewFromHash(),
     session: null,
     tab: 'shots',
     selected: null,
@@ -181,9 +180,9 @@ export function startApp(root: HTMLElement, version: string): void {
     return `
       ${board}
       <div class="toolbar" role="toolbar" aria-label="Actions sur la gemme sélectionnée">
-        <button type="button" data-action="rotate"${placedSelected ? '' : ' disabled'}>↻ Pivoter</button>
-        <button type="button" data-action="flip"${placedSelected && flippable ? '' : ' disabled'} title="Seule la gemme rouge peut être retournée">⇋ Retourner</button>
-        <button type="button" class="ghost" data-action="remove"${placedSelected ? '' : ' disabled'}>Remettre dans la réserve</button>
+        <button type="button" data-action="rotate"${placedSelected ? '' : ' disabled'}>${t.actions.rotate}</button>
+        <button type="button" data-action="flip"${placedSelected && flippable ? '' : ' disabled'} title="Seule la gemme rouge peut être retournée">${t.actions.flip}</button>
+        <button type="button" class="ghost" data-action="remove"${placedSelected ? '' : ' disabled'}>${t.actions.putBack}</button>
       </div>
       <p class="hint">${selectionText}</p>
       <p class="status"><b>${placed}</b> gemme${plural(placed, '', 's')} sur ${total} posée${plural(placed, '', 's')}. ${comparison}</p>
@@ -201,7 +200,7 @@ export function startApp(root: HTMLElement, version: string): void {
     const guessed = placedGems(state.solution).length > 0;
     return `
       <div class="result is-${summary.status}">
-        <h2>${STATUS_TITLE[summary.status]}</h2>
+        <h2>${t.status[summary.status]}</h2>
         <dl class="stats">
           <div><dt>Lasers</dt><dd>${summary.lasers}</dd></div>
           <div><dt>Sondages</dt><dd>${summary.probes}</dd></div>
@@ -212,8 +211,8 @@ export function startApp(root: HTMLElement, version: string): void {
         <p class="hint">Les gemmes pleines sont la vraie mine${guessed ? ' ; les contours en pointillés sont votre proposition (vert : bien placée, rouge : à corriger)' : ''}.</p>
         <ul class="diff">${diffs.map((diff) => `<li class="${diff.status}">${diffLine(diff)}</li>`).join('')}</ul>
         <div class="actions">
-          <button type="button" data-action="new-game">Nouvelle partie</button>
-          <button type="button" class="ghost" data-action="replay">Rejouer cette mine</button>
+          <button type="button" data-action="new-game">${t.actions.newGame}</button>
+          <button type="button" class="ghost" data-action="replay">${t.actions.replay}</button>
         </div>
       </div>`;
   };
@@ -228,12 +227,12 @@ export function startApp(root: HTMLElement, version: string): void {
       return `<div class="confirm" role="alertdialog" aria-label="Confirmer l'abandon"><p>Abandonner la partie et révéler la mine ?</p><div class="actions"><button type="button" data-action="confirm-abandon">Oui, abandonner</button><button type="button" class="ghost" data-action="cancel-confirm">Annuler</button></div></div>`;
     }
     const ready = isSubmittable(state.solution);
-    return `<div class="actions"><button type="button" data-action="ask-submit"${ready ? '' : ' disabled'}>Soumettre ma solution</button><button type="button" class="ghost" data-action="ask-abandon">Abandonner</button></div>${ready ? '' : '<p class="hint">Pour soumettre : posez les 5 gemmes sans enfreindre de règle (onglet « Ma solution »).</p>'}`;
+    return `<div class="actions"><button type="button" data-action="ask-submit"${ready ? '' : ' disabled'}>${t.actions.submit}</button><button type="button" class="ghost" data-action="ask-abandon">${t.actions.abandon}</button></div>${ready ? '' : `<p class="hint">${t.hints.submitNeeds}</p>`}`;
   };
 
   const probePanel = (session: GameSession): string => {
     if (session.finished) return '';
-    return `<div class="notes-tools"><button type="button" class="tool" data-action="toggle-probe" aria-pressed="${state.probing}">Sonder une case</button></div>${
+    return `<div class="notes-tools"><button type="button" class="tool" data-action="toggle-probe" aria-pressed="${state.probing}">${t.actions.probe}</button></div>${
       state.probing
         ? `<form class="probe-form" data-form="probe"><label for="probe-input">Case à sonder</label><input id="probe-input" name="cell" type="text" inputmode="text" autocomplete="off" maxlength="3" placeholder="E4" /><button type="submit">Sonder</button></form><p class="hint">Touchez une case de la grille, ou saisissez son nom. Une sonde se compte à part des lasers.</p>`
         : '<p class="hint">« Qu\'y a-t-il en E4 ? » : la réponse est « rien » ou la couleur de la gemme.</p>'
@@ -251,8 +250,8 @@ export function startApp(root: HTMLElement, version: string): void {
         <h2>Une partie est en cours</h2>
         <p>Mine <b>${session.mine.seed}</b> : ${session.shots.length} laser${plural(session.shots.length, '', 's')}, ${session.probes.length} sondage${plural(session.probes.length, '', 's')}, ${formatTime(session.elapsedMs)} de jeu. Sauvegardée le ${when}.</p>
         <div class="actions">
-          <button type="button" data-action="resume">Reprendre la partie</button>
-          <button type="button" class="ghost" data-action="discard-save">Nouvelle partie</button>
+          <button type="button" data-action="resume">${t.actions.resume}</button>
+          <button type="button" class="ghost" data-action="discard-save">${t.actions.newGame}</button>
         </div>
       </div>`;
   };
@@ -270,7 +269,20 @@ export function startApp(root: HTMLElement, version: string): void {
     });
   };
 
+  /** Le chronomètre ne tourne que pendant qu'on joue : pas pendant la lecture des règles ni page cachée. */
+  const syncClock = (): void => {
+    const session = state.session;
+    if (!session) return;
+    if (state.view === 'game' && document.visibilityState === 'visible') session.resume();
+    else session.pause();
+  };
+
   const render = (): void => {
+    syncClock();
+    if (state.view === 'rules') {
+      root.innerHTML = `<main class="app">${rulesPage()}</main>`;
+      return;
+    }
     const { session } = state;
     const shots = session?.shots ?? [];
     let board: string;
@@ -303,38 +315,40 @@ export function startApp(root: HTMLElement, version: string): void {
               `<li><button type="button" class="shot${state.selected === shot.n ? ' is-selected' : ''}" data-shot="${shot.n}"><span class="n">${shot.n}</span><span class="path"><b>${shot.entry}</b> → <b>${shot.exit}</b></span>${chip(shot.color)}<span class="color-name">${RESULT_COLOR_LABELS[shot.color]}</span></button></li>`,
           )
           .join('')}</ol>`
-      : '<p class="hint">Touchez un repère du bord pour tirer un laser.</p>';
+      : `<p class="hint">${t.hints.fire}</p>`;
 
     const count = session?.laserCount ?? 0;
     const probeCount = session?.probes.length ?? 0;
     const probeHistory = probeCount
       ? `<h2>Sondages</h2><ul class="probe-list">${(session?.probes ?? [])
-          .map((probe) => `<li><b>${probe.cell}</b> : ${PROBE_TEXT[probe.content]}</li>`)
+          .map((probe) => `<li><b>${probe.cell}</b> : ${t.probe[probe.content]}</li>`)
           .join('')}</ul>`
       : '';
     root.innerHTML = `
+      <a class="skip-link" href="#plateau" data-action="skip">${t.skipToContent}</a>
       <main class="app">
         <header class="top">
           <div>
             <p class="badge">Version ${version}</p>
-            <h1>Orapa Training</h1>
+            <h1>${t.appName}</h1>
           </div>
           <div class="seed-box">
             <span class="seed-label">Graine</span>
             <code class="seed">${session?.seed ?? '…'}</code>
-            <button type="button" class="ghost" data-action="copy-link"${session ? '' : ' disabled'}>Copier le lien</button>
-            <button type="button" data-action="new-game">Nouvelle partie</button>
+            <button type="button" class="ghost" data-action="copy-link"${session ? '' : ' disabled'}>${t.actions.copyLink}</button>
+            <a class="nav-link" href="#regles">${t.nav.rules}</a>
+            <button type="button" data-action="new-game">${t.actions.newGame}</button>
           </div>
         </header>
         ${store.available ? '' : '<p class="warning" role="status">La sauvegarde automatique est indisponible dans ce navigateur (navigation privée ?) : la partie ne sera pas conservée si vous fermez la page.</p>'}
         <div class="play">
-          <section class="board-wrap" aria-label="Plateau">
+          <section class="board-wrap" id="plateau" tabindex="-1" aria-label="Plateau">
             <div class="tabs" role="tablist">
-              <button type="button" role="tab" class="tab${state.tab === 'shots' ? ' is-active' : ''}" aria-selected="${state.tab === 'shots'}" data-tab="shots">Tirs</button>
-              <button type="button" role="tab" class="tab${state.tab === 'solution' ? ' is-active' : ''}" aria-selected="${state.tab === 'solution'}" data-tab="solution">Ma solution</button>
-              <button type="button" role="tab" class="tab${state.tab === 'notes' ? ' is-active' : ''}" aria-selected="${state.tab === 'notes'}" data-tab="notes">Notes</button>${
+              <button type="button" role="tab" class="tab${state.tab === 'shots' ? ' is-active' : ''}" aria-selected="${state.tab === 'shots'}" data-tab="shots">${t.tabs.shots}</button>
+              <button type="button" role="tab" class="tab${state.tab === 'solution' ? ' is-active' : ''}" aria-selected="${state.tab === 'solution'}" data-tab="solution">${t.tabs.solution}</button>
+              <button type="button" role="tab" class="tab${state.tab === 'notes' ? ' is-active' : ''}" aria-selected="${state.tab === 'notes'}" data-tab="notes">${t.tabs.notes}</button>${
                 session?.finished
-                  ? `<button type="button" role="tab" class="tab${state.tab === 'result' ? ' is-active' : ''}" aria-selected="${state.tab === 'result'}" data-tab="result">Résultat</button>`
+                  ? `<button type="button" role="tab" class="tab${state.tab === 'result' ? ' is-active' : ''}" aria-selected="${state.tab === 'result'}" data-tab="result">${t.tabs.result}</button>`
                   : ''
               }
             </div>
@@ -397,7 +411,7 @@ export function startApp(root: HTMLElement, version: string): void {
     if (!session || session.finished) return;
     try {
       const record = session.probe(label);
-      state.notice = `Case ${record.cell} : ${PROBE_TEXT[record.content]}.`;
+      state.notice = `Case ${record.cell} : ${t.probe[record.content]}.`;
     } catch {
       state.notice = `« ${label} » n'est pas une case : indiquez une ligne de A à H puis une colonne de 1 à 10, par exemple E4.`;
     }
@@ -410,7 +424,7 @@ export function startApp(root: HTMLElement, version: string): void {
     state.confirm = null;
     state.probing = false;
     state.tab = 'result';
-    state.notice = state.session ? STATUS_TITLE[state.session.status] : '';
+    state.notice = state.session ? t.status[state.session.status] : '';
     render();
   };
 
@@ -617,6 +631,10 @@ export function startApp(root: HTMLElement, version: string): void {
       case 'remove':
         if (state.selectedGem) editSolution(removeGem(state.solution, state.selectedGem), null);
         return;
+      case 'skip':
+        event.preventDefault();
+        root.querySelector<HTMLElement>('#plateau')?.focus();
+        return;
       case 'resume':
         if (state.pending) {
           const save = state.pending;
@@ -686,6 +704,20 @@ export function startApp(root: HTMLElement, version: string): void {
 
   root.addEventListener('keydown', (event) => {
     const target = event.target as Element;
+    const tabButton = target.closest<HTMLElement>('[role="tab"]');
+    if (tabButton && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+      const tabs = [...root.querySelectorAll<HTMLElement>('[role="tab"]')];
+      const index = tabs.indexOf(tabButton);
+      const next = tabs[(index + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+      const name = next?.dataset['tab'];
+      if (name === 'shots' || name === 'solution' || name === 'notes' || name === 'result') {
+        event.preventDefault();
+        state.tab = name;
+        render();
+        root.querySelector<HTMLElement>(`[data-tab="${name}"]`)?.focus();
+      }
+      return;
+    }
     if (state.tab === 'notes' && (event.ctrlKey || event.metaKey)) {
       const key = event.key.toLowerCase();
       if (key === 'z' && !event.shiftKey) {
@@ -755,8 +787,14 @@ export function startApp(root: HTMLElement, version: string): void {
     if (session && timer) timer.textContent = formatTime(session.elapsedMs());
     if (++ticks % 15 === 0) persist();
   }, 1000);
+  window.addEventListener('hashchange', () => {
+    state.view = viewFromHash();
+    render();
+    if (state.view === 'rules') window.scrollTo(0, 0);
+  });
   window.addEventListener('pagehide', persist);
   document.addEventListener('visibilitychange', () => {
+    syncClock();
     if (document.visibilityState === 'hidden') persist();
   });
 

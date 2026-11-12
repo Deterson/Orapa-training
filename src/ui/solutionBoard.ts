@@ -10,7 +10,7 @@ import type { ShotResult } from '../game/laser';
 import type { ShotRecord } from '../game/session';
 import { type Solution, type SolutionIssue, sizeOf } from '../game/solution';
 import { boardFrame, entryLabelsSvg } from './board';
-import { GEM_FILL, RAY_COLOR } from './palette';
+import { RAY_COLOR, gemPolygons } from './palette';
 
 /** Haut de la réserve, sous la grille et ses repères. */
 export const TRAY_TOP = GRID_ROWS + 1.7;
@@ -68,7 +68,7 @@ function gemSvg(view: SolutionView, gem: GemId): string {
   ]
     .filter(Boolean)
     .join(' ');
-  return `<g class="${classes}" data-gem="${gem}" tabindex="0" role="button" aria-label="${shape.label}, ${where}${bad ? ', règle enfreinte' : ''}"><polygon points="${points(polygon)}" fill="${GEM_FILL[shape.color]}"/></g>`;
+  return `<g class="${classes}" data-gem="${gem}" tabindex="0" role="button" aria-label="${shape.label}, ${where}${bad ? ', règle enfreinte' : ''}">${gemPolygons(points(polygon), shape.color)}</g>`;
 }
 
 /** Taille d'une gemme dans son orientation actuelle (pour tester si elle est sur la grille). */

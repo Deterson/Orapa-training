@@ -155,6 +155,33 @@ describe('partie en cours : chronomètre', () => {
     expect(session.elapsedMs()).toBe(5000);
   });
 
+  it('ne compte pas le temps passé en pause', () => {
+    let time = 0;
+    const session = new GameSession(mine, { now: () => time });
+    time = 4000;
+    session.pause();
+    time = 100_000;
+    expect(session.elapsedMs()).toBe(4000);
+    session.pause();
+    session.resume();
+    time = 103_000;
+    expect(session.elapsedMs()).toBe(7000);
+    session.resume();
+    time = 104_000;
+    expect(session.elapsedMs()).toBe(8000);
+  });
+
+  it("une pause n'a plus d'effet une fois la partie terminée", () => {
+    let time = 0;
+    const session = new GameSession(mine, { now: () => time });
+    time = 3000;
+    session.abandon();
+    session.pause();
+    session.resume();
+    time = 50_000;
+    expect(session.elapsedMs()).toBe(3000);
+  });
+
   it('résume la partie', () => {
     let time = 0;
     const session = new GameSession(mine, { now: () => time });
