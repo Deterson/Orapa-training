@@ -29,7 +29,7 @@ pas tiré assez de lasers.
   thèmes clair et sombre, mobile.
 
 Pas de compte ni de serveur : tout tourne dans le navigateur. La version 2 ajoutera la connexion
-Google, l'historique des parties et un profil (voir [`docs/roadmap.md`](docs/roadmap.md)).
+Google, l'historique des parties et un profil ; la version 3 ajoutera un plateau personnalisé et un duel contre une IA, la version 4 un duel en direct contre un autre joueur (voir [`docs/roadmap.md`](docs/roadmap.md)).
 
 ## Développer
 

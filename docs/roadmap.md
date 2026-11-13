@@ -1,12 +1,14 @@
 # Roadmap
 
-Deux versions livrables : **v1** = le jeu complet, jouable hors ligne, avec une simple
-sauvegarde locale ; **v2** = comptes Google, historique et page de profil.
+Quatre versions livrables : **v1** = le jeu complet, jouable hors ligne, avec une simple
+sauvegarde locale ; **v2** = comptes Google, historique et page de profil ; **v3** = plateau
+personnalisé et duel contre une IA ; **v4** = duel en direct contre un autre joueur.
 
 **Numérotation.** Une étape porte le numéro de la version qu'elle prépare, pas de celle
 qu'elle livre : les étapes **v0.1 à v0.11** construisent la **v1**, qui sort quand la
 v0.11 est terminée ; les étapes **v1.1 à v1.6** construisent la **v2**, qui sort quand la
-v1.6 est terminée. La version v1.0 est donc la première version complète du jeu.
+v1.6 est terminée ; les étapes **v2.1 à v2.7** construisent la **v3** ; les étapes **v3.1 à v3.7**
+construisent la **v4**. La version v1.0 est donc la première version complète du jeu.
 
 Tailles indicatives : S (≈ une demi-journée), M (1 à 2 jours), L (3 jours ou plus).
 Chaque étape se termine par des tests verts et un commit.
@@ -377,6 +379,158 @@ Règles de calcul à figer (voir questions ouvertes) :
 
 ---
 
+## Vers la v3 : plateau personnalisé et duel contre une IA (étapes v2.1 à v2.7)
+
+**Objectif :** sortir du mode entraînement. Le joueur **cache lui-même ses gemmes** (son plateau) et
+affronte une **IA** qui cherche son plateau pendant qu'il cherche celui de l'IA : le premier qui
+identifie toutes les gemmes adverses gagne, comme au jeu à deux. Les modes d'entraînement
+(v1) restent disponibles.
+
+**Dépend de :** v1 (tout le moteur). La v2 (comptes) est souhaitable pour l'historique et les
+statistiques contre l'IA, mais le duel peut d'abord se jouer sans compte.
+
+### v2.1 Éditeur de plateau (M)
+
+- Le joueur place ses 5 gemmes sur son plateau en réutilisant la grille « Gemmes » (glisser-déposer,
+  pivoter, retourner la rouge), avec les règles de placement a à e vérifiées en direct.
+- Boutons « Au hasard » (réutilise `randomLayout`) et « Valider ».
+- **Indicateur d'ambiguïté** : le solveur (`solve.ts`) dit si le plateau est ambigu (plusieurs
+  dispositions donnent les mêmes 36 résultats). Au jeu officiel un plateau ambigu est permis ;
+  c'est une décision à prendre (voir questions ouvertes).
+- Code de partage d'un plateau (position des gemmes encodée) pour le rejouer ou le proposer en défi.
+- **Fini quand :** on peut construire, valider et exporter son plateau.
+
+### v2.2 Modèle du duel (M)
+
+- `game/duel.ts` (logique pure, sans DOM) : deux plateaux cachés, une liste de questions par joueur
+  (laser ou sonde), réponses données par la machine qui joue le maître du jeu pour les deux côtés.
+- Règles de fin de partie du jeu à deux joueurs (livret) : proposition juste = victoire ; fausse =
+  défaite immédiate ; si le premier joueur propose juste, l'autre a un dernier tour, et si lui aussi
+  réussit, égalité et manche à rejouer. Variantes (essais multiples) via des constantes.
+- **Cloisonnement** : chaque camp ne reçoit que les réponses à ses propres questions. Test : aucune
+  structure renvoyée à un camp ne contient le plateau de l'autre.
+- Deux rythmes, au choix : **tours alternés** (livret) ou **course** (chacun joue à son rythme, sans
+  attendre l'autre).
+- **Fini quand :** une partie complète joueur contre joueur simulé se déroule dans les tests.
+
+### v2.3 IA : connaissance du plateau adverse (L, risque)
+
+- L'IA ne voit **que les réponses** à ses questions. Elle en déduit l'ensemble des plateaux encore
+  possibles.
+- Le solveur actuel part de la signature complète (36 tirs) ; il faut le généraliser à une
+  information **partielle** (quelques tirs et sondes seulement). Au début, les plateaux possibles se
+  comptent en millions : l'IA travaille sur un **échantillon** de plateaux compatibles (tirage par le
+  générateur, filtré par les réponses) et vérifie la certitude avec le solveur exact.
+- Exécution dans un **Web Worker** pour ne jamais bloquer l'interface ; budget visé : moins de
+  500 ms par question.
+- **Fini quand :** après chaque réponse, l'IA sait quels plateaux restent possibles, et trouve le
+  plateau exact quand la signature est complète.
+
+### v2.4 IA : stratégie et niveaux (M)
+
+- Choix de la prochaine question par **gain d'information** : celle qui partage le mieux les
+  plateaux encore possibles (laser ou sonde).
+- Moment de la proposition : quand un seul plateau reste compatible (ou, aux niveaux faibles, avec
+  une marge de risque).
+- **Niveaux** : débutant (questions peu informatives, propose trop tôt), intermédiaire, expert.
+  Délai de réflexion simulé pour que l'IA ait un rythme humain en mode course.
+- Tests : simulations IA contre IA (nombre moyen de questions par niveau), l'IA ne triche jamais
+  (le module ne reçoit pas le plateau adverse), jamais de question illégale.
+- **Fini quand :** trois niveaux jouables, mesurés et reproductibles (graine).
+
+### v2.5 Interface du duel (L)
+
+- Écran de duel : son propre plateau (gemmes visibles, questions de l'IA marquées dessus) et le
+  plateau de l'adversaire (tirs, sondes, notes, gemmes supposées), réutilisant les composants
+  existants ; compatible avec le mode plein écran.
+- Indication du tour (ou de l'activité de l'IA en mode course), historique des questions des deux
+  camps, proposition finale avec confirmation, écran de résultat avec les deux plateaux révélés.
+- **Fini quand :** une partie contre l'IA se joue de l'éditeur de plateau au résultat, sur
+  ordinateur et téléphone.
+
+### v2.6 Sauvegarde et historique (S à M)
+
+- Sauvegarde locale de la partie de duel en cours (même mécanisme que la v1, format versionné).
+- Si la v2 est livrée : les parties de duel entrent dans l'historique (champs `mode` et `level`),
+  et le profil affiche le pourcentage de victoires contre l'IA par niveau.
+
+### v2.7 Équilibrage et finitions (S)
+
+- Parties d'essai à chaque niveau, réglage des niveaux, accessibilité, page Règles complétée
+  (règles du duel), textes courts.
+
+### Critères de sortie : livraison de la v3
+
+- Un joueur construit son plateau et joue une partie complète contre l'IA, aux trois niveaux.
+- L'IA ne dispose d'aucune information interdite (test automatisé).
+- Aucune régression du mode entraînement ni de la sauvegarde.
+
+---
+
+## Vers la v4 : duel en direct contre un autre joueur (étapes v3.1 à v3.7)
+
+**Objectif :** la partie de la v3, mais l'adversaire est **une autre personne**, en ligne et en
+temps réel. C'est le jeu de société, à distance.
+
+**Dépend de :** v2 (comptes, pour identifier les joueurs) et v3 (éditeur de plateau, règles du
+duel, interface du duel).
+
+**Difficulté centrale : la confiance.** Chaque joueur cache son plateau, mais quelqu'un doit répondre
+aux lasers de l'autre sans révéler le plateau. Deux approches :
+- **Arbitre serveur (recommandé)** : les deux plateaux sont stockés côté serveur, inaccessibles aux
+  joueurs ; le serveur calcule chaque réponse. Comme `src/game/` est du TypeScript pur sans DOM, le
+  même code (`shoot`, `probeCell`, `isCorrect`) peut tourner dans une fonction serveur.
+- **Pair à pair avec engagement** (sans serveur de jeu) : chaque joueur publie l'empreinte de son
+  plateau au départ, répond lui-même aux questions, puis révèle son plateau à la fin pour vérifier
+  que toutes ses réponses étaient exactes. Plus léger, mais la triche n'est détectée qu'après coup.
+
+### v3.1 Décisions d'architecture (S)
+
+- Arbitre serveur ou pair à pair ; technologie temps réel (par exemple Supabase Realtime) ; compte
+  obligatoire ou invité ; coût et quotas.
+
+### v3.2 Salles et invitations (M)
+
+- Créer une salle (code ou lien), la rejoindre, signaler qu'on est prêt, chacun envoie son plateau
+  **sans que l'autre puisse le lire** (règles de sécurité par ligne, ou plateau écrit seulement).
+- **Fini quand :** deux comptes se retrouvent dans une salle et valident chacun leur plateau.
+
+### v3.3 Arbitre serveur (L)
+
+- Fonction serveur qui valide un plateau (règles a à e), répond aux lasers et aux sondes, vérifie les
+  propositions, impose l'ordre des tours et tient le journal de la partie.
+- Réutilise `src/game/` tel quel ; tests partagés avec le front.
+
+### v3.4 Synchronisation temps réel et tours (M)
+
+- Canal temps réel entre les deux joueurs et l'arbitre, machine d'états de la partie, messages
+  idempotents (un message rejoué ne change rien), ordre garanti, interface qui reflète l'état serveur.
+
+### v3.5 Robustesse (M)
+
+- Déconnexion et reprise de la partie, délai maximal par tour, abandon et victoire par forfait,
+  même compte ouvert dans deux onglets.
+
+### v3.6 Interface de la partie en direct (M)
+
+- Réutilise l'écran de duel de la v3 : salle d'attente, état de l'adversaire (connecté, joue),
+  notification de son tour, résultat partagé.
+
+### v3.7 Sécurité, classement et vie privée (M)
+
+- Tests de bout en bout avec **deux clients simulés** ; propriété vérifiée : le plateau d'un joueur
+  n'apparaît dans **aucun** message envoyé à l'autre.
+- Limitation de débit, signalement d'abus minimal, suppression des données (RGPD).
+- Optionnel : classement (Elo) et historique des parties en direct.
+
+### Critères de sortie : livraison de la v4
+
+- Deux personnes jouent une partie complète en direct, sur ordinateur et téléphone.
+- Aucune fuite du plateau adverse, aucune triche possible côté client.
+- Une déconnexion ne détruit pas la partie.
+
+---
+
 ## Évolutions depuis la v1.0.0
 
 - **v1.0.1** : texte minimal dans toute l'interface (libellés courts, plus de paragraphes d'aide,
@@ -434,6 +588,17 @@ Règles de calcul à figer (voir questions ouvertes) :
 
 ## Questions ouvertes
 
+- **Duel (v3) : plateau ambigu permis ?** Le jeu officiel l'autorise ; l'entraînement l'interdit
+  (une seule solution). Proposition : avertir le joueur et lui laisser le choix, avec une option
+  « imposer un plateau unique » pour que la partie reste toujours gagnable.
+- **Duel (v3) : « en même temps » ou tour par tour ?** Tu as écrit que l'IA joue en même temps que
+  toi : course où chacun joue à son rythme ? Le livret prévoit des tours alternés. Proposition :
+  prévoir les deux, avec la course par défaut ; à confirmer.
+- **Duel (v3) : règle de fin.** Livret (une erreur = défaite, dernier tour pour le second joueur)
+  ou règle plus indulgente (deux essais) ?
+- **IA (v3) :** exécutée dans le navigateur (gratuit, hors ligne) : proposition retenue.
+- **En direct (v4) :** arbitre serveur ou pair à pair avec engagement ? Compte obligatoire ou
+  invités ? Chronomètre par tour ?
 - Soumission : une seule tentative (comme à deux joueurs, une erreur = défaite) ou
   plusieurs essais ?
 - Un « sondage de case » compte-t-il dans le nombre de lasers ? Proposition : non, on le

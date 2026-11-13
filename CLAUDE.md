@@ -45,6 +45,10 @@ Périmètre par version (détail dans `docs/roadmap.md`) :
 - **v2** : connexion **Google (OAuth)**, **historique** des parties, **page de profil**
   (moyenne de lasers tirés avant de gagner, pourcentage de parties gagnées). Demande un
   backend ; le jeu reste jouable sans compte.
+- **v3** : le joueur **crée son plateau** (cache ses gemmes) et **joue contre une IA** qui cherche le
+  sien pendant qu'il cherche celui de l'IA (fini le simple entraînement).
+- **v4** : **duel en direct** contre un autre joueur (arbitre serveur qui répond aux lasers sans
+  révéler les plateaux).
 
 ## Les points des règles à ne pas rater
 
@@ -246,7 +250,8 @@ push. Le déploiement (`deploy.yml`) publie `dist/` sur GitHub Pages à chaque p
 
 Résumé ; détail, tailles et critères de fin d'étape dans
 [`docs/roadmap.md`](docs/roadmap.md). Une étape porte le numéro de la version qu'elle
-prépare : v0.1 à v0.11 construisent la **v1**, v1.1 à v1.6 construisent la **v2**.
+prépare : v0.1 à v0.11 construisent la **v1**, v1.1 à v1.6 la **v2**, v2.1 à v2.7 la **v3**,
+v3.1 à v3.7 la **v4**.
 
 **Vers la v1 : jeu complet + sauvegarde locale**
 
@@ -268,6 +273,19 @@ prépare : v0.1 à v0.11 construisent la **v1**, v1.1 à v1.6 construisent la **
   utilisateur. v1.4 Enregistrement et page Historique. v1.5 Page de profil (moyenne de lasers
   avant victoire, % de victoires). v1.6 Vie privée et exploitation.
 
+**Vers la v3 : plateau personnalisé et duel contre une IA**
+
+- v2.1 Éditeur de plateau. v2.2 Modèle du duel (règles à deux joueurs, cloisonnement). v2.3 IA :
+  connaissance du plateau adverse à partir d'informations partielles (**risque de performance**).
+  v2.4 IA : stratégie par gain d'information, niveaux. v2.5 Interface du duel. v2.6 Sauvegarde et
+  historique. v2.7 Équilibrage.
+
+**Vers la v4 : duel en direct**
+
+- v3.1 Décisions d'architecture. v3.2 Salles et invitations. v3.3 Arbitre serveur (réutilise
+  `src/game/`). v3.4 Synchronisation temps réel et tours. v3.5 Robustesse (déconnexions, forfaits).
+  v3.6 Interface en direct. v3.7 Sécurité, classement, vie privée.
+
 ## Questions ouvertes
 
 - **Dimensions des gemmes** : lues sur les schémas, à confirmer sur les pièces (surtout le
@@ -282,5 +300,6 @@ prépare : v0.1 à v0.11 construisent la **v1**, v1.1 à v1.6 construisent la **
   Proposition : oui.
 - Limite de lasers imposée, ou simple compteur indicatif ?
 - Supabase ou Firebase pour la v2 ?
+- Duel (v3) : plateau ambigu permis ? « en même temps » ou tour par tour ? règle de fin (livret ou indulgente) ? Voir `docs/roadmap.md`.
 - Coût du solveur d'unicité à la génération : à mesurer une fois le simulateur écrit.
 - Faut-il un mode « tutoriel » expliquant les effets de chaque gemme ?
