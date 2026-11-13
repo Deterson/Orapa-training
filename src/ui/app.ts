@@ -540,6 +540,7 @@ export function startApp(root: HTMLElement, version: string): void {
   const leaveImmersive = (): void => {
     if (!state.immersive) return;
     state.immersive = false;
+    state.selectedGem = null;
     try {
       if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
       screen.orientation?.unlock?.();
@@ -780,6 +781,19 @@ export function startApp(root: HTMLElement, version: string): void {
 
   root.addEventListener('click', (event) => {
     const target = event.target as Element;
+    // Un clic ailleurs que sur une gemme ou ses boutons ronds désélectionne la gemme : les boutons
+    // disparaissent aussitôt (retirés du DOM sans refaire l'affichage, pour ne pas perdre le clic).
+    if (
+      state.selectedGem !== null &&
+      !target.closest('[data-gem], .gem-btn') &&
+      Date.now() - lastGemGesture > 500
+    ) {
+      state.selectedGem = null;
+      root.querySelectorAll('.gem-btn').forEach((element) => element.remove());
+      root
+        .querySelectorAll('.gem-g.is-selected')
+        .forEach((element) => element.classList.remove('is-selected'));
+    }
     if (target.hasAttribute('data-modal-backdrop')) return closeAsk(false);
     const entry = target.closest<HTMLElement>('[data-fire]');
     if (entry?.dataset['fire']) return askFire(entry.dataset['fire']);
@@ -795,11 +809,13 @@ export function startApp(root: HTMLElement, version: string): void {
     const tab = target.closest<HTMLElement>('[data-tab]')?.dataset['tab'];
     if (tab === 'shots' || tab === 'solution' || tab === 'notes' || tab === 'result') {
       state.tab = tab;
+      state.selectedGem = null;
       return render();
     }
     const itool = target.closest<HTMLElement>('[data-itool]')?.dataset['itool'];
     if (itool) {
       state.itool = itool as ImmersiveTool;
+      state.selectedGem = null;
       return render();
     }
     const tool = target.closest<HTMLElement>('[data-tool]')?.dataset['tool'];
@@ -955,6 +971,7 @@ export function startApp(root: HTMLElement, version: string): void {
       if (name === 'shots' || name === 'solution' || name === 'notes' || name === 'result') {
         event.preventDefault();
         state.tab = name;
+        state.selectedGem = null;
         render();
         root.querySelector<HTMLElement>(`[data-tab="${name}"]`)?.focus();
       }

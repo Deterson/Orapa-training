@@ -427,6 +427,8 @@ Règles de calcul à figer (voir questions ouvertes) :
   Correction associée : le « clic » qui suit un geste sur une gemme ne sonde plus la case dessous.
 - **v1.0.10** : dans le mode plein écran, les boutons de marques **R, J, B, Bl et ?** sont retirés
   (restent Jouer, Crayon, Gomme, Vide, les encres, annuler / rétablir).
+- **v1.0.11** : les boutons ronds de la gemme sélectionnée (pivoter, retourner) **disparaissent** quand
+  on change d'onglet, de mode ou d'outil, ou qu'on touche ailleurs que sur une gemme ou ses boutons.
 
 ## Questions ouvertes
 
