@@ -14,8 +14,7 @@ import { INK_COLOR } from './palette';
 import { gemButtonsSvg, gemGroupSvg } from './solutionBoard';
 
 /** Outil actif : « move » = jouer (bords, cases, gemmes) ; les autres dessinent sur la grille. */
-export type ImmersiveTool =
-  'move' | 'pencil' | 'eraser' | 'red' | 'yellow' | 'blue' | 'white' | 'empty' | 'maybe';
+export type ImmersiveTool = 'move' | 'pencil' | 'eraser' | 'empty';
 
 export interface ImmersiveView {
   solution: Solution;

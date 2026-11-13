@@ -42,7 +42,7 @@ import {
 import { shotBoardSvg } from './board';
 import { type Tool, notesBoardSvg, notesToolbar } from './notesBoard';
 import { notesLayerSvg } from './notesLayer';
-import { GEM_FILL, INK_COLOR, INK_LABEL, MARK_LETTER, RAY_COLOR } from './palette';
+import { INK_COLOR, INK_LABEL, RAY_COLOR } from './palette';
 import { diffLine, resultBoardSvg } from './resultBoard';
 import { rulesPage } from './rules';
 import { browserSaveStore } from './storage';
@@ -294,15 +294,6 @@ export function startApp(root: HTMLElement, version: string): void {
 
   /** Colonne d'outils à droite de la grille en plein écran. */
   const immersiveHud = (session: GameSession): string => {
-    const marks = (['red', 'yellow', 'blue', 'white'] as const)
-      .map((mark) =>
-        hudTool(
-          mark,
-          `<span class="dot" style="background:${GEM_FILL[mark]}" aria-hidden="true"></span>${MARK_LETTER[mark] ?? ''}`,
-          ` aria-label="Marquer une gemme ${mark}"`,
-        ),
-      )
-      .join('');
     const inks = (['ink', 'red', 'yellow', 'blue', 'green'] as const)
       .map(
         (name) =>
@@ -321,8 +312,6 @@ export function startApp(root: HTMLElement, version: string): void {
           ${hudTool('pencil', 'Crayon')}
           ${hudTool('eraser', 'Gomme')}
           ${hudTool('empty', '<span class="empty-swatch" aria-hidden="true"></span>Vide', ' aria-label="Case vide"')}
-          ${marks}
-          ${hudTool('maybe', '?', ' aria-label="Doute"')}
         </div>
         <div class="hud-inks" role="group" aria-label="Couleur du crayon">${inks}</div>
         <div class="hud-grid">

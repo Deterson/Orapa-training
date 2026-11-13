@@ -418,13 +418,15 @@ Règles de calcul à figer (voir questions ouvertes) :
 - **v1.0.9** : **mode plein écran** pour téléphone en paysage (bouton « Plein écran » dans
   l'en-tête). Une seule grille où l'on peut en même temps tirer des lasers (repères du bord),
   sonder des cases, déplacer les gemmes et dessiner ; la réserve de gemmes est à droite de la
-  grille et une colonne d'outils (Jouer, Crayon, Gomme, Vide, marques de couleur, encres,
+  grille et une colonne d'outils (Jouer, Crayon, Gomme, Vide, encres,
   annuler / rétablir, compteur, chrono, Soumettre / Abandonner) tient à côté. L'outil « Jouer » déplace les
   gemmes et sonde les cases ; avec un outil de dessin, les gemmes deviennent inertes pour que le trait
   passe dessus, mais les repères du bord restent cliquables. Plein écran du navigateur et verrouillage
   en paysage quand le navigateur les permet (Android) ; sur iPhone la grille occupe tout l'écran sans
   barre du navigateur seulement si le site est ajouté à l'écran d'accueil. En portrait : « ↻ Paysage ».
   Correction associée : le « clic » qui suit un geste sur une gemme ne sonde plus la case dessous.
+- **v1.0.10** : dans le mode plein écran, les boutons de marques **R, J, B, Bl et ?** sont retirés
+  (restent Jouer, Crayon, Gomme, Vide, les encres, annuler / rétablir).
 
 ## Questions ouvertes
 
