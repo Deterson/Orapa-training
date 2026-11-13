@@ -2,9 +2,10 @@
  * Calque de notes : marques de cases et traits au crayon, par-dessus la grille et les
  * résultats de tirs. Dessin en SVG ; les interactions sont dans app.ts.
  */
+import type { Placement } from '../game/gems';
 import type { CellMark, Ink, NotesHistory } from '../game/notes';
 import type { ShotRecord } from '../game/session';
-import { boardFrame, entryLabelsSvg } from './board';
+import { boardFrame, entryLabelsSvg, ghostGemsSvg } from './board';
 import { notesLayerSvg } from './notesLayer';
 import { GEM_FILL, INK_COLOR, INK_LABEL, MARK_LABEL, MARK_LETTER } from './palette';
 
@@ -13,6 +14,8 @@ export type Tool = 'pencil' | 'eraser' | CellMark;
 export interface NotesView {
   history: NotesHistory;
   shots: readonly ShotRecord[];
+  /** Gemmes posées par le joueur, affichées en transparence comme sur l'onglet Tirs. */
+  gems: readonly Placement[];
   tool: Tool;
   ink: Ink;
 }
@@ -21,7 +24,7 @@ const COLOR_MARKS = ['red', 'yellow', 'blue', 'white'] as const;
 const OTHER_MARKS = ['empty', 'maybe'] as const;
 
 export function notesBoardSvg(view: NotesView): string {
-  const content = `${entryLabelsSvg({ shots: view.shots, selected: null }, 'note', false)}<g id="note-layer">${notesLayerSvg(view.history.present)}</g><polyline id="note-preview" class="note-stroke" points="" stroke="${INK_COLOR[view.ink]}"/>`;
+  const content = `${ghostGemsSvg(view.gems)}${entryLabelsSvg({ shots: view.shots, selected: null }, 'note', false)}<g id="note-layer">${notesLayerSvg(view.history.present)}</g><polyline id="note-preview" class="note-stroke" points="" stroke="${INK_COLOR[view.ink]}"/>`;
   return boardFrame(
     'Grille de notes : posez des marques sur les cases ou dessinez au crayon',
     content,

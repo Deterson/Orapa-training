@@ -412,6 +412,9 @@ Règles de calcul à figer (voir questions ouvertes) :
   teinte **un peu plus foncée que la gemme**, alignées sur les cases pour aider à les placer (réserve,
   grille, résultat, règles, transparence). Il remplace les motifs hachurés, pointillés et rayés
   de la v0.11. Calcul : `gridSegments` (`game/geometry.ts`, testé).
+- **v1.0.8** : l'onglet Notes affiche les gemmes posées **en transparence, comme l'onglet Tirs** (le
+  dessin reste possible par-dessus) ; la **version du build** (`v1.0.8`, lue dans `package.json`)
+  s'affiche en petit, en haut à droite du site (jeu et page Règles).
 
 ## Questions ouvertes
 

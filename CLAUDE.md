@@ -108,12 +108,14 @@ Les étiquettes d'accessibilité (`aria-label`, texte pour lecteurs d'écran) re
 
 **Gemmes.** Elles portent le **quadrillage des vraies pièces** : les lignes de la grille qui les traversent, un peu plus foncées que la gemme, pour aider à les aligner (`gridSegments` dans `game/geometry.ts`, `gemPolygons` dans `ui/palette.ts`).
 
+La **version du build** (`vX.Y.Z`, issue de `package.json`) s'affiche en petit en haut à droite : l'incrémenter à chaque livraison.
+
 Zones :
 
 1. **Grille de tir** : les repères de bord sont cliquables pour tirer un laser, et **toucher une case la sonde**. Chaque tir ou sonde demande une confirmation en modale (« Laser en E ? », « Sonder E4 ? »), désactivable pour la partie ; redemander ce qui est déjà connu est gratuit. Le numéro du tir figure sur le repère d'entrée (en haut à droite) et, dans une pastille de la couleur obtenue (en bas à droite), sur le repère de sortie ; ces pastilles restent visibles en mode notes. **Le chemin du rayon n'est jamais tracé**
    (il trahirait les gemmes) ; il ne l'est que sur la grille de solution du joueur. Historique des tirs (numéroté) consultable et effaçable à
    l'affichage (mais le **compteur de tirs** ne baisse jamais). Les **gemmes posées** par le joueur et ses **notes** s'y affichent en **transparence** sous les repères ; une case à cocher « Notes » masque ou affiche les notes (les gemmes restent affichées).
-2. **Grille de notes / dessin** : calque libre pour annoter les cases (couleur,
+2. **Grille de notes / dessin** : les gemmes posées y sont affichées en transparence comme sur l'onglet Tirs ; calque libre pour annoter les cases (couleur,
    **vide (stries diagonales grises transparentes)**, doute, crayon, gomme, annuler/rétablir). N'a aucun effet sur la
    correction.
 3. **Grille de solution** (onglet « Gemmes ») : le joueur y dépose les gemmes de sa réserve (les mêmes

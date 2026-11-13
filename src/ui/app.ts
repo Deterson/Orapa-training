@@ -284,7 +284,7 @@ export function startApp(root: HTMLElement, version: string): void {
   const render = (): void => {
     syncClock();
     if (state.view === 'rules') {
-      root.innerHTML = `<main class="app">${rulesPage(version)}</main>`;
+      root.innerHTML = `<main class="app"><span class="version">v${version}</span>${rulesPage(version)}</main>`;
       return;
     }
     const { session } = state;
@@ -307,7 +307,13 @@ export function startApp(root: HTMLElement, version: string): void {
       } else if (state.tab === 'solution') {
         board = solutionPanel(session);
       } else {
-        const view = { history: state.notes, shots, tool: state.tool, ink: state.ink };
+        const view = {
+          history: state.notes,
+          shots,
+          gems: placedGems(state.solution),
+          tool: state.tool,
+          ink: state.ink,
+        };
         board = `${notesBoardSvg(view)}${notesToolbar(view)}`;
       }
     } else if (state.phase === 'resume' && state.pending) {
@@ -337,6 +343,7 @@ export function startApp(root: HTMLElement, version: string): void {
     root.innerHTML = `
       <a class="skip-link" href="#plateau" data-action="skip">${t.skipToContent}</a>
       <main class="app">
+        <span class="version" title="Version">v${version}</span>
         <header class="top">
           <div>
             <h1>${t.appName}</h1>

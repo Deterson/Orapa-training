@@ -151,17 +151,21 @@ function cursorSvg({ row, col }: { row: number; col: number }): string {
   return `<rect class="cell-cursor" data-cursor tabindex="0" role="button" aria-label="Case ${label} : Entrée pour sonder, flèches pour changer de case" x="${col}" y="${row}" width="1" height="1"/>`;
 }
 
+/** Gemmes du joueur en transparence, affichées sous les repères (onglets Tirs et Notes). */
+export function ghostGemsSvg(gems: readonly Placement[]): string {
+  if (gems.length === 0) return '';
+  return `<g class="ghost-gems">${gems
+    .map((placement) => {
+      const shape = GEM_SHAPES[placement.gem];
+      return gemPolygons(placedPolygon(placement), shape.color, 'real-gem');
+    })
+    .join('')}</g>`;
+}
+
 /** Grille de tir : aucune gemme n'est visible, seulement les résultats des tirs et des sondes. */
 export function shotBoardSvg(marks: ShotMarks, options: ShotBoardOptions = {}): string {
   const { probes = [], probeable = false, cursor, gems = [], notes = null } = options;
-  const ghostGems = gems.length
-    ? `<g class="ghost-gems">${gems
-        .map((placement) => {
-          const shape = GEM_SHAPES[placement.gem];
-          return gemPolygons(placedPolygon(placement), shape.color, 'real-gem');
-        })
-        .join('')}</g>`
-    : '';
+  const ghostGems = ghostGemsSvg(gems);
   const ghostNotes = notes ? `<g class="ghost-notes">${notesLayerSvg(notes)}</g>` : '';
   return boardFrame(
     'Grille de tir : 10 colonnes, 8 lignes, repères du bord cliquables',
