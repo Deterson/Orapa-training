@@ -415,6 +415,16 @@ Règles de calcul à figer (voir questions ouvertes) :
 - **v1.0.8** : l'onglet Notes affiche les gemmes posées **en transparence, comme l'onglet Tirs** (le
   dessin reste possible par-dessus) ; la **version du build** (`v1.0.8`, lue dans `package.json`)
   s'affiche en petit, en haut à droite du site (jeu et page Règles).
+- **v1.0.9** : **mode plein écran** pour téléphone en paysage (bouton « Plein écran » dans
+  l'en-tête). Une seule grille où l'on peut en même temps tirer des lasers (repères du bord),
+  sonder des cases, déplacer les gemmes et dessiner ; la réserve de gemmes est à droite de la
+  grille et une colonne d'outils (Jouer, Crayon, Gomme, Vide, marques de couleur, encres,
+  annuler / rétablir, compteur, chrono, Soumettre / Abandonner) tient à côté. L'outil « Jouer » déplace les
+  gemmes et sonde les cases ; avec un outil de dessin, les gemmes deviennent inertes pour que le trait
+  passe dessus, mais les repères du bord restent cliquables. Plein écran du navigateur et verrouillage
+  en paysage quand le navigateur les permet (Android) ; sur iPhone la grille occupe tout l'écran sans
+  barre du navigateur seulement si le site est ajouté à l'écran d'accueil. En portrait : « ↻ Paysage ».
+  Correction associée : le « clic » qui suit un geste sur une gemme ne sonde plus la case dessous.
 
 ## Questions ouvertes
 

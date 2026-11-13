@@ -23,6 +23,7 @@ pas tiré assez de lasers.
 - **Notes** : crayon, marques de cases, gomme, annuler / rétablir.
 - **Soumission** : correction stricte, une seule proposition, mine révélée et détail gemme par
   gemme ; chronomètre ; rejeu d'une même mine.
+- **Plein écran** pour téléphone en paysage : tirs, sondes, gemmes et dessin sur une seule grille.
 - **Sauvegarde locale** de la partie en cours, reprise à la réouverture.
 - **Règles** du jeu dans le site (`#regles`), accessibilité (clavier, lecteurs d'écran),
   thèmes clair et sombre, mobile.

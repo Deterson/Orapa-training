@@ -42,11 +42,12 @@ import {
 import { shotBoardSvg } from './board';
 import { type Tool, notesBoardSvg, notesToolbar } from './notesBoard';
 import { notesLayerSvg } from './notesLayer';
-import { RAY_COLOR } from './palette';
+import { GEM_FILL, INK_COLOR, INK_LABEL, MARK_LETTER, RAY_COLOR } from './palette';
 import { diffLine, resultBoardSvg } from './resultBoard';
 import { rulesPage } from './rules';
 import { browserSaveStore } from './storage';
 import { t } from './strings';
+import { type ImmersiveTool, immersiveBoardSvg } from './immersiveBoard';
 import { gemOrigin, gemSize, solutionBoardSvg } from './solutionBoard';
 
 type Phase = 'loading' | 'resume' | 'ready' | 'error';
@@ -79,6 +80,10 @@ interface State {
   cursor: { row: number; col: number };
   /** Notes affichées en transparence dans l'onglet Tirs. */
   showNotes: boolean;
+  /** Mode plein écran (paysage) : tout sur une seule grille. */
+  immersive: boolean;
+  /** Outil actif du mode plein écran. */
+  itool: ImmersiveTool;
   /** Action définitive en attente de confirmation. */
   confirm: 'submit' | 'abandon' | null;
   /** Partie sauvegardée proposée à la reprise. */
@@ -167,6 +172,8 @@ export function startApp(root: HTMLElement, version: string): void {
     skipConfirm: false,
     cursor: { row: 0, col: 0 },
     showNotes: true,
+    immersive: false,
+    itool: 'move',
     confirm: null,
     pending: null,
     notice: '',
@@ -281,8 +288,90 @@ export function startApp(root: HTMLElement, version: string): void {
     else session.pause();
   };
 
+  /** Bouton d'outil du mode plein écran. */
+  const hudTool = (tool: ImmersiveTool, label: string, extra = ''): string =>
+    `<button type="button" class="tool" data-itool="${tool}" aria-pressed="${state.itool === tool}"${extra}>${label}</button>`;
+
+  /** Colonne d'outils à droite de la grille en plein écran. */
+  const immersiveHud = (session: GameSession): string => {
+    const marks = (['red', 'yellow', 'blue', 'white'] as const)
+      .map((mark) =>
+        hudTool(
+          mark,
+          `<span class="dot" style="background:${GEM_FILL[mark]}" aria-hidden="true"></span>${MARK_LETTER[mark] ?? ''}`,
+          ` aria-label="Marquer une gemme ${mark}"`,
+        ),
+      )
+      .join('');
+    const inks = (['ink', 'red', 'yellow', 'blue', 'green'] as const)
+      .map(
+        (name) =>
+          `<button type="button" class="ink" data-ink="${name}" aria-pressed="${state.ink === name}" aria-label="Encre ${INK_LABEL[name]}"><span style="background:${INK_COLOR[name]}" aria-hidden="true"></span></button>`,
+      )
+      .join('');
+    const count = session.laserCount;
+    return `
+      <aside class="immersive-hud" aria-label="Outils">
+        <div class="hud-top">
+          <button type="button" class="ghost" data-action="exit-immersive" aria-label="Quitter le plein écran">✕</button>
+          <span class="hud-meta"><b>${count}</b> laser${plural(count, '', 's')} · <span id="timer">${formatTime(session.elapsedMs())}</span></span>
+        </div>
+        <div class="hud-grid">
+          ${hudTool('move', 'Jouer')}
+          ${hudTool('pencil', 'Crayon')}
+          ${hudTool('eraser', 'Gomme')}
+          ${hudTool('empty', '<span class="empty-swatch" aria-hidden="true"></span>Vide', ' aria-label="Case vide"')}
+          ${marks}
+          ${hudTool('maybe', '?', ' aria-label="Doute"')}
+        </div>
+        <div class="hud-inks" role="group" aria-label="Couleur du crayon">${inks}</div>
+        <div class="hud-grid">
+          <button type="button" class="ghost" data-action="undo" aria-label="Annuler"${state.notes.past.length ? '' : ' disabled'}>↶</button>
+          <button type="button" class="ghost" data-action="redo" aria-label="Rétablir"${state.notes.future.length ? '' : ' disabled'}>↷</button>
+        </div>
+        ${actionsPanel(session)}
+      </aside>`;
+  };
+
+  const renderImmersive = (session: GameSession): void => {
+    const board = immersiveBoardSvg({
+      solution: state.solution,
+      selected: state.selectedGem,
+      issues: solutionIssues(state.solution),
+      shots: session.shots,
+      probes: session.probes,
+      notes: state.notes.present,
+      tool: state.itool,
+      ink: state.ink,
+      finished: session.finished,
+    });
+    root.innerHTML = `
+      <div class="immersive" role="application" aria-label="Plein écran">
+        <div class="immersive-board">${board}</div>
+        ${immersiveHud(session)}
+        <div class="rotate-hint" aria-hidden="true">↻ Paysage</div>
+        <p class="sr-only" aria-live="polite">${state.notice}</p>
+        ${modal()}
+      </div>`;
+  };
+
   const render = (): void => {
     syncClock();
+    document.documentElement.classList.toggle(
+      'is-immersive',
+      state.immersive && state.view === 'game',
+    );
+    if (
+      state.immersive &&
+      state.view === 'game' &&
+      state.phase === 'ready' &&
+      state.session &&
+      !state.session.finished
+    ) {
+      renderImmersive(state.session);
+      persist();
+      return;
+    }
     if (state.view === 'rules') {
       root.innerHTML = `<main class="app"><span class="version">v${version}</span>${rulesPage(version)}</main>`;
       return;
@@ -352,6 +441,7 @@ export function startApp(root: HTMLElement, version: string): void {
             <code class="seed" title="Graine">${session?.seed ?? '…'}</code>
             <button type="button" class="ghost" data-action="copy-link"${session ? '' : ' disabled'}>${t.actions.copyLink}</button>
             <a class="nav-link" href="#regles">${t.nav.rules}</a>
+            <button type="button" class="ghost" data-action="enter-immersive"${session && !session.finished ? '' : ' disabled'}>${t.actions.fullscreen}</button>
             <button type="button" data-action="new-game">${t.actions.newGame}</button>
           </div>
         </header>
@@ -435,8 +525,43 @@ export function startApp(root: HTMLElement, version: string): void {
     render();
   };
 
+  /** Entre en plein écran : navigateur en plein écran et écran verrouillé en paysage quand c'est possible. */
+  const enterImmersive = (): void => {
+    state.immersive = true;
+    state.itool = 'move';
+    state.selectedGem = null;
+    try {
+      void document.documentElement
+        .requestFullscreen?.({ navigationUI: 'hide' })
+        ?.catch(() => undefined);
+    } catch {
+      // Pas de plein écran navigateur (iPhone) : la grille occupe déjà tout l'écran de la page.
+    }
+    try {
+      const orientation = screen.orientation as ScreenOrientation & {
+        lock?: (value: string) => Promise<void>;
+      };
+      void orientation.lock?.('landscape')?.catch(() => undefined);
+    } catch {
+      // Verrouillage d'orientation indisponible : l'indication « Paysage » s'affiche en portrait.
+    }
+    render();
+  };
+
+  const leaveImmersive = (): void => {
+    if (!state.immersive) return;
+    state.immersive = false;
+    try {
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+      screen.orientation?.unlock?.();
+    } catch {
+      // Rien à défaire.
+    }
+  };
+
   /** Termine la partie et affiche le résultat. */
   const showResult = (): void => {
+    leaveImmersive();
     store.clear();
     state.confirm = null;
     state.ask = null;
@@ -512,13 +637,16 @@ export function startApp(root: HTMLElement, version: string): void {
   };
 
   /** Glisser-déposer d'une gemme, au pointeur (souris ou doigt). */
+  /** Horodatage du dernier geste sur une gemme : le « clic » qui le suit ne doit pas sonder la case dessous. */
+  let lastGemGesture = 0;
+
   const beginDrag = (event: PointerEvent, element: SVGGElement, gem: GemId): void => {
     if (state.session?.finished) return;
     const svg = element.ownerSVGElement;
     if (!svg) return;
     event.preventDefault();
     const start = toBoardPoint(svg, event.clientX, event.clientY);
-    const [originX, originY] = gemOrigin(state.solution, gem);
+    const [originX, originY] = gemOrigin(state.solution, gem, state.immersive ? 'side' : 'bottom');
     const { width, height } = gemSize(state.solution, gem);
     let moved = false;
 
@@ -536,6 +664,7 @@ export function startApp(root: HTMLElement, version: string): void {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onCancel);
+      lastGemGesture = Date.now();
       if (cancelled) return render();
       const [dx, dy] = delta(e);
       if (!moved) {
@@ -564,7 +693,7 @@ export function startApp(root: HTMLElement, version: string): void {
   };
 
   /** Crayon, gomme et marques de cases sur la grille de notes. */
-  const beginNotes = (event: PointerEvent): void => {
+  const beginNotes = (event: PointerEvent, tool: Tool): void => {
     const board = (): SVGSVGElement | null => root.querySelector<SVGSVGElement>('.notes-svg');
     const point = (e: PointerEvent): NotePoint => {
       const svg = board();
@@ -573,7 +702,7 @@ export function startApp(root: HTMLElement, version: string): void {
     const start = point(event);
     if (cellAt(start) === null) return;
     event.preventDefault();
-    const { tool, ink } = state;
+    const { ink } = state;
     const base = state.notes;
     let moved = false;
     const points: NotePoint[] = [start];
@@ -639,8 +768,19 @@ export function startApp(root: HTMLElement, version: string): void {
 
   root.addEventListener('pointerdown', (event) => {
     if (event.button > 0) return;
+    if (state.immersive) {
+      const target = event.target as Element;
+      if (state.itool === 'move') {
+        const element = target.closest<SVGGElement>('[data-gem]');
+        const gem = element?.dataset['gem'] as GemId | undefined;
+        if (element && gem) beginDrag(event, element, gem);
+      } else if (target.closest('.notes-svg')) {
+        beginNotes(event, state.itool);
+      }
+      return;
+    }
     if (state.tab === 'notes') {
-      if ((event.target as Element).closest('.notes-svg')) beginNotes(event);
+      if ((event.target as Element).closest('.notes-svg')) beginNotes(event, state.tool);
       return;
     }
     if (state.tab !== 'solution') return;
@@ -655,7 +795,10 @@ export function startApp(root: HTMLElement, version: string): void {
     const entry = target.closest<HTMLElement>('[data-fire]');
     if (entry?.dataset['fire']) return askFire(entry.dataset['fire']);
     const probeTarget = target.closest<HTMLElement>('[data-probe]');
-    if (probeTarget?.dataset['probe']) return askProbe(probeTarget.dataset['probe']);
+    if (probeTarget?.dataset['probe']) {
+      if (Date.now() - lastGemGesture < 500) return;
+      return askProbe(probeTarget.dataset['probe']);
+    }
     const explore = target.closest<HTMLElement>('[data-explore]');
     if (explore?.dataset['explore']) return exploreMine(explore.dataset['explore']);
     const hypo = target.closest<HTMLElement>('[data-hypo]');
@@ -663,6 +806,11 @@ export function startApp(root: HTMLElement, version: string): void {
     const tab = target.closest<HTMLElement>('[data-tab]')?.dataset['tab'];
     if (tab === 'shots' || tab === 'solution' || tab === 'notes' || tab === 'result') {
       state.tab = tab;
+      return render();
+    }
+    const itool = target.closest<HTMLElement>('[data-itool]')?.dataset['itool'];
+    if (itool) {
+      state.itool = itool as ImmersiveTool;
       return render();
     }
     const tool = target.closest<HTMLElement>('[data-tool]')?.dataset['tool'];
@@ -673,7 +821,8 @@ export function startApp(root: HTMLElement, version: string): void {
     const ink = target.closest<HTMLElement>('[data-ink]')?.dataset['ink'];
     if (ink) {
       state.ink = ink as Ink;
-      if (state.tool !== 'pencil') state.tool = 'pencil';
+      if (state.immersive) state.itool = 'pencil';
+      else if (state.tool !== 'pencil') state.tool = 'pencil';
       return render();
     }
     const shot = target.closest<HTMLElement>('[data-shot]');
@@ -683,6 +832,11 @@ export function startApp(root: HTMLElement, version: string): void {
     }
     const action = target.closest<HTMLElement>('[data-action]')?.dataset['action'];
     switch (action) {
+      case 'enter-immersive':
+        return enterImmersive();
+      case 'exit-immersive':
+        leaveImmersive();
+        return render();
       case 'new-game':
         return startGame(randomSeed());
       case 'rotate':
@@ -894,6 +1048,13 @@ export function startApp(root: HTMLElement, version: string): void {
     state.view = viewFromHash();
     render();
     if (state.view === 'rules') window.scrollTo(0, 0);
+  });
+  document.addEventListener('fullscreenchange', () => {
+    // Sortie du plein écran navigateur (Échap, geste retour) : on quitte aussi le mode plein écran.
+    if (!document.fullscreenElement && state.immersive) {
+      state.immersive = false;
+      render();
+    }
   });
   window.addEventListener('pagehide', persist);
   document.addEventListener('visibilitychange', () => {

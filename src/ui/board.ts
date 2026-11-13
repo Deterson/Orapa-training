@@ -95,8 +95,9 @@ export function boardFrame(
   content: string,
   extraClass = '',
   extraHeight = 0,
+  extraWidth = 0,
 ): string {
-  const size = `${-BOARD_MARGIN} ${-BOARD_MARGIN} ${GRID_COLS + 2 * BOARD_MARGIN} ${GRID_ROWS + 2 * BOARD_MARGIN + extraHeight}`;
+  const size = `${-BOARD_MARGIN} ${-BOARD_MARGIN} ${GRID_COLS + 2 * BOARD_MARGIN + extraWidth} ${GRID_ROWS + 2 * BOARD_MARGIN + extraHeight}`;
   return `<svg class="board-svg ${extraClass}" viewBox="${size}" role="group" aria-label="${label}">
       ${PATTERN_DEFS}
       <rect class="board" x="0" y="0" width="${GRID_COLS}" height="${GRID_ROWS}"/>
@@ -117,7 +118,7 @@ export interface ShotBoardOptions {
   cursor?: { row: number; col: number };
 }
 
-function probeMarksSvg(probes: readonly ProbeRecord[]): string {
+export function probeMarksSvg(probes: readonly ProbeRecord[]): string {
   return probes
     .map((probe) => {
       const cell = parseCell(probe.cell);
@@ -132,7 +133,7 @@ function probeMarksSvg(probes: readonly ProbeRecord[]): string {
     .join('');
 }
 
-function probeTargetsSvg(): string {
+export function probeTargetsSvg(): string {
   const targets: string[] = [];
   for (let row = 0; row < GRID_ROWS; row++) {
     for (let col = 0; col < GRID_COLS; col++) {

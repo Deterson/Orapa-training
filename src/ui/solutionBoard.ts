@@ -30,11 +30,27 @@ const SLOTS: Record<GemId, readonly [number, number]> = {
   'white-rhombus': [7.0, TRAY_TOP + 2.9],
 };
 
+/** Emplacements de la réserve placée à droite de la grille (plein écran en paysage). */
+const SIDE_SLOTS: Record<GemId, readonly [number, number]> = {
+  'blue-triangle': [12.0, 0.2],
+  'white-triangle': [12.0, 2.6],
+  'white-rhombus': [12.0, 5.0],
+  'yellow-triangle': [14.6, 5.0],
+  'red-parallelogram': [12.0, 7.4],
+};
+
+/** Réserve sous la grille (affichage normal) ou à sa droite (plein écran). */
+export type TrayLayout = 'bottom' | 'side';
+
 /** Coin haut-gauche actuel de la gemme : sur la grille si elle est posée, sinon dans la réserve. */
-export function gemOrigin(solution: Solution, gem: GemId): [number, number] {
+export function gemOrigin(
+  solution: Solution,
+  gem: GemId,
+  layout: TrayLayout = 'bottom',
+): [number, number] {
   const placement = solution[gem];
   if (placement) return [placement.col, placement.row];
-  const [x, y] = SLOTS[gem];
+  const [x, y] = (layout === 'side' ? SIDE_SLOTS : SLOTS)[gem];
   return [x, y];
 }
 
@@ -53,12 +69,19 @@ function points(list: readonly (readonly [number, number])[]): string {
   return list.map(([x, y]) => `${x},${y}`).join(' ');
 }
 
-function gemSvg(view: SolutionView, gem: GemId): string {
+export function gemGroupSvg(
+  view: Pick<SolutionView, 'solution' | 'selected' | 'issues'>,
+  gem: GemId,
+  layout: TrayLayout = 'bottom',
+): string {
   const shape = GEM_SHAPES[gem];
   const placement = view.solution[gem];
   const polygon = placement
     ? placedPolygon(placement)
-    : translate(orientedPolygon(shape, { rotation: 0, flipped: false }), ...SLOTS[gem]);
+    : translate(
+        orientedPolygon(shape, { rotation: 0, flipped: false }),
+        ...(layout === 'side' ? SIDE_SLOTS : SLOTS)[gem],
+      );
   const bad = view.issues.some((issue) => issue.gemIds.includes(gem));
   const where = placement
     ? `posée en ${cellLabel({ row: placement.row, col: placement.col })}`
@@ -80,7 +103,7 @@ export function gemSize(solution: Solution, gem: GemId): { width: number; height
 }
 
 /** Bouton rond posé au coin haut-droit de la gemme sélectionnée : pivoter, et retourner pour la rouge. */
-function gemButtonsSvg(view: SolutionView): string {
+export function gemButtonsSvg(view: Pick<SolutionView, 'solution' | 'selected'>): string {
   const gem = view.selected;
   const placement = gem ? view.solution[gem] : null;
   if (!gem || !placement) return '';
@@ -96,7 +119,7 @@ function gemButtonsSvg(view: SolutionView): string {
 
 export function solutionBoardSvg(view: SolutionView): string {
   const tray = `<rect class="tray" x="0" y="${TRAY_TOP}" width="${GRID_COLS}" height="${TRAY_HEIGHT}" rx="0.3"/>`;
-  const gems = BASE_GEM_IDS.map((gem) => gemSvg(view, gem)).join('');
+  const gems = BASE_GEM_IDS.map((gem) => gemGroupSvg(view, gem)).join('');
   const ray = view.hypothesis
     ? `<polyline class="ray-outline" points="${points(view.hypothesis.path)}"/><polyline class="ray" points="${points(view.hypothesis.path)}" stroke="${RAY_COLOR[view.hypothesis.color]}"/>`
     : '';

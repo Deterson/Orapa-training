@@ -123,7 +123,8 @@ Zones :
    haut-droit, et la rouge un bouton **⇋ (retourner)** ; pas de barre de boutons en bas. Les notes s'y affichent en transparence (même case « Notes »). Les placements invalides (chevauchement, hors grille, contact
    par un segment) sont refusés ou signalés avec la règle enfreinte.
 4. **Résultat** (fin de partie) : la vraie mine et la proposition ; les 36 repères restent cliquables pour tirer des lasers libres dans la mine révélée (trajet tracé, hors compteur).
-5. **Barre d'actions** : Nouvelle partie, Soumettre, Abandonner/Révéler, compteur
+5. **Plein écran (téléphone, paysage)** : un seul plateau (`ui/immersiveBoard.ts`) avec réserve de gemmes à droite et colonne d'outils ; l'outil « Jouer » tire (repères), sonde (cases) et déplace les gemmes, les autres outils dessinent (les repères restent cliquables).
+6. **Barre d'actions** : Nouvelle partie, Soumettre, Abandonner/Révéler, compteur
    de lasers, chronomètre.
 
 Il est acceptable que ces zones soient des calques d'une même grille ou des

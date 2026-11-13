@@ -25,6 +25,7 @@ export const fr = {
     abandon: 'Abandonner',
     replay: 'Rejouer',
     showNotes: 'Notes',
+    fullscreen: 'Plein écran',
     resume: 'Reprendre',
     rotate: 'Pivoter',
     flip: 'Retourner',
