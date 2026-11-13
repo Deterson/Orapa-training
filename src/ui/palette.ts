@@ -37,7 +37,6 @@ export const INK_COLOR: Record<Ink, string> = {
   red: '#d33a2c',
   yellow: '#e8b100',
   blue: '#2f6fb5',
-  green: '#1e9e50',
 };
 
 export const INK_LABEL: Record<Ink, string> = {
@@ -45,7 +44,6 @@ export const INK_LABEL: Record<Ink, string> = {
   red: 'rouge',
   yellow: 'jaune',
   blue: 'bleu',
-  green: 'vert',
 };
 
 /** Marques de couleur : lettre affichée en plus de la teinte, pour ne pas dépendre de la couleur seule. */

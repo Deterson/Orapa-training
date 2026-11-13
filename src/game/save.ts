@@ -100,13 +100,14 @@ function parseSolution(value: unknown): Solution | null {
 }
 
 const MARKS: readonly CellMark[] = ['red', 'yellow', 'blue', 'white', 'empty', 'maybe'];
-const INKS: readonly Ink[] = ['ink', 'red', 'yellow', 'blue', 'green'];
+const INKS: readonly Ink[] = ['ink', 'red', 'yellow', 'blue'];
 const MAX_STROKES = 2000;
 const MAX_POINTS = 5000;
 
 function parseStroke(value: unknown): Stroke | null {
   if (!isRecord(value) || !Array.isArray(value['points'])) return null;
-  const { ink } = value;
+  // « green » : ancienne encre verte, supprimée ; ses traits redeviennent noirs.
+  const ink = value['ink'] === 'green' ? 'ink' : value['ink'];
   if (typeof ink !== 'string' || !INKS.includes(ink as Ink)) return null;
   if (value['points'].length === 0 || value['points'].length > MAX_POINTS) return null;
   const points = value['points'].map((p): [number, number] | null =>

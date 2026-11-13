@@ -43,7 +43,7 @@ export function notesToolbar(view: NotesView): string {
     (mark) =>
       `<button type="button" class="tool" data-tool="${mark}" ${pressed(mark)} aria-label="${mark === 'empty' ? 'Case vide' : 'Doute'}">${mark === 'empty' ? '<span class="empty-swatch" aria-hidden="true"></span>Vide' : '?'}</button>`,
   ).join('');
-  const inks = (['ink', 'red', 'yellow', 'blue', 'green'] as const)
+  const inks = (['ink', 'red', 'yellow', 'blue'] as const)
     .map(
       (name) =>
         `<button type="button" class="ink" data-ink="${name}" aria-pressed="${ink === name}" aria-label="Encre ${INK_LABEL[name]}" title="Encre ${INK_LABEL[name]}"><span style="background:${INK_COLOR[name]}" aria-hidden="true"></span></button>`,

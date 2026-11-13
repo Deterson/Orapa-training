@@ -429,6 +429,8 @@ Règles de calcul à figer (voir questions ouvertes) :
   (restent Jouer, Crayon, Gomme, Vide, les encres, annuler / rétablir).
 - **v1.0.11** : les boutons ronds de la gemme sélectionnée (pivoter, retourner) **disparaissent** quand
   on change d'onglet, de mode ou d'outil, ou qu'on touche ailleurs que sur une gemme ou ses boutons.
+- **v1.0.12** : l'encre **verte** du crayon est supprimée (aucune gemme n'est verte) ; il reste noir,
+  rouge, jaune et bleu. Les anciens traits verts des sauvegardes redeviennent noirs.
 
 ## Questions ouvertes
 

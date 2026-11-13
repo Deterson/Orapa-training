@@ -102,6 +102,13 @@ describe("validation d'une sauvegarde", () => {
     expect(parseSave(old)?.notes.marks['D5']).toBe('empty');
   });
 
+  it("lit l'ancienne encre verte comme du noir", () => {
+    const old = roundTrip(sampleSave()) as { notes: { strokes: { ink: string }[] } };
+    const stroke = old.notes.strokes[0];
+    if (stroke) stroke.ink = 'green';
+    expect(parseSave(old)?.notes.strokes[0]?.ink).toBe('ink');
+  });
+
   it("refuse tout ce qui n'est pas une sauvegarde", () => {
     for (const bad of [null, undefined, 42, 'texte', [], {}, { version: SAVE_VERSION }]) {
       expect(parseSave(bad)).toBeNull();

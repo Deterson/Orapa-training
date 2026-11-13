@@ -294,7 +294,7 @@ export function startApp(root: HTMLElement, version: string): void {
 
   /** Colonne d'outils à droite de la grille en plein écran. */
   const immersiveHud = (session: GameSession): string => {
-    const inks = (['ink', 'red', 'yellow', 'blue', 'green'] as const)
+    const inks = (['ink', 'red', 'yellow', 'blue'] as const)
       .map(
         (name) =>
           `<button type="button" class="ink" data-ink="${name}" aria-pressed="${state.ink === name}" aria-label="Encre ${INK_LABEL[name]}"><span style="background:${INK_COLOR[name]}" aria-hidden="true"></span></button>`,

@@ -10,7 +10,7 @@ import { cellLabel } from './board';
 export type CellMark = 'red' | 'yellow' | 'blue' | 'white' | 'empty' | 'maybe';
 
 /** Couleur d'encre du crayon. */
-export type Ink = 'ink' | 'red' | 'yellow' | 'blue' | 'green';
+export type Ink = 'ink' | 'red' | 'yellow' | 'blue';
 
 export type NotePoint = readonly [number, number];
 
