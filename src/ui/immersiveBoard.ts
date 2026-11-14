@@ -4,10 +4,10 @@
  * de gemmes est à droite de la grille pour que le tout tienne dans la hauteur de l'écran.
  */
 import { GRID_COLS } from '../game/constants';
-import { BASE_GEM_IDS, type GemId } from '../game/gems';
+import type { GemId } from '../game/gems';
 import type { Ink, Notes } from '../game/notes';
 import type { ProbeRecord, ShotRecord } from '../game/session';
-import type { Solution, SolutionIssue } from '../game/solution';
+import { type Solution, type SolutionIssue, gemsOf } from '../game/solution';
 import { boardFrame, entryLabelsSvg, probeMarksSvg, probeTargetsSvg } from './board';
 import { notesLayerSvg } from './notesLayer';
 import { INK_COLOR } from './palette';
@@ -35,7 +35,9 @@ const TRAY_X = 11.5;
 
 export function immersiveBoardSvg(view: ImmersiveView): string {
   const tray = `<rect class="tray" x="${TRAY_X}" y="-0.3" width="${GRID_COLS + SIDE_WIDTH - TRAY_X - 0.5 + 0.2}" height="9.3" rx="0.3"/>`;
-  const gems = BASE_GEM_IDS.map((gem) => gemGroupSvg(view, gem, 'side')).join('');
+  const gems = gemsOf(view.solution)
+    .map((gem) => gemGroupSvg(view, gem, 'side'))
+    .join('');
   const probing = view.tool === 'move' && !view.finished;
   const content = [
     tray,

@@ -57,5 +57,6 @@ fait à chaque push sur `main`.
 
 ## À confirmer sur les pièces physiques
 
-Les dimensions des gemmes ont été lues sur les schémas du livret. Les extensions du jeu (Diamant,
-Corps noir) ne sont pas implémentées : leurs formes sont inconnues.
+Les dimensions des gemmes de base ont été lues sur les schémas du livret. Les formes des extensions
+(Diamant : demi-losange 2×1 ; diamant noir : rectangle 2×1) viennent du propriétaire du projet.
+Elles se choisissent au début de chaque partie.

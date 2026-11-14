@@ -6,8 +6,15 @@
 import { RESULT_COLOR_LABELS, componentColors } from '../game/colors';
 import { cellLabel } from '../game/board';
 import { GRID_COLS, GRID_ROWS } from '../game/constants';
-import { GEM_SHAPES, type GemId } from '../game/gems';
-import { type ShotResult, shoot } from '../game/laser';
+import {
+  type Extensions,
+  GEM_SHAPES,
+  type GemId,
+  NO_EXTENSIONS,
+  extensionsOf,
+  gemsFor,
+} from '../game/gems';
+import { type ShotResult, isAbsorbed, shoot } from '../game/laser';
 import { randomSeed } from '../game/rng';
 import { GameSession, type ShotRecord } from '../game/session';
 import { SAVE_VERSION, type SaveData } from '../game/save';
@@ -42,7 +49,7 @@ import {
 import { shotBoardSvg } from './board';
 import { type Tool, notesBoardSvg, notesToolbar } from './notesBoard';
 import { notesLayerSvg } from './notesLayer';
-import { INK_COLOR, INK_LABEL, RAY_COLOR } from './palette';
+import { INK_COLOR, INK_LABEL, RAY_COLOR, lostSignalHtml } from './palette';
 import { diffLine, resultBoardSvg } from './resultBoard';
 import { rulesPage } from './rules';
 import { browserSaveStore } from './storage';
@@ -50,7 +57,7 @@ import { t } from './strings';
 import { type ImmersiveTool, immersiveBoardSvg } from './immersiveBoard';
 import { gemOrigin, gemSize, solutionBoardSvg } from './solutionBoard';
 
-type Phase = 'loading' | 'resume' | 'ready' | 'error';
+type Phase = 'loading' | 'options' | 'resume' | 'ready' | 'error';
 type Tab = 'shots' | 'solution' | 'notes' | 'result';
 type View = 'game' | 'rules';
 type Ask = { kind: 'fire'; label: string } | { kind: 'probe'; cell: string };
@@ -88,6 +95,10 @@ interface State {
   confirm: 'submit' | 'abandon' | null;
   /** Partie sauvegardée proposée à la reprise. */
   pending: SaveData | null;
+  /** Choix des extensions en cours (fenêtre de début de partie) ; null quand elle est fermée. */
+  choose: Extensions | null;
+  /** Message « signal perdu » affiché un instant. */
+  toast: boolean;
   notice: string;
 }
 
@@ -100,10 +111,23 @@ function seedFromUrl(): string | null {
   }
 }
 
-function writeSeedToUrl(seed: string): void {
+/** Extensions demandées par l'adresse : `ext=d` (Diamant), `ext=n` (diamant noir), `ext=dn` (les deux). */
+function extensionsFromUrl(): Extensions {
+  try {
+    const flags = new URLSearchParams(window.location.search).get('ext') ?? '';
+    return { diamond: flags.includes('d'), blackBody: flags.includes('n') };
+  } catch {
+    return NO_EXTENSIONS;
+  }
+}
+
+function writeSeedToUrl(seed: string, extensions: Readonly<Extensions> = NO_EXTENSIONS): void {
   try {
     const url = new URL(window.location.href);
     url.searchParams.set('seed', seed);
+    const flags = `${extensions.diamond ? 'd' : ''}${extensions.blackBody ? 'n' : ''}`;
+    if (flags) url.searchParams.set('ext', flags);
+    else url.searchParams.delete('ext');
     window.history.replaceState(null, '', url);
   } catch {
     // L'adresse reste telle quelle : sans conséquence pour le jeu.
@@ -131,8 +155,22 @@ function chips(color: ShotRecord['color']): string {
   return `<span class="chips" aria-hidden="true">${dots}</span>`;
 }
 
+/** Résultat d'un tir en toutes lettres : « E → 4, bleu » ou « E → signal perdu ». */
+function outcomeText(outcome: Pick<ShotRecord, 'entry' | 'exit' | 'color'>): string {
+  return isAbsorbed(outcome)
+    ? `${outcome.entry} → ${t.lostSignal.toLowerCase()}`
+    : `${outcome.entry} → ${outcome.exit}, ${RESULT_COLOR_LABELS[outcome.color]}`;
+}
+
+/** Même résultat, avec le pictogramme pour un rayon absorbé (sous la grille). */
+function outcomeHtml(outcome: Pick<ShotRecord, 'entry' | 'exit' | 'color'>): string {
+  return isAbsorbed(outcome)
+    ? `${outcome.entry} → ${lostSignalHtml()} ${t.lostSignal.toLowerCase()}`
+    : `${outcome.entry} → ${outcome.exit} · ${RESULT_COLOR_LABELS[outcome.color]}`;
+}
+
 function describe(shot: ShotRecord): string {
-  return `${shot.n} : ${shot.entry} → ${shot.exit}, ${RESULT_COLOR_LABELS[shot.color]}`;
+  return `${shot.n} : ${outcomeText(shot)}`;
 }
 
 function plural(count: number, one: string, many: string): string {
@@ -176,6 +214,8 @@ export function startApp(root: HTMLElement, version: string): void {
     itool: 'move',
     confirm: null,
     pending: null,
+    choose: null,
+    toast: false,
     notice: '',
   };
   const store = browserSaveStore();
@@ -197,7 +237,7 @@ export function startApp(root: HTMLElement, version: string): void {
       notes: state.showNotes ? state.notes.present : null,
     });
     const hypothesis = state.hypothesis
-      ? `<p class="hypo">${state.hypothesis.entry} → ${state.hypothesis.exit} · ${RESULT_COLOR_LABELS[state.hypothesis.color]}</p>`
+      ? `<p class="hypo">${outcomeHtml(state.hypothesis)}</p>`
       : '';
     const status = `${placed}/${total}${session.shots.length ? ` · ${matching}/${session.shots.length} tirs` : ''}`;
     return `
@@ -219,7 +259,7 @@ export function startApp(root: HTMLElement, version: string): void {
       <div class="result is-${summary.status}">
         <h2>${t.status[summary.status]}</h2>
         ${resultBoardSvg(diffs, session.shots, state.explored)}
-        ${state.explored ? `<p class="hypo">${state.explored.entry} → ${state.explored.exit} · ${RESULT_COLOR_LABELS[state.explored.color]}</p>` : ''}
+        ${state.explored ? `<p class="hypo">${outcomeHtml(state.explored)}</p>` : ''}
         <ul class="diff">${diffs.map((diff) => `<li class="${diff.status}">${diffLine(diff)}</li>`).join('')}</ul>
         <div class="actions">
           <button type="button" data-action="new-game">${t.actions.newGame}</button>
@@ -238,16 +278,40 @@ export function startApp(root: HTMLElement, version: string): void {
       return `<div class="confirm" role="alertdialog" aria-label="Confirmer"><p>Abandonner ?</p><div class="actions"><button type="button" data-action="confirm-abandon">${t.actions.abandon}</button><button type="button" class="ghost" data-action="cancel-confirm">Annuler</button></div></div>`;
     }
     const ready = isSubmittable(state.solution);
-    return `<div class="actions"><button type="button" data-action="ask-submit"${ready ? '' : ' disabled title="5 gemmes valides requises"'}>${t.actions.submit}</button><button type="button" class="ghost" data-action="ask-abandon">${t.actions.abandon}</button></div>`;
+    return `<div class="actions"><button type="button" data-action="ask-submit"${ready ? '' : ' disabled title="Toutes les gemmes, bien placées"'}>${t.actions.submit}</button><button type="button" class="ghost" data-action="ask-abandon">${t.actions.abandon}</button></div>`;
   };
 
   /** Sous la grille de tir : afficher ou non les notes en transparence. */
   const optionsPanel = (): string =>
     `<div class="notes-tools"><label class="check"><input type="checkbox" id="show-notes" data-toggle="notes"${state.showNotes ? ' checked' : ''} />${t.actions.showNotes}</label></div>`;
 
+  /** Message « signal perdu », quelques secondes, quand le Corps noir absorbe un rayon ou une sonde. */
+  const toastHtml = (): string =>
+    state.toast
+      ? `<div class="toast" role="status">${lostSignalHtml()}<span>${t.lostSignal}</span></div>`
+      : '';
+
+  let toastTimer: number | undefined;
+  /** Affiche le message sans refaire l'affichage au moment de le retirer. */
+  const showLostSignal = (): void => {
+    state.toast = true;
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => {
+      state.toast = false;
+      root.querySelector('.toast')?.remove();
+    }, 2600);
+  };
+
+  /** Fenêtre de début de partie : quelles extensions jouer ? */
+  const optionsModal = (choose: Extensions): string => {
+    const cancellable = state.session !== null || state.pending !== null;
+    return `<div class="modal-backdrop" data-options-backdrop><div class="modal" role="dialog" aria-modal="true" aria-label="${t.options.title}"><p class="modal-title">${t.options.title}</p><label class="check"><input type="checkbox" id="ext-diamond"${choose.diamond ? ' checked' : ''} />${t.options.diamond}</label><label class="check"><input type="checkbox" id="ext-black"${choose.blackBody ? ' checked' : ''} />${t.options.blackBody}</label><div class="actions"><button type="button" data-action="start-game">${t.options.play}</button>${cancellable ? `<button type="button" class="ghost" data-action="cancel-options">${t.modal.cancel}</button>` : ''}</div></div></div>`;
+  };
+
   /** Fenêtre modale de confirmation d'un tir ou d'une sonde. */
   const modal = (): string => {
     const { ask } = state;
+    if (state.choose) return optionsModal(state.choose);
     if (!ask) return '';
     const title = ask.kind === 'fire' ? t.modal.fire(ask.label) : t.modal.probe(ask.cell);
     return `<div class="modal-backdrop" data-modal-backdrop><div class="modal" role="dialog" aria-modal="true" aria-label="${title}"><p class="modal-title">${title}</p><label class="check"><input type="checkbox" id="skip-confirm" />${t.modal.dontAsk}</label><div class="actions"><button type="button" data-action="modal-confirm">${t.modal.confirm}</button><button type="button" class="ghost" data-action="modal-cancel">${t.modal.cancel}</button></div></div></div>`;
@@ -340,6 +404,7 @@ export function startApp(root: HTMLElement, version: string): void {
         ${immersiveHud(session)}
         <div class="rotate-hint" aria-hidden="true">↻ Paysage</div>
         <p class="sr-only" aria-live="polite">${state.notice}</p>
+        ${toastHtml()}
         ${modal()}
       </div>`;
   };
@@ -398,7 +463,11 @@ export function startApp(root: HTMLElement, version: string): void {
       board = resumePanel(state.pending);
     } else {
       board = `<p class="placeholder" role="status">${
-        state.phase === 'error' ? 'Échec de la génération.' : 'Génération…'
+        state.phase === 'error'
+          ? 'Échec de la génération.'
+          : state.phase === 'options'
+            ? ''
+            : 'Génération…'
       }</p>`;
     }
 
@@ -406,7 +475,7 @@ export function startApp(root: HTMLElement, version: string): void {
       ? `<ol class="history" aria-label="Tirs">${shots
           .map(
             (shot) =>
-              `<li><button type="button" class="shot${state.selected === shot.n ? ' is-selected' : ''}" data-shot="${shot.n}"><span class="n">${shot.n}</span><span class="path"><b>${shot.entry}</b> → <b>${shot.exit}</b></span>${chips(shot.color)}<span class="color-name">${RESULT_COLOR_LABELS[shot.color]}</span></button></li>`,
+              `<li><button type="button" class="shot${state.selected === shot.n ? ' is-selected' : ''}" data-shot="${shot.n}"><span class="n">${shot.n}</span><span class="path"><b>${shot.entry}</b> → ${isAbsorbed(shot) ? lostSignalHtml() : `<b>${shot.exit}</b>`}</span>${chips(shot.color)}<span class="color-name">${isAbsorbed(shot) ? t.lostSignal.toLowerCase() : RESULT_COLOR_LABELS[shot.color]}</span></button></li>`,
           )
           .join('')}</ol>`
       : '';
@@ -415,7 +484,10 @@ export function startApp(root: HTMLElement, version: string): void {
     const probeCount = session?.probes.length ?? 0;
     const probeHistory = probeCount
       ? `<ul class="probe-list" aria-label="Sondages">${(session?.probes ?? [])
-          .map((probe) => `<li><b>${probe.cell}</b> · ${t.probe[probe.content]}</li>`)
+          .map(
+            (probe) =>
+              `<li><b>${probe.cell}</b> · ${probe.content === 'black' ? `${lostSignalHtml()} ` : ''}${t.probe[probe.content]}</li>`,
+          )
           .join('')}</ul>`
       : '';
     root.innerHTML = `
@@ -457,6 +529,7 @@ export function startApp(root: HTMLElement, version: string): void {
           </aside>
         </div>
         <p class="sr-only" aria-live="polite">${state.notice}</p>
+        ${toastHtml()}
         ${modal()}
       </main>`;
     persist();
@@ -464,13 +537,15 @@ export function startApp(root: HTMLElement, version: string): void {
 
   // ---------- Actions ----------
 
-  const startGame = (seed: string): void => {
+  const startGame = (seed: string, extensions: Readonly<Extensions> = NO_EXTENSIONS): void => {
     store.clear();
     state.pending = null;
+    state.choose = null;
+    state.toast = false;
     state.phase = 'loading';
     state.session = null;
     state.selected = null;
-    state.solution = emptySolution();
+    state.solution = emptySolution(gemsFor(extensions));
     state.selectedGem = null;
     state.hypothesis = null;
     state.explored = null;
@@ -484,9 +559,9 @@ export function startApp(root: HTMLElement, version: string): void {
     // Laisse le navigateur afficher « Génération… » avant le calcul de la mine.
     window.setTimeout(() => {
       try {
-        state.session = GameSession.start(seed);
+        state.session = GameSession.start(seed, extensions);
         state.phase = 'ready';
-        writeSeedToUrl(seed);
+        writeSeedToUrl(seed, extensions);
       } catch {
         state.phase = 'error';
       }
@@ -494,11 +569,32 @@ export function startApp(root: HTMLElement, version: string): void {
     }, 30);
   };
 
+  /** Ouvre la fenêtre de choix des extensions (début de partie). */
+  const openOptions = (): void => {
+    state.choose = { ...(state.session ? extensionsOf(state.session.gems) : NO_EXTENSIONS) };
+    if (state.phase !== 'ready' && state.phase !== 'resume') state.phase = 'options';
+    render();
+    root.querySelector<HTMLElement>('#ext-diamond')?.focus();
+  };
+
+  /** Lance la partie avec les extensions cochées, ou referme la fenêtre. */
+  const closeOptions = (play: boolean): void => {
+    if (!state.choose) return;
+    if (!play) {
+      state.choose = null;
+      return render();
+    }
+    const checked = (id: string): boolean =>
+      root.querySelector<HTMLInputElement>(`#${id}`)?.checked ?? false;
+    startGame(randomSeed(), { diamond: checked('ext-diamond'), blackBody: checked('ext-black') });
+  };
+
   const doFire = (label: string): void => {
     if (!state.session || state.session.finished) return;
     const shot = state.session.fire(label);
     state.selected = shot.n;
     state.notice = describe(shot);
+    if (isAbsorbed(shot)) showLostSignal();
     render();
   };
 
@@ -508,6 +604,7 @@ export function startApp(root: HTMLElement, version: string): void {
     try {
       const record = session.probe(label);
       state.notice = `${record.cell} : ${t.probe[record.content]}`;
+      if (record.content === 'black') showLostSignal();
     } catch {
       state.notice = `« ${label} » : case invalide (A1 à H10).`;
     }
@@ -597,14 +694,16 @@ export function startApp(root: HTMLElement, version: string): void {
     const session = state.session;
     if (!session || !session.finished) return;
     state.explored = shoot(session.reveal(), label);
-    state.notice = `${label} → ${state.explored.exit}, ${RESULT_COLOR_LABELS[state.explored.color]}`;
+    state.notice = outcomeText(state.explored);
+    if (isAbsorbed(state.explored)) showLostSignal();
     render();
   };
 
   const testOnSolution = (label: string): void => {
     try {
       state.hypothesis = shoot(placedGems(state.solution), label);
-      state.notice = `${label} → ${state.hypothesis.exit}, ${RESULT_COLOR_LABELS[state.hypothesis.color]}`;
+      state.notice = outcomeText(state.hypothesis);
+      if (isAbsorbed(state.hypothesis)) showLostSignal();
     } catch {
       state.hypothesis = null;
       state.notice = 'Rayon impossible à suivre : corrigez les gemmes.';
@@ -754,6 +853,17 @@ export function startApp(root: HTMLElement, version: string): void {
     window.addEventListener('pointercancel', onCancel);
   };
 
+  /**
+   * Nouvelle partie au chargement : une graine dans l'adresse (lien partagé) relance cette mine
+   * avec les extensions de l'adresse ; sinon on demande les extensions.
+   */
+  const startFresh = (): void => {
+    const seed = seedFromUrl();
+    if (seed) return startGame(seed, extensionsFromUrl());
+    state.session = null;
+    openOptions();
+  };
+
   // ---------- Événements ----------
 
   root.addEventListener('pointerdown', (event) => {
@@ -795,6 +905,10 @@ export function startApp(root: HTMLElement, version: string): void {
         .forEach((element) => element.classList.remove('is-selected'));
     }
     if (target.hasAttribute('data-modal-backdrop')) return closeAsk(false);
+    if (target.hasAttribute('data-options-backdrop')) {
+      if (state.session || state.pending) closeOptions(false);
+      return;
+    }
     const entry = target.closest<HTMLElement>('[data-fire]');
     if (entry?.dataset['fire']) return askFire(entry.dataset['fire']);
     const probeTarget = target.closest<HTMLElement>('[data-probe]');
@@ -843,7 +957,11 @@ export function startApp(root: HTMLElement, version: string): void {
         leaveImmersive();
         return render();
       case 'new-game':
-        return startGame(randomSeed());
+        return openOptions();
+      case 'start-game':
+        return closeOptions(true);
+      case 'cancel-options':
+        return closeOptions(false);
       case 'rotate':
         withSelectedGem(rotateGem);
         root.querySelector<SVGElement>('[data-action="rotate"]')?.focus();
@@ -865,12 +983,12 @@ export function startApp(root: HTMLElement, version: string): void {
           state.skipConfirm = save.skipConfirm;
           state.pending = null;
           state.phase = 'ready';
-          writeSeedToUrl(state.session.seed);
+          writeSeedToUrl(state.session.seed, extensionsOf(state.session.gems));
           state.notice = 'Reprise';
         }
         return render();
       case 'discard-save':
-        return startGame(seedFromUrl() ?? randomSeed());
+        return startFresh();
       case 'modal-confirm':
         return closeAsk(true);
       case 'modal-cancel':
@@ -895,7 +1013,7 @@ export function startApp(root: HTMLElement, version: string): void {
         state.session?.abandon();
         return showResult();
       case 'replay':
-        if (state.session) startGame(state.session.seed);
+        if (state.session) startGame(state.session.seed, extensionsOf(state.session.gems));
         return;
       case 'undo':
         state.notes = undo(state.notes);
@@ -927,6 +1045,13 @@ export function startApp(root: HTMLElement, version: string): void {
 
   root.addEventListener('keydown', (event) => {
     const target = event.target as Element;
+    if (state.choose) {
+      if (event.key === 'Escape' && (state.session || state.pending)) {
+        event.preventDefault();
+        closeOptions(false);
+      }
+      return;
+    }
     if (state.ask) {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -1075,6 +1200,6 @@ export function startApp(root: HTMLElement, version: string): void {
     state.phase = 'resume';
     render();
   } else {
-    startGame(seedFromUrl() ?? randomSeed());
+    startFresh();
   }
 }

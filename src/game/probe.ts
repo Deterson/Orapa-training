@@ -3,12 +3,15 @@
  * de la gemme qui occupe la case. Source : docs/regles.md (« Autre type de question »).
  */
 import { type Cell } from './board';
-import type { GemColor } from './colors';
+import type { GemPaint } from './colors';
 import { GEM_SHAPES, type Placement, placedPolygon } from './gems';
 import { type Polygon, relation } from './geometry';
 
-/** Réponse à une sonde : « rien », ou la couleur de la gemme présente. */
-export type ProbeContent = 'nothing' | GemColor;
+/**
+ * Réponse à une sonde : « rien », ou la couleur de la gemme présente. « clear » est le Diamant ;
+ * « black » le Corps noir (le signal est absorbé).
+ */
+export type ProbeContent = 'nothing' | GemPaint;
 
 function cellPolygon({ row, col }: Cell): Polygon {
   return [

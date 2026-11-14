@@ -58,7 +58,8 @@ Résumé ; le détail et les tableaux sont dans `docs/regles.md`.
   (« E4 »). 36 points d'entrée : **1–10** en haut, **11–18** à droite, **I–R** en bas,
   **A–H** à gauche.
 - Partie de base : **5 gemmes** (1 rouge, 1 jaune, 1 bleue, 2 blanches) parmi un jeu de 7 ;
-  Diamant et Corps noir en extensions.
+  Diamant et Corps noir (« diamant noir ») en extensions, au choix au début de chaque partie
+  (`?ext=d|n|dn`) ; le Corps noir absorbe le rayon : affichage rouge « signal perdu » (wifi barré).
 - **La gemme rouge peut être retournée** (quadrillage foncé sur ses deux faces, seule pièce
   dans ce cas) ; les autres gemmes ne se retournent jamais. À signaler dans la page
   « Règles » du site.
@@ -289,8 +290,9 @@ v3.1 à v3.7 la **v4**.
 ## Questions ouvertes
 
 - **Dimensions des gemmes** : lues sur les schémas, à confirmer sur les pièces (surtout le
-  grand triangle, supposé identique en bleu et en blanc, et le losange blanc). Formes du
-  Diamant et du Corps noir encore inconnues.
+  grand triangle, supposé identique en bleu et en blanc, et le losange blanc). Formes des
+  extensions données par le propriétaire : Diamant = demi-losange 2×1 (triangle de base 2,
+  hauteur 1) ; Corps noir (« diamant noir ») = base rectangulaire 2×1.
 - Contact entre gemmes (règle d) : le livret dit « par un coin ou une ligne ». Confirmer
   qu'un sommet posé contre le milieu d'un côté est permis et qu'un segment partagé ne
   l'est pas.

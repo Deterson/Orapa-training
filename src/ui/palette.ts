@@ -1,12 +1,15 @@
-import type { GemColor, ResultColor } from '../game/colors';
+import type { GemPaint, ResultColor } from '../game/colors';
 import { type Polygon, gridSegments } from '../game/geometry';
 
 /** Remplissage des gemmes. */
-export const GEM_FILL: Record<GemColor, string> = {
+export const GEM_FILL: Record<GemPaint, string> = {
   red: '#c0392b',
   yellow: '#e8b100',
   blue: '#2f6fb5',
   white: '#f4f4f4',
+  // Diamant : verre bleuté ; diamant noir : presque noir.
+  clear: '#c9e9f5',
+  black: '#1f1f25',
 };
 
 /** Couleur d'affichage de chaque couleur de rayon annoncée. */
@@ -78,18 +81,45 @@ function darken(hex: string, factor: number): string {
 }
 
 /** Couleur du quadrillage de chaque gemme : un peu plus foncée que la gemme elle-même. */
-export const GEM_GRID_COLOR: Record<GemColor, string> = {
+export const GEM_GRID_COLOR: Record<GemPaint, string> = {
   red: darken(GEM_FILL.red, 0.78),
   yellow: darken(GEM_FILL.yellow, 0.78),
   blue: darken(GEM_FILL.blue, 0.78),
   white: darken(GEM_FILL.white, 0.8),
+  clear: darken(GEM_FILL.clear, 0.78),
+  // Sur le noir, un quadrillage plus foncé ne se verrait pas : plus clair.
+  black: '#4a4a55',
 };
+
+/** Lettre affichée sur la marque d'une sonde, en plus de la couleur. */
+export const PAINT_LETTER: Record<GemPaint, string> = {
+  red: 'R',
+  yellow: 'J',
+  blue: 'B',
+  white: 'Bl',
+  clear: 'D',
+  black: '',
+};
+
+/** Contenu du pictogramme « signal perdu » : un symbole wifi rouge barré, dans une boîte 24×24. */
+const LOST_SIGNAL_PATHS = `<path d="M2.6 9.2a13.6 13.6 0 0 1 18.8 0M6.2 12.9a8.4 8.4 0 0 1 11.6 0M9.8 16.5a3.2 3.2 0 0 1 4.4 0" fill="none" stroke="#d92d20" stroke-width="2.3" stroke-linecap="round"/><circle cx="12" cy="19.8" r="1.5" fill="#d92d20"/><path d="M4 3.5L20 21" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity="0.9"/><path d="M4 3.5L20 21" stroke="#d92d20" stroke-width="2.6" stroke-linecap="round"/>`;
+
+/** Pictogramme « signal perdu » dans une grille SVG, centré en (cx, cy), de côté `size` (en cases). */
+export function lostSignalSvg(cx: number, cy: number, size: number): string {
+  const scale = size / 24;
+  return `<g class="lost-signal" transform="translate(${cx - 12 * scale} ${cy - 12 * scale}) scale(${scale})" aria-hidden="true">${LOST_SIGNAL_PATHS}</g>`;
+}
+
+/** Le même pictogramme dans le texte (historique, message). */
+export function lostSignalHtml(): string {
+  return `<svg class="lost-signal-icon" viewBox="0 0 24 24" aria-hidden="true">${LOST_SIGNAL_PATHS}</svg>`;
+}
 
 /**
  * Gemme dessinée : couleur pleine et quadrillage (les lignes de la grille qui traversent la pièce,
  * comme sur les vraies pièces), un peu plus foncé que la couleur de la gemme.
  */
-export function gemPolygons(polygon: Polygon, color: GemColor, className = '', title = ''): string {
+export function gemPolygons(polygon: Polygon, color: GemPaint, className = '', title = ''): string {
   const cls = className ? ` class="${className}"` : '';
   const label = title ? `<title>${title}</title>` : '';
   const points = polygon.map(([x, y]) => `${x},${y}`).join(' ');

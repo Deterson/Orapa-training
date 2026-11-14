@@ -5,7 +5,7 @@
  */
 import { parseCell, parseEntryLabel } from './board';
 import type { Mine } from './generate';
-import { BASE_GEM_IDS, GEM_SHAPES, type GemId, type Placement } from './gems';
+import { ALL_GEM_IDS, BASE_GEM_IDS, GEM_SHAPES, type GemId, type Placement } from './gems';
 import type { CellMark, Ink, Notes, Stroke } from './notes';
 import { validatePlacements } from './placement';
 import { MAX_ATTEMPTS, type GameStatus, type SessionSnapshot } from './session';
@@ -54,9 +54,11 @@ function parseMine(value: unknown): Mine | null {
   const placements = value['placements'].map(parsePlacement);
   if (placements.some((p) => p === null)) return null;
   const list = placements as Placement[];
-  // Exactement les gemmes de la partie de base, posées selon les règles.
-  const gems = list.map((p) => p.gem).sort();
-  if (gems.join() !== [...BASE_GEM_IDS].sort().join()) return null;
+  // Les gemmes de la partie de base, une fois chacune, plus au plus le Diamant et le Corps noir,
+  // posées selon les règles.
+  const gems = list.map((p) => p.gem);
+  const expected = ALL_GEM_IDS.filter((gem) => BASE_GEM_IDS.includes(gem) || gems.includes(gem));
+  if ([...gems].sort().join() !== [...expected].sort().join()) return null;
   if (validatePlacements(list).length > 0) return null;
   return { seed, generatorVersion, placements: list };
 }
@@ -83,10 +85,11 @@ function parseSnapshot(value: unknown): SessionSnapshot | null {
   return { mine, shots, probes, attempts, status: status as GameStatus, elapsedMs };
 }
 
-function parseSolution(value: unknown): Solution | null {
+/** La solution doit porter exactement sur les gemmes de la partie (`gems`). */
+function parseSolution(value: unknown, gems: readonly GemId[]): Solution | null {
   if (!isRecord(value)) return null;
   const result: Partial<Record<GemId, Placement | null>> = {};
-  for (const gem of BASE_GEM_IDS) {
+  for (const gem of gems) {
     const entry = value[gem];
     if (entry === null) {
       result[gem] = null;
@@ -145,7 +148,13 @@ function parseNotes(value: unknown): Notes | null {
 export function parseSave(raw: unknown): SaveData | null {
   if (!isRecord(raw) || raw['version'] !== SAVE_VERSION) return null;
   const session = parseSnapshot(raw['session']);
-  const solution = parseSolution(raw['solution']);
+  const solution =
+    session === null
+      ? null
+      : parseSolution(
+          raw['solution'],
+          session.mine.placements.map((p) => p.gem),
+        );
   const notes = parseNotes(raw['notes']);
   const savedAt = raw['savedAt'];
   if (session === null || solution === null || notes === null || !isFiniteNumber(savedAt)) {

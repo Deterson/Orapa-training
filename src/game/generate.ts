@@ -11,10 +11,13 @@
 import { GRID_COLS, GRID_ROWS } from './constants';
 import {
   BASE_GEM_IDS,
+  type Extensions,
   GEM_SHAPES,
   type GemId,
+  NO_EXTENSIONS,
   type Placement,
   distinctOrientations,
+  gemsFor,
   orientedPolygon,
 } from './gems';
 import { boundingBox } from './geometry';
@@ -71,10 +74,15 @@ export interface GenerationReport {
 }
 
 /** Génère la mine de cette graine et indique combien d'essais il a fallu. */
-export function generateMineWithReport(seed: string, maxAttempts = 1000): GenerationReport {
+export function generateMineWithReport(
+  seed: string,
+  extensions: Readonly<Extensions> = NO_EXTENSIONS,
+  maxAttempts = 1000,
+): GenerationReport {
   const rng = createRng(seed);
+  const gems = gemsFor(extensions);
   for (let attempts = 1; attempts <= maxAttempts; attempts++) {
-    const placements = randomLayout(rng);
+    const placements = randomLayout(rng, gems);
     if (placements === null || !isVisible(placements) || !isUnique(placements)) continue;
     return { mine: { seed, generatorVersion: GENERATOR_VERSION, placements }, attempts };
   }
@@ -82,6 +90,6 @@ export function generateMineWithReport(seed: string, maxAttempts = 1000): Genera
 }
 
 /** Génère la mine de cette graine : toujours la même pour une graine et une version données. */
-export function generateMine(seed: string): Mine {
-  return generateMineWithReport(seed).mine;
+export function generateMine(seed: string, extensions: Readonly<Extensions> = NO_EXTENSIONS): Mine {
+  return generateMineWithReport(seed, extensions).mine;
 }

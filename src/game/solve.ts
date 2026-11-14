@@ -17,7 +17,7 @@
  */
 import { ENTRY_POINTS } from './board';
 import { GRID_COLS, GRID_ROWS } from './constants';
-import { colorMask, GEM_COLOR_BIT } from './colors';
+import { colorMask, GEM_COLOR_BIT, isMixColor } from './colors';
 import {
   BASE_GEM_IDS,
   GEM_SHAPES,
@@ -33,8 +33,10 @@ import {
   type Vec,
   exitPointAt,
   findFirstHit,
+  isAbsorbed,
   reflect,
   sameSignature,
+  shootAll,
   signatureOf,
   startOf,
 } from './laser';
@@ -57,6 +59,9 @@ export interface SolveResult {
 interface Candidate {
   placement: Placement;
   polygon: Polygon;
+  /** Ce que la gemme fait au rayon : le colorer, le laisser tel quel (Diamant) ou l'absorber. */
+  kind: 'mix' | 'clear' | 'black';
+  /** Bit de sa couleur (0 pour le Diamant et le Corps noir). */
   bit: number;
   minX: number;
   maxX: number;
@@ -70,11 +75,22 @@ interface State {
   placed: (Candidate | null)[];
 }
 
-/** Lignes et colonnes que traverse un tir non transparent : bits 0-9 colonnes, 10-17 lignes. */
-function occupiedLines(signature: Signature): number {
+/**
+ * Tir qui n'a rien touché : transparent et sorti en face, comme sur un plateau vide. (Un tir
+ * transparent mais dévié a touché le Diamant : il ne compte pas comme vide.)
+ */
+function emptyShots(signature: Signature): boolean[] {
+  const straight = shootAll([]);
+  return signature.map(
+    (outcome, i) => outcome.color === 'transparent' && outcome.exit === straight[i]?.exit,
+  );
+}
+
+/** Lignes et colonnes que traverse un tir non vide : bits 0-9 colonnes, 10-17 lignes. */
+function occupiedLines(empty: readonly boolean[]): number {
   let mask = 0;
   ENTRY_POINTS.forEach((entry, i) => {
-    if (signature[i]?.color === 'transparent') return;
+    if (empty[i]) return;
     const vertical = entry.side === 'top' || entry.side === 'bottom';
     mask |= 1 << (vertical ? entry.index : GRID_COLS + entry.index);
   });
@@ -100,7 +116,8 @@ function candidatesFor(gem: GemId, occupied: number): Candidate[] {
         result.push({
           placement,
           polygon: placedPolygon(placement),
-          bit: GEM_COLOR_BIT[shape.color],
+          kind: isMixColor(shape.color) ? 'mix' : shape.color,
+          bit: isMixColor(shape.color) ? GEM_COLOR_BIT[shape.color] : 0,
           minX: col,
           maxX: col + width,
           minY: row,
@@ -137,21 +154,36 @@ export function solve(
   gems: readonly GemId[] = BASE_GEM_IDS,
   { limit = 2, maxNodes = 300_000 }: SolveOptions = {},
 ): SolveResult {
-  const occupied = occupiedLines(signature);
+  const empty = emptyShots(signature);
+  const occupied = occupiedLines(empty);
   const solutions: Placement[][] = [];
   let nodes = 0;
   let complete = true;
   const stop = (): boolean => solutions.length >= limit || !complete;
 
-  // Tirs à rejouer : les non transparents (les autres sont déjà pris en compte par `occupied`),
-  // en commençant par ceux qui touchent le moins de couleurs, donc les plus contraignants.
-  const shots = ENTRY_POINTS.map((entry, index) => ({
-    entry,
-    exit: signature[index]?.exit ?? '',
-    mask: colorMask(signature[index]?.color ?? 'transparent'),
-  }))
-    .filter((shot) => shot.mask !== 0)
-    .sort((a, b) => popCount(a.mask) - popCount(b.mask));
+  // Tirs à rejouer : tous sauf les tirs vides (déjà pris en compte par `occupied`), en commençant
+  // par ceux qui touchent le moins de couleurs, donc les plus contraignants. Un rayon absorbé ne
+  // dit rien de ses couleurs : toutes sont permises avant le Corps noir.
+  const shots = ENTRY_POINTS.map((entry, index) => {
+    const outcome = signature[index] ?? { exit: '', color: 'transparent' as const };
+    const absorbed = isAbsorbed(outcome);
+    return {
+      entry,
+      exit: outcome.exit,
+      absorbed,
+      mask: absorbed ? 0 : colorMask(outcome.color),
+      allowed: absorbed ? 15 : colorMask(outcome.color),
+    };
+  })
+    .filter((_, index) => !empty[index])
+    .sort((a, b) => popCount(a.allowed) - popCount(b.allowed));
+
+  type Shot = (typeof shots)[number];
+  /** Cette gemme peut-elle être touchée par ce rayon ? */
+  const canTouch = (candidate: Candidate, shot: Shot): boolean =>
+    candidate.kind === 'black'
+      ? shot.absorbed
+      : candidate.kind === 'clear' || (candidate.bit & shot.allowed) !== 0;
 
   const finish = (state: State): void => {
     if (state.domains.some((domain) => domain !== null)) return;
@@ -218,16 +250,22 @@ export function solve(
         if (exit.label === shot.exit && touched === shot.mask) nextShot(next, index + 1);
       } else {
         const gem = placedGems[placedHit.gem];
-        const bit = gem === undefined ? 0 : (state.placed[gem]?.bit ?? 0);
-        if ((bit & shot.mask) !== 0) {
-          advance(next, index, placedHit.point, reflect(dir, placedHit.edgeVector), touched | bit);
+        const hit = gem === undefined ? null : (state.placed[gem] ?? null);
+        if (hit !== null && canTouch(hit, shot)) {
+          if (hit.kind === 'black') {
+            // Le rayon s'arrête là : c'est bien un tir absorbé (canTouch l'a vérifié).
+            nextShot(next, index + 1);
+          } else {
+            const bounced = reflect(dir, placedHit.edgeVector);
+            advance(next, index, placedHit.point, bounced, touched | hit.bit);
+          }
         }
       }
     }
 
     // Cas 2 : une gemme non posée est la première touchée, une branche par pose possible.
     for (const { gem, candidate, distance } of blocked) {
-      if ((candidate.bit & shot.mask) === 0) continue;
+      if (!canTouch(candidate, shot)) continue;
       const domains: (readonly Candidate[] | null)[] = [];
       let dead = false;
       for (let other = 0; other < state.domains.length && !dead; other++) {

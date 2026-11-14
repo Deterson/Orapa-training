@@ -60,8 +60,8 @@ en cases, origine en haut à gauche de la boîte englobante, y vers le bas :
 | Bleue | grand triangle isocèle rectangle (hypoténuse = 4, hauteur = 2) | (0,0) (4,0) (2,2) | 4×2 | 4 |
 | Blanche 1 | losange (carré posé sur la pointe) | (1,0) (2,1) (1,2) (0,1) | 2×2 | 1 |
 | Blanche 2 | grand triangle, même forme que le bleu | (0,0) (4,0) (2,2) | 4×2 | 4 |
-| Diamant (ext.) | gemme transparente ; le pictogramme du livret montre un triangle | ? | ? | ? |
-| Corps noir (ext.) | empreinte rectangulaire (≈ 2×1), pointe vers le haut | ? | ? | ? |
+| Diamant (ext.) ✅ | gemme transparente : demi-losange blanc (triangle de base 2, hauteur 1), forme donnée par le propriétaire | (0,0) (2,0) (1,1) | 2×1 | 4 |
+| Corps noir (ext.) ✅ | « diamant noir » : on ne modélise que sa base rectangulaire 2×1 (il se pose dessus, pointe vers le haut), forme donnée par le propriétaire | (0,0) (2,0) (2,1) (0,1) | 2×1 | 2 |
 
 ### Retournement (précision propriétaire)
 
@@ -155,6 +155,10 @@ site joue ce rôle).
 - ✅ **Corps noir** : se place pointe vers le haut sur sa base rectangulaire. Il
   **absorbe** le rayon : ni point de sortie ni couleur ; le maître du jeu annonce « Le
   signal a été absorbé ». Sonder une case du corps noir donne la même réponse.
+- Sur le site : le choix se fait au début de chaque partie (adresse `?ext=d`, `?ext=n` ou
+  `?ext=dn`) ; une partie compte alors 6 ou 7 gemmes. Un rayon ou une sonde absorbés affichent un
+  signal wifi rouge barré « Signal perdu ». Une gemme retournable reste la rouge seule. Les règles
+  de placement a à e valent pour les deux extensions (le Corps noir doit lui aussi être visible).
 
 ## Fin de partie
 
@@ -183,7 +187,7 @@ site joue ce rôle).
 ## Points à valider
 
 - Dimensions exactes des gemmes (surtout : grand triangle identique en bleu et en blanc ?
-  losange blanc 2×2 ?). Formes du Diamant et du Corps noir.
+  losange blanc 2×2 ?). 
 - Règle d (contact entre gemmes), lecture ci-dessus.
 - Couleur « orange clair » (rouge + jaune + blanc), seulement vue dans la table BGA.
 - Nombre d'essais de soumission en entraînement.

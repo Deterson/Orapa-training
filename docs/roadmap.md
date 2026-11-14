@@ -62,8 +62,7 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
   couleurs touchées, les contacts et le trajet à dessiner.
 - `colors.ts` : table de mélange des 16 combinaisons, indexée par l'ensemble des couleurs
   distinctes touchées.
-- Pas encore de « signal absorbé » : il n'existe que pour le Corps noir, dont la forme est
-  inconnue (extension, hors v1).
+- « Signal absorbé » : il n'existe que pour le Corps noir (extension, ajoutée en v1.0.13).
 - Tests : les **deux exemples du livret** (I → rouge en I ; 15 → violet clair en 8, avec le
   trajet exact) ; chaque ligne de la table des couleurs ; une couleur touchée par deux gemmes
   ne compte qu'une fois ; **réversibilité** et absence de boucle sur 300 dispositions valides
@@ -585,6 +584,14 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
   on change d'onglet, de mode ou d'outil, ou qu'on touche ailleurs que sur une gemme ou ses boutons.
 - **v1.0.12** : l'encre **verte** du crayon est supprimée (aucune gemme n'est verte) ; il reste noir,
   rouge, jaune et bleu. Les anciens traits verts des sauvegardes redeviennent noirs.
+- **v1.0.13** : les **extensions**. Au début de chaque nouvelle partie, une fenêtre propose le
+  **Diamant** (demi-losange 2×1, transparent : il dévie le rayon sans changer sa couleur) et le
+  **Diamant noir** (rectangle 2×1 posé sur sa base, il absorbe le rayon). Le générateur, le solveur
+  d'unicité, la sauvegarde, la réserve de gemmes (normale et plein écran), le résultat et la page
+  Règles les gèrent ; le choix figure dans l'adresse (`?seed=…&ext=dn`). Un rayon ou une sonde
+  absorbés affichent un **signal wifi rouge barré « Signal perdu »** (message, historique, repère
+  d'entrée, case sondée). Génération avec extensions : environ 0,4 à 1,3 s en moyenne, jusqu'à
+  quelques secondes dans le pire cas (écran « Génération… », pas de Web Worker pour l'instant).
 
 ## Questions ouvertes
 

@@ -3,13 +3,22 @@
  * Aucune logique de jeu ici, seulement de l'affichage.
  */
 import { ENTRY_POINTS, type EntryPoint, cellLabel, parseCell } from '../game/board';
-import { GEM_COLOR_LABELS } from '../game/colors';
+import { GEM_PAINT_LABELS } from '../game/colors';
 import { GRID_COLS, GRID_ROWS } from '../game/constants';
 import { GEM_SHAPES, type Placement, placedPolygon } from '../game/gems';
+import { isAbsorbed } from '../game/laser';
 import type { Notes } from '../game/notes';
 import type { ProbeRecord, ShotRecord } from '../game/session';
 import { notesLayerSvg } from './notesLayer';
-import { GEM_FILL, MARK_LETTER, PATTERN_DEFS, RAY_COLOR, gemPolygons, readableOn } from './palette';
+import {
+  GEM_FILL,
+  PAINT_LETTER,
+  PATTERN_DEFS,
+  RAY_COLOR,
+  gemPolygons,
+  lostSignalSvg,
+  readableOn,
+} from './palette';
 
 export interface ShotMarks {
   shots: readonly ShotRecord[];
@@ -72,7 +81,10 @@ export function entryLabelsSvg(
     // Pastille de sortie : le même numéro que l'entrée, dans la couleur obtenue. Pour
     // « transparent », pas de pastille : le numéro seul.
     let dot = '';
-    if (to) {
+    if (from && isAbsorbed(from)) {
+      // Rayon absorbé : pas de point de sortie, le pictogramme « signal perdu » à sa place.
+      dot = lostSignalSvg(x + 0.34, y + 0.34, 0.62);
+    } else if (to) {
       const dx = x + 0.34;
       const dy = y + 0.34;
       if (to.color === 'transparent') {
@@ -128,7 +140,10 @@ export function probeMarksSvg(probes: readonly ProbeRecord[]): string {
       if (probe.content === 'nothing') {
         return `<circle class="probe-nothing" cx="${cx}" cy="${cy}" r="0.17"><title>Case ${probe.cell} : rien</title></circle>`;
       }
-      return `<g class="probe-gem"><rect x="${cell.col + 0.18}" y="${cell.row + 0.18}" width="0.64" height="0.64" rx="0.1" fill="${GEM_FILL[probe.content]}"/><text x="${cx}" y="${cy + 0.02}">${MARK_LETTER[probe.content] ?? ''}</text><title>Case ${probe.cell} : gemme ${GEM_COLOR_LABELS[probe.content]}</title></g>`;
+      if (probe.content === 'black') {
+        return `<g class="probe-gem probe-lost"><rect x="${cell.col + 0.12}" y="${cell.row + 0.12}" width="0.76" height="0.76" rx="0.1" fill="${GEM_FILL.black}"/>${lostSignalSvg(cx, cy, 0.62)}<title>Case ${probe.cell} : signal perdu</title></g>`;
+      }
+      return `<g class="probe-gem"><rect x="${cell.col + 0.18}" y="${cell.row + 0.18}" width="0.64" height="0.64" rx="0.1" fill="${GEM_FILL[probe.content]}"/><text x="${cx}" y="${cy + 0.02}">${PAINT_LETTER[probe.content]}</text><title>Case ${probe.cell} : gemme ${GEM_PAINT_LABELS[probe.content]}</title></g>`;
     })
     .join('');
 }

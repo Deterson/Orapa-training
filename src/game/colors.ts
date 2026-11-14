@@ -25,6 +25,17 @@ export type ResultColor =
   | 'light-orange'
   | 'gray';
 
+/**
+ * Ce qu'une gemme fait au rayon : ajoute une couleur, ou bien « clear » (le Diamant, transparent :
+ * il dévie le rayon sans changer sa couleur) ou « black » (le Corps noir : il absorbe le rayon).
+ */
+export type GemPaint = GemColor | 'clear' | 'black';
+
+/** Vrai si cette gemme colore le rayon (c'est-à-dire ni le Diamant ni le Corps noir). */
+export function isMixColor(paint: GemPaint): paint is GemColor {
+  return paint !== 'clear' && paint !== 'black';
+}
+
 /** Bit de chaque couleur dans le masque des couleurs touchées. */
 export const GEM_COLOR_BIT: Record<GemColor, number> = { red: 1, yellow: 2, blue: 4, white: 8 };
 const BIT = GEM_COLOR_BIT;
@@ -106,4 +117,11 @@ export const GEM_COLOR_LABELS: Record<GemColor, string> = {
   yellow: 'jaune',
   blue: 'bleue',
   white: 'blanche',
+};
+
+/** Noms des gemmes selon leur effet sur le rayon (réponse à une sonde). */
+export const GEM_PAINT_LABELS: Record<GemPaint, string> = {
+  ...GEM_COLOR_LABELS,
+  clear: 'diamant',
+  black: 'diamant noir',
 };

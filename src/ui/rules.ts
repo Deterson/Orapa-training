@@ -4,12 +4,19 @@
  * simulateur), donc ils ne peuvent pas dire autre chose que le jeu.
  */
 import { RESULT_COLOR_LABELS, mixColors, type GemColor } from '../game/colors';
-import { GEM_SHAPES, BASE_GEM_IDS, orientedPolygon, placedPolygon } from '../game/gems';
+import {
+  BASE_GEM_IDS,
+  EXTENSION_GEM_IDS,
+  GEM_SHAPES,
+  type GemId,
+  orientedPolygon,
+  placedPolygon,
+} from '../game/gems';
 import { BOOKLET_LAYOUT } from '../game/examples';
 import { boundingBox } from '../game/geometry';
 import { shoot } from '../game/laser';
 import { boardFrame, entryLabelsSvg } from './board';
-import { RAY_COLOR, gemPolygons } from './palette';
+import { RAY_COLOR, gemPolygons, lostSignalHtml } from './palette';
 import { t } from './strings';
 
 const COLORS: readonly GemColor[] = ['red', 'yellow', 'blue', 'white'];
@@ -19,7 +26,7 @@ function points(list: readonly (readonly [number, number])[]): string {
 }
 
 /** Petit dessin d'une gemme dans son orientation de départ. */
-function gemFigure(id: (typeof BASE_GEM_IDS)[number]): string {
+function gemFigure(id: GemId): string {
   const shape = GEM_SHAPES[id];
   const polygon = orientedPolygon(shape, { rotation: 0, flipped: false });
   const { maxX, maxY } = boundingBox(polygon);
@@ -75,7 +82,7 @@ export function rulesPage(version: string): string {
       <h1>Règles</h1>
 
       <h2>But</h2>
-      <p>Retrouver les 5 gemmes cachées. Une seule solution possible.</p>
+      <p>Retrouver les gemmes cachées (5, plus les extensions choisies). Une seule solution possible.</p>
 
       <h2>Grille</h2>
       <p>10 × 8. Case : ligne A–H + colonne 1–10 (<b>E4</b>). Repères du bord : 1–10 haut, 11–18 droite, I–R bas, A–H gauche.</p>
@@ -83,6 +90,14 @@ export function rulesPage(version: string): string {
       <h2>Gemmes</h2>
       <div class="gem-figures">${BASE_GEM_IDS.map(gemFigure).join('')}</div>
       <p class="note-box"><b>La rouge se retourne</b> (quadrillage foncé des deux côtés). Les autres : jamais.</p>
+
+      <h2>Extensions</h2>
+      <p>Au choix, au début de la partie.</p>
+      <div class="gem-figures">${EXTENSION_GEM_IDS.map(gemFigure).join('')}</div>
+      <ul class="rule-list">
+        <li><b>Diamant</b> : dévie le rayon, sans changer sa couleur.</li>
+        <li><b>Diamant noir</b> : absorbe le rayon. ${lostSignalHtml()} <b>Signal perdu</b> : ni sortie, ni couleur. Se pose sur sa base.</li>
+      </ul>
 
       <h2>Placement</h2>
       <ul class="rule-list">

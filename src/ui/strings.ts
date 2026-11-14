@@ -36,12 +36,15 @@ export const fr = {
     lost: 'Perdu',
     abandoned: 'Abandonné',
   } satisfies Record<GameStatus, string>,
+  lostSignal: 'Signal perdu',
   probe: {
     nothing: 'rien',
     red: 'rouge',
     yellow: 'jaune',
     blue: 'bleue',
     white: 'blanche',
+    clear: 'diamant',
+    black: 'signal perdu',
   } satisfies Record<ProbeRecord['content'], string>,
   modal: {
     fire: (label: string) => `Laser en ${label} ?`,
@@ -49,6 +52,12 @@ export const fr = {
     confirm: 'Confirmer',
     cancel: 'Annuler',
     dontAsk: 'Ne plus demander',
+  },
+  options: {
+    title: 'Extensions',
+    diamond: 'Diamant',
+    blackBody: 'Diamant noir',
+    play: 'Jouer',
   },
   hints: {
     storageOff: 'Sauvegarde indisponible.',

@@ -17,7 +17,7 @@ import {
   parseEntryLabel,
 } from './board';
 import { GRID_COLS, GRID_ROWS } from './constants';
-import { type GemColor, type ResultColor, mixColors } from './colors';
+import { type GemColor, type GemPaint, type ResultColor, isMixColor, mixColors } from './colors';
 import { GEM_SHAPES, type Placement, placedPolygon } from './gems';
 import { type Point, type Polygon, edgesOf } from './geometry';
 
@@ -29,10 +29,16 @@ export interface LaserHit {
   point: Point;
 }
 
+/** « Sortie » d'un rayon absorbé par le Corps noir : il n'en a pas. */
+export const ABSORBED = 'absorbed';
+
 export interface ShotResult {
   /** Repère du point d'entrée. */
   entry: string;
-  /** Repère du point de sortie (identique à l'entrée si le rayon revient sur ses pas). */
+  /**
+   * Repère du point de sortie (identique à l'entrée si le rayon revient sur ses pas), ou
+   * ABSORBED si le Corps noir a absorbé le rayon (la couleur est alors « transparent » et sans objet).
+   */
   exit: string;
   /** Couleur annoncée. */
   color: ResultColor;
@@ -40,7 +46,7 @@ export interface ShotResult {
   touched: GemColor[];
   /** Contacts avec les gemmes, dans l'ordre. */
   hits: LaserHit[];
-  /** Trajet à dessiner : de l'entrée sur le bord à la sortie sur le bord. */
+  /** Trajet à dessiner : de l'entrée sur le bord à la sortie sur le bord (ou au Corps noir). */
   path: Point[];
 }
 
@@ -120,13 +126,13 @@ const MAX_BOUNCES = 1000;
 
 interface Scene {
   polygons: Polygon[];
-  colors: GemColor[];
+  paints: GemPaint[];
 }
 
 function buildScene(placements: readonly Placement[]): Scene {
   return {
     polygons: placements.map(placedPolygon),
-    colors: placements.map((placement) => GEM_SHAPES[placement.gem].color),
+    paints: placements.map((placement) => GEM_SHAPES[placement.gem].color),
   };
 }
 
@@ -180,12 +186,15 @@ function trace(scene: Scene, entry: EntryPoint): ShotResult {
       };
     }
 
-    const color = scene.colors[hit.gem];
-    if (color !== undefined && !touched.includes(color)) {
-      touched.push(color);
-    }
+    const paint = scene.paints[hit.gem];
     hits.push({ gem: hit.gem, point: hit.point });
     path.push(hit.point);
+    if (paint === 'black') {
+      return { entry: entry.label, exit: ABSORBED, color: 'transparent', touched, hits, path };
+    }
+    if (paint !== undefined && isMixColor(paint) && !touched.includes(paint)) {
+      touched.push(paint);
+    }
     position = hit.point;
     dir = reflect(dir, hit.edgeVector);
   }
@@ -210,6 +219,7 @@ export function shootAll(placements: readonly Placement[]): ShotResult[] {
 
 /** Résultat observable d'un tir : tout ce que le joueur apprend (le trajet n'en fait pas partie). */
 export interface ShotOutcome {
+  /** Repère de sortie, ou ABSORBED. */
   exit: string;
   color: ResultColor;
 }
@@ -219,6 +229,11 @@ export type Signature = readonly ShotOutcome[];
 
 export function signatureOf(placements: readonly Placement[]): Signature {
   return shootAll(placements).map(({ exit, color }) => ({ exit, color }));
+}
+
+/** Vrai si le Corps noir a absorbé ce rayon. */
+export function isAbsorbed(outcome: { exit: string }): boolean {
+  return outcome.exit === ABSORBED;
 }
 
 export function sameSignature(a: Signature, b: Signature): boolean {

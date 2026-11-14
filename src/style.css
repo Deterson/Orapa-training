@@ -1128,3 +1128,57 @@ html.is-immersive body {
     display: flex;
   }
 }
+
+/* Signal perdu : symbole wifi rouge barré, dans le texte et sur la grille. */
+.lost-signal-icon {
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: -0.2em;
+  flex: none;
+}
+
+.lost-signal {
+  pointer-events: none;
+}
+
+.shot .path .lost-signal-icon {
+  margin-left: 0.15em;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-weight: 700;
+  color: #d92d20;
+  background: var(--surface);
+  border: 2px solid #d92d20;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  animation: toast-in 0.18s ease-out;
+}
+
+.toast .lost-signal-icon {
+  width: 1.7em;
+  height: 1.7em;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}

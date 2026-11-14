@@ -5,6 +5,7 @@
  */
 import { GRID_COLS, GRID_ROWS } from './constants';
 import {
+  ALL_GEM_IDS,
   BASE_GEM_IDS,
   GEM_SHAPES,
   type GemId,
@@ -18,25 +19,34 @@ import { type Violation, validatePlacements } from './placement';
 import type { ShotRecord } from './session';
 import { visibilityViolations } from './visibility';
 
-/** Pour chaque gemme du jeu : sa pose sur la grille, ou null si elle est encore dans la réserve. */
-export type Solution = Readonly<Record<GemId, Placement | null>>;
+/**
+ * Pour chaque gemme de la partie : sa pose sur la grille, ou null si elle est encore dans la
+ * réserve. Les gemmes absentes de la partie (extensions non choisies) n'ont pas d'entrée.
+ */
+export type Solution = Readonly<Partial<Record<GemId, Placement | null>>>;
 
 const DEFAULT_ORIENTATION: Orientation = { rotation: 0, flipped: false };
 
-export function emptySolution(): Solution {
-  return Object.fromEntries(BASE_GEM_IDS.map((gem) => [gem, null])) as Record<GemId, null>;
+/** Solution vide pour ces gemmes (par défaut, celles de la partie de base). */
+export function emptySolution(gems: readonly GemId[] = BASE_GEM_IDS): Solution {
+  return Object.fromEntries(gems.map((gem) => [gem, null])) as Solution;
+}
+
+/** Les gemmes de la partie, dans l'ordre du jeu. */
+export function gemsOf(solution: Solution): GemId[] {
+  return ALL_GEM_IDS.filter((gem) => solution[gem] !== undefined);
 }
 
 /** Les gemmes posées, dans l'ordre du jeu. */
 export function placedGems(solution: Solution): Placement[] {
-  return BASE_GEM_IDS.flatMap((gem) => {
+  return ALL_GEM_IDS.flatMap((gem) => {
     const placement = solution[gem];
     return placement ? [placement] : [];
   });
 }
 
 export function isComplete(solution: Solution): boolean {
-  return BASE_GEM_IDS.every((gem) => solution[gem] !== null);
+  return gemsOf(solution).every((gem) => solution[gem] !== null);
 }
 
 /** Largeur et hauteur de la gemme dans cette orientation, en cases. */
@@ -64,6 +74,7 @@ function withPlacement(solution: Solution, placement: Placement | null, gem: Gem
  * Une gemme déjà posée garde son orientation ; sinon elle prend l'orientation de départ.
  */
 export function dropGem(solution: Solution, gem: GemId, col: number, row: number): Solution {
+  if (solution[gem] === undefined) return solution;
   const orientation = solution[gem]?.orientation ?? DEFAULT_ORIENTATION;
   return withPlacement(solution, clamped({ gem, orientation, col, row }), gem);
 }

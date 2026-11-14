@@ -7,7 +7,7 @@
 import { type Cell, cellLabel, parseCell, parseEntryLabel } from './board';
 import type { ResultColor } from './colors';
 import { type Mine, generateMine } from './generate';
-import type { Placement } from './gems';
+import { type Extensions, type GemId, type Placement, NO_EXTENSIONS } from './gems';
 import { shoot } from './laser';
 import { type ProbeContent, probeCell } from './probe';
 import { isCorrect } from './verify';
@@ -97,8 +97,8 @@ export class GameSession {
   }
 
   /** Nouvelle partie : génère la mine de cette graine (quelques dixièmes de seconde). */
-  static start(seed: string): GameSession {
-    return new GameSession(generateMine(seed));
+  static start(seed: string, extensions: Readonly<Extensions> = NO_EXTENSIONS): GameSession {
+    return new GameSession(generateMine(seed, extensions));
   }
 
   /** Instantané pour la sauvegarde locale (voir SessionSnapshot). */
@@ -135,6 +135,11 @@ export class GameSession {
 
   get finished(): boolean {
     return this.#status !== 'playing';
+  }
+
+  /** Les gemmes de la partie (celles de base, et les extensions choisies) : le joueur les connaît. */
+  get gems(): readonly GemId[] {
+    return this.#mine.placements.map((placement) => placement.gem);
   }
 
   /** Tirs effectués, dans l'ordre. */
