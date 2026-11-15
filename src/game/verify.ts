@@ -1,6 +1,5 @@
 /**
- * Correction d'une proposition. La mine générée est la seule disposition possible : la
- * correction est donc une égalité stricte, gemme par gemme. Source : CLAUDE.md.
+ * Correction d'une proposition : égalité stricte avec la mine, gemme par gemme. Source : CLAUDE.md.
  */
 import { type GemId, type Placement, placedPolygon } from './gems';
 import { polygonKey } from './geometry';

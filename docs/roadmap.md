@@ -57,8 +57,8 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
 ### v0.3 Simulateur de laser (M) : fait
 
 - `laser.ts` : le rayon suit le milieu des cases ; virage de 90° sur une face à 45°, demi-tour
-  sur une face perpendiculaire. `shoot` tire depuis un repère, `shootAll` depuis les 36
-  (la « signature » d'une mine). Le résultat donne l'entrée, la sortie, la couleur, les
+  sur une face perpendiculaire. `shoot` tire depuis un repère, `shootAll` depuis les 36.
+  Le résultat donne l'entrée, la sortie, la couleur, les
   couleurs touchées, les contacts et le trajet à dessiner.
 - `colors.ts` : table de mélange des 16 combinaisons, indexée par l'ensemble des couleurs
   distinctes touchées.
@@ -81,29 +81,16 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
 - **Fini quand :** `isVisible(mine)` est fiable ; il servira à la génération **et** à l'aide de
   validation de la grille joueur. ✔
 
-### v0.5 Générateur à graine et unicité (L) : fait
+### v0.5 Générateur à graine (M) : fait
 
 - `rng.ts` : PRNG mulberry32 à graine texte ; `Math.random()` n'est utilisé que pour proposer
-  une nouvelle graine (`randomSeed`). `GENERATOR_VERSION` (1) accompagne chaque mine.
+  une nouvelle graine (`randomSeed`). `GENERATOR_VERSION` accompagne chaque mine.
 - `generate.ts` : tirage des 5 gemmes de la partie de base (position et orientation au hasard,
-  rejet si une règle de placement est violée), puis filtre de visibilité (règle e), puis
-  unicité. Même graine et même version : même mine.
-- `solve.ts` : solveur d'unicité **guidé par les rayons**. Il rejoue les tirs de la signature
-  et laisse les gemmes inconnues apparaître au fil du rayon ; la couleur et le point de sortie
-  annoncés coupent presque toutes les branches. Une première version, qui énumérait les poses
-  des gemmes, ne terminait pas en un temps raisonnable (plus de 10 s par mine).
-- Performance mesurée sur 150 mines aléatoires visibles : **123 ms en moyenne, 1,2 s au pire**
-  par vérification d'unicité ; 149 mines sur 150 étaient uniques, donc le rejet est rare
-  (moins de 3 tirages par mine en moyenne). Pas besoin de Web Worker ni de banque de mines
-  pour l'instant ; à revoir si le pire cas gêne l'interface (le solveur a un garde-fou
-  `maxNodes` : une recherche interrompue compte comme « non unique »).
-- Tests : le solveur donne **exactement les mêmes solutions qu'une énumération exhaustive**
-  sur 12 cas à deux gemmes ; il retrouve toujours la mine d'origine ; une mine réellement
-  ambiguë (le triangle jaune peut être une colonne plus loin sans qu'aucun tir ne le
-  révèle) est refusée avec ses deux solutions ; 100 graines donnent des mines valides,
-  visibles et uniques ; même graine, même mine.
-- **Fini quand :** « nouvelle mine » répond en un temps acceptable et toute mine produite
-  vérifie les trois propriétés. ✔
+  rejet si une règle de placement est violée), puis filtre de visibilité (règle e). Même graine
+  et même version : même mine.
+- Tests : 100 graines donnent des mines valides et visibles ; même graine, même mine.
+- **Fini quand :** « nouvelle mine » répond immédiatement et toute mine produite est valide et
+  visible. ✔
 
 ### v0.6 Interface : grille et tirs (M) : fait
 
@@ -116,7 +103,7 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
   Sur le repère d'entrée d'un tir : un badge avec son numéro ; sur le repère de sortie : un
   point de la couleur annoncée.
 - `ui/app.ts` : nouvelle partie (graine aléatoire ou `?seed=` dans l'adresse), copie du lien,
-  compteur de lasers, historique numéroté (cliquer un tir le met en avant sur la grille),
+  compteur de tirs, historique numéroté (cliquer un tir le met en avant sur la grille),
   message vocal pour les lecteurs d'écran.
 - **Décision :** le chemin du rayon n'est **pas** tracé dans la grille de tir, contrairement à ce
   que prévoyait la première version de la roadmap : dans le vrai jeu on ne voit que la sortie et
@@ -183,12 +170,12 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
   terminée, plus aucune action n'est possible** ; `reveal()` n'est permis qu'après la fin.
 - **Une seule proposition** (`MAX_ATTEMPTS = 1`), comme le jeu officiel à deux joueurs : une
   erreur fait perdre la partie et révèle la mine. La constante permet un mode plus indulgent.
-- **Sondages comptés à part des lasers** (« 2 sondages ») ; redemander une case est gratuit.
+- **Sondages** (comptés comme des tirs depuis la v1.0.17) ; redemander une case est gratuit.
   Mode « Sonder une case » dans l'onglet Tirs : toucher une case, ou saisir son nom (accessible
   au clavier). Les réponses restent affichées sur la grille et dans la liste des sondages.
 - Interface : boutons **Soumettre ma solution** (actif seulement si les 5 gemmes sont posées sans
   violation) et **Abandonner**, chacun avec confirmation ; chronomètre ; onglet **Résultat**
-  avec le verdict, les lasers, les sondages, le temps, la graine, la vraie mine, la
+  avec le verdict, le temps, la graine, la vraie mine, la
   proposition en pointillés (vert / rouge) et une phrase par gemme (« vous l'aviez en F7, elle
   est en A4 ») ; **Nouvelle partie** et **Rejouer cette mine** (même graine).
 - Vérifié de bout en bout dans un navigateur : sondes valides et invalides, abandon, victoire
@@ -263,8 +250,7 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
 - ✔ Toutes les règles de [`regles.md`](regles.md) de la partie de base sont implémentées et
   testées (201 tests). Seules les extensions Diamant et Corps noir manquent : leurs formes
   sont inconnues.
-- ✔ Toute mine générée est valide, visible et unique (100 graines testées ; solveur vérifié contre
-  une énumération exhaustive).
+- ✔ Toute mine générée est valide et visible (100 graines testées).
 - ✔ La sauvegarde locale restaure une partie en cours.
 - ✔ Déployée sur GitHub Pages, CI verte.
 
@@ -278,8 +264,36 @@ utilisent des événements émulés) et confirmer les dimensions des gemmes sur 
 **Objectif :** connexion Google, historique des parties et page de profil avec deux
 statistiques.
 
-Cela impose un **backend**, ce que la v1 évite. Le jeu reste jouable **sans compte** : se
-connecter ajoute l'historique, rien de plus.
+Cela impose un **backend**, ce que la v1 évite. Le jeu reste jouable **sans compte**, mais
+limité à **une seule partie à la fois** (voir « Vues et compte » ci-dessous) : se connecter débloque
+plusieurs parties, la liste des parties en cours, l'historique et le profil.
+
+### Vues et compte (valable pour toute la v2)
+
+Le site passe d'une page de jeu à **trois vues** (plus la page Règles, inchangée). Navigation par
+l'adresse (`#/`, `#/partie`, `#/profil`, `#regles`), sans rechargement ; un lien `?seed=…` ouvre
+directement la vue partie.
+
+| Vue | Adresse | Contenu |
+|---|---|---|
+| **Accueil** (vue par défaut) | `#/` | la **partie en cours** (bouton « Reprendre »), la **liste des parties non terminées** (connecté seulement), le bouton **« Nouvelle partie »** |
+| **Partie** | `#/partie` | la vue actuelle : grille de tir, notes, gemmes à placer, résultat, plein écran |
+| **Profil** | `#/profil` (connecté) | nom Google, **pourcentage de parties gagnées**, moyenne de tirs avant victoire, **historique** des parties jouées |
+
+- **En-tête** : le **titre du site**, en haut à gauche, ramène à l'accueil ; en haut à droite, un
+  bouton **« Connexion »** (non connecté) ou **« Déconnexion »** (connecté) qui lance l'OAuth Google ;
+  la version du build reste en petit à côté. Le nom du joueur, cliquable, mène au profil.
+- **Sans compte** : **une seule partie à la fois**, celle de la sauvegarde locale. L'accueil la
+  propose (« Reprendre »). Tant qu'elle n'est ni terminée ni abandonnée, « Nouvelle partie » n'est
+  pas disponible (reprendre, abandonner ou se connecter) ; une fois terminée, on peut en lancer une
+  autre. Pas de liste, pas d'historique, pas de profil.
+- **« Nouvelle partie »** (accueil) ouvre la fenêtre des **extensions** (Diamant, Corps noir),
+  la même qu'au début d'une partie, puis lance la génération et ouvre la vue Partie.
+- **Avec compte** : plusieurs parties en cours en même temps, chacune reprise depuis l'accueil.
+  Les parties en cours sont donc **stockées côté serveur** (voir v1.3), pas seulement les parties
+  terminées.
+- Une partie « en cours » n'entre pas dans les statistiques ; une partie terminée ou abandonnée y
+  entre.
 
 ### v1.1 Choix du backend (S)
 
@@ -296,25 +310,32 @@ Un service géré évite d'écrire un serveur. Deux options réalistes :
 agrégats naturels en SQL et que la sécurité par ligne est simple à écrire. Décision à
 confirmer avant de commencer.
 
-### v1.2 Authentification Google (M)
+### v1.2 Vues, navigation et authentification Google (M)
 
-- Connexion et déconnexion OAuth Google ; session persistante.
-- Jouer sans être connecté reste possible (sauvegarde locale de la v1 inchangée).
-- Écran d'état : connecté / non connecté, avatar et nom affichés.
+- **Vues** : routeur par adresse (`ui/router.ts`), vue **Accueil** (`ui/home.ts`) par défaut, vue
+  **Partie** (l'existant, déplacé derrière `#/partie`), vue **Profil** (`ui/profile.ts`, squelette).
+  Le titre du site mène à l'accueil. Cette partie ne dépend pas du backend : elle peut être
+  livrée avant le choix de la v1.1, avec l'accueil limité à la partie locale.
+- **Une seule partie à la fois sans compte** : « Nouvelle partie » est bloquée tant que la partie
+  locale n'est pas terminée ou abandonnée ; elle ouvre la fenêtre des extensions.
+- Bouton **Connexion / Déconnexion** en haut à droite ; connexion et déconnexion OAuth Google ;
+  session persistante. Nom et avatar affichés une fois connecté.
 - Configuration OAuth (écran de consentement, URI de redirection par environnement).
-- **Fini quand :** on peut se connecter, se déconnecter, recharger la page et rester connecté.
+- **Fini quand :** on navigue entre les trois vues, on peut se connecter, se déconnecter, recharger
+  la page et rester connecté.
 
 ### v1.3 Modèle de données et sécurité (M)
 
-Table `games` (une ligne par partie terminée), au minimum :
+Table `games` (une ligne par partie, **en cours ou terminée**), au minimum :
 
 | Champ | Rôle |
 |---|---|
 | `id`, `user_id` | clés ; `user_id` = utilisateur connecté |
 | `seed`, `generator_version` | pour rejouer la mine |
-| `status` | `won`, `lost` ou `abandoned` |
-| `lasers_count` | lasers tirés pendant la partie |
-| `probes_count` | cases sondées (si l'action est retenue) |
+| `status` | `playing`, `won`, `lost` ou `abandoned` |
+| `snapshot` | JSON : la sauvegarde de `game/save.ts` (mine, tirs, solution, notes), renseignée tant que la partie est en cours, effacée à la fin |
+| `updated_at` | dernière modification (tri de la liste des parties en cours) |
+| `shots_count` | tirs pendant la partie : lasers et sondes de cases |
 | `started_at`, `ended_at`, `duration_s` | temps |
 | `shots`, `submission` | JSON : tirs effectués et solution proposée |
 
@@ -323,22 +344,27 @@ Table `games` (une ligne par partie terminée), au minimum :
 - **Fini quand :** un utilisateur A ne peut jamais lire ni modifier les parties de B
   (test d'accès automatisé).
 
-### v1.4 Enregistrement et historique (M)
+### v1.4 Parties enregistrées et historique (M)
 
-- À la fin d'une partie, si connecté : enregistrer la ligne `games`. Gérer l'échec réseau
-  (file locale, nouvel essai).
-- Page **Historique** : liste paginée (date, résultat, lasers, durée), tri et filtre
-  victoire/défaite.
+- Si connecté : la partie est créée en base au lancement (`playing`) et sa sauvegarde est
+  **synchronisée** au même rythme que la sauvegarde locale ; à la fin, `status` passe à
+  `won`, `lost` ou `abandoned`. Gérer l'échec réseau (file locale, nouvel essai).
+- **Accueil** : la liste des parties non terminées vient de la base (`status = 'playing'`),
+  triée par `updated_at` ; « Reprendre » charge le `snapshot` dans la vue partie.
+- **Historique** (dans la vue Profil) : liste paginée des parties terminées (date, résultat,
+  lasers, durée), tri et filtre victoire/défaite.
 - Option : revoir une partie passée à partir de sa graine et de ses tirs.
-- Option : proposer d'importer au premier login les parties terminées stockées en local.
-- **Fini quand :** les parties terminées apparaissent dans l'historique, sur n'importe quel
+- À la première connexion : la partie locale en cours (et, en option, les parties locales
+  terminées) est proposée à l'import dans le compte.
+- **Fini quand :** les parties en cours et terminées suivent le compte sur n'importe quel
   navigateur où l'on se connecte.
 
-### v1.5 Page de profil (S à M)
+### v1.5 Vue Profil (S à M)
 
-Deux statistiques, **calculées à partir de `games`** :
+La vue affiche le **nom Google**, les statistiques ci-dessous et l'**historique** de la v1.4.
+Deux statistiques, **calculées à partir de `games`** (parties terminées seulement) :
 
-- **Moyenne de lasers tirés avant de gagner** = moyenne de `lasers_count` sur les parties
+- **Moyenne de tirs avant de gagner** = moyenne de `shots_count` sur les parties
   **gagnées** uniquement.
 - **Pourcentage de parties gagnées** = parties gagnées ÷ parties totales terminées.
 
@@ -363,9 +389,11 @@ Règles de calcul à figer (voir questions ouvertes) :
 ### Critères de sortie : livraison de la v2
 
 - Connexion Google fonctionnelle en production.
-- L'historique et le profil reflètent exactement les parties terminées.
+- Les trois vues (accueil, partie, profil) sont navigables, le titre ramène à l'accueil.
+- L'historique et le profil reflètent exactement les parties terminées ; l'accueil liste les
+  parties en cours.
 - Aucun accès possible aux données d'un autre utilisateur.
-- La v1 sans compte continue de fonctionner à l'identique.
+- Sans compte : une seule partie à la fois, jouable comme en v1 (sauvegarde locale inchangée).
 
 ### Notes de conception pour la v2
 
@@ -393,9 +421,6 @@ statistiques contre l'IA, mais le duel peut d'abord se jouer sans compte.
 - Le joueur place ses 5 gemmes sur son plateau en réutilisant la grille « Gemmes » (glisser-déposer,
   pivoter, retourner la rouge), avec les règles de placement a à e vérifiées en direct.
 - Boutons « Au hasard » (réutilise `randomLayout`) et « Valider ».
-- **Indicateur d'ambiguïté** : le solveur (`solve.ts`) dit si le plateau est ambigu (plusieurs
-  dispositions donnent les mêmes 36 résultats). Au jeu officiel un plateau ambigu est permis ;
-  c'est une décision à prendre (voir questions ouvertes).
 - Code de partage d'un plateau (position des gemmes encodée) pour le rejouer ou le proposer en défi.
 - **Fini quand :** on peut construire, valider et exporter son plateau.
 
@@ -416,14 +441,13 @@ statistiques contre l'IA, mais le duel peut d'abord se jouer sans compte.
 
 - L'IA ne voit **que les réponses** à ses questions. Elle en déduit l'ensemble des plateaux encore
   possibles.
-- Le solveur actuel part de la signature complète (36 tirs) ; il faut le généraliser à une
-  information **partielle** (quelques tirs et sondes seulement). Au début, les plateaux possibles se
-  comptent en millions : l'IA travaille sur un **échantillon** de plateaux compatibles (tirage par le
-  générateur, filtré par les réponses) et vérifie la certitude avec le solveur exact.
+- Elle ne dispose que d'une information **partielle** (quelques tirs et sondes). Au début, les
+  plateaux possibles se comptent en millions : l'IA travaille sur un **échantillon** de plateaux
+  compatibles (tirage par le générateur, filtré par les réponses).
 - Exécution dans un **Web Worker** pour ne jamais bloquer l'interface ; budget visé : moins de
   500 ms par question.
 - **Fini quand :** après chaque réponse, l'IA sait quels plateaux restent possibles, et trouve le
-  plateau exact quand la signature est complète.
+  plateau exact quand l'information suffit.
 
 ### v2.4 IA : stratégie et niveaux (M)
 
@@ -586,18 +610,31 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
   rouge, jaune et bleu. Les anciens traits verts des sauvegardes redeviennent noirs.
 - **v1.0.13** : les **extensions**. Au début de chaque nouvelle partie, une fenêtre propose le
   **Diamant** (demi-losange 2×1, transparent : il dévie le rayon sans changer sa couleur) et le
-  **Diamant noir** (rectangle 2×1 posé sur sa base, il absorbe le rayon). Le générateur, le solveur
-  d'unicité, la sauvegarde, la réserve de gemmes (normale et plein écran), le résultat et la page
+  **Corps noir** (rectangle 2×1 posé sur sa base, il absorbe le rayon). Le générateur, la sauvegarde, la réserve de gemmes (normale et plein écran), le résultat et la page
   Règles les gèrent ; le choix figure dans l'adresse (`?seed=…&ext=dn`). Un rayon ou une sonde
   absorbés affichent un **signal wifi rouge barré « Signal perdu »** (message, historique, repère
-  d'entrée, case sondée). Génération avec extensions : environ 0,4 à 1,3 s en moyenne, jusqu'à
-  quelques secondes dans le pire cas (écran « Génération… », pas de Web Worker pour l'instant).
+  d'entrée, case sondée).
+- **v1.0.14** : en plein écran, la réserve est élargie pour contenir toutes les gemmes (le **triangle
+  jaune** et le **corps noir** dépassaient de son cadre) ; **toucher un repère déjà tiré** ouvre une
+  **modale de résumé** (« E → F » et les pastilles de la couleur obtenue ; « transparent » écrit en
+  toutes lettres, « Signal perdu » avec son pictogramme) qui se ferme par sa croix ou d'un clic
+  n'importe où. C'est gratuit et sans confirmation, même si « Ne plus demander » est coché.
+- **v1.0.15** : le **Diamant** s'affiche **creux** : bordure bleue franche et centre de la même teinte à
+  30 % d'opacité (grille visible au travers), dans la réserve, la grille, le résultat, les règles et
+  les sondes.
+- **v1.0.16** : la génération ne filtre plus que par les règles de placement (a à d) et la visibilité
+  (règle e) ; elle est instantanée et la suite de tests passe de 48 s à 1 s. `GENERATOR_VERSION` passe
+  à 2 : une même graine ne redonne plus la mine d'avant (les sauvegardes, qui stockent la mine
+  elle-même, ne sont pas touchées).
+- **v1.0.17** : Les extensions s'appellent **Diamant** et **Corps noir** partout (interface, règles, docs). Les
+  **sondes comptent comme des lasers** : un seul compteur de **tirs** (lasers + sondes de cases), le
+  compteur de sondes disparaît ; `shots_count` remplace `lasers_count` et `probes_count` en v2. Les
+  **extensions** de la partie (« Sans extension », « Diamant », « Corps noir ») s'affichent à côté de
+  la graine. Arbitrage du propriétaire, noté dans `regles.md` : sonder un corps noir répond
+  « signal perdu », sonder un diamant répond « diamant ».
 
 ## Questions ouvertes
 
-- **Duel (v3) : plateau ambigu permis ?** Le jeu officiel l'autorise ; l'entraînement l'interdit
-  (une seule solution). Proposition : avertir le joueur et lui laisser le choix, avec une option
-  « imposer un plateau unique » pour que la partie reste toujours gagnable.
 - **Duel (v3) : « en même temps » ou tour par tour ?** Tu as écrit que l'IA joue en même temps que
   toi : course où chacun joue à son rythme ? Le livret prévoit des tours alternés. Proposition :
   prévoir les deux, avec la course par défaut ; à confirmer.
@@ -608,10 +645,9 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
   invités ? Chronomètre par tour ?
 - Soumission : une seule tentative (comme à deux joueurs, une erreur = défaite) ou
   plusieurs essais ?
-- Un « sondage de case » compte-t-il dans le nombre de lasers ? Proposition : non, on le
-  compte à part (`probes_count`), et la moyenne de la v2 ne porte que sur les lasers.
 - Une partie abandonnée compte-t-elle comme perdue dans le pourcentage de victoires ?
   Proposition : oui.
-- Limite de lasers imposée ou simple compteur ?
-- Dimensions des gemmes et règle d de contact : voir [`regles.md`](regles.md).
+- Limite de tirs imposée ou simple compteur ?
+- Dimensions des gemmes : voir [`regles.md`](regles.md). (Règle d de contact : tranchée, voir `regles.md`.)
 - Supabase ou Firebase pour la v2 ?
+- Nombre maximal de parties en cours par compte (par exemple 10) ?

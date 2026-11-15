@@ -48,8 +48,8 @@ export interface SubmitResult {
 export interface GameSummary {
   seed: string;
   status: GameStatus;
-  lasers: number;
-  probes: number;
+  /** Nombre de tirs : lasers depuis un repère et sondes de cases. */
+  shots: number;
   attempts: number;
   elapsedMs: number;
 }
@@ -152,9 +152,9 @@ export class GameSession {
     return this.#probes;
   }
 
-  /** Nombre de lasers tirés : ne diminue jamais. */
-  get laserCount(): number {
-    return this.#shots.length;
+  /** Nombre de tirs : les lasers et les sondes de cases comptent pareil ; ne diminue jamais. */
+  get shotCount(): number {
+    return this.#shots.length + this.#probes.length;
   }
 
   get attempts(): number {
@@ -185,8 +185,7 @@ export class GameSession {
     return {
       seed: this.seed,
       status: this.#status,
-      lasers: this.laserCount,
-      probes: this.#probes.length,
+      shots: this.shotCount,
       attempts: this.#attempts,
       elapsedMs: this.elapsedMs(),
     };
@@ -223,7 +222,7 @@ export class GameSession {
     return record;
   }
 
-  /** « Qu'y a-t-il en E4 ? » Compté à part des lasers ; redemander une case est gratuit. */
+  /** « Qu'y a-t-il en E4 ? » Compte comme un tir ; redemander une case est gratuit. */
   probe(label: string): ProbeRecord {
     this.#assertPlaying();
     const cell: Cell | null = parseCell(label);
