@@ -3,32 +3,22 @@ import {
   ALL_GEM_IDS,
   BASE_GEM_IDS,
   GEM_SHAPES,
-  type GemId,
   type Placement,
   distinctOrientations,
   extensionsOf,
   gemsFor,
   orientedPolygon,
-  placedPolygon,
 } from '../src/game/gems';
-import { GRID_COLS, GRID_ROWS } from '../src/game/constants';
 import { generateMine } from '../src/game/generate';
-import { boundingBox, polygonKey } from '../src/game/geometry';
-import { ABSORBED, sameSignature, shoot, signatureOf } from '../src/game/laser';
+import { boundingBox } from '../src/game/geometry';
+import { ABSORBED, shoot, shootAll } from '../src/game/laser';
 import { probeCell } from '../src/game/probe';
 import { validatePlacements } from '../src/game/placement';
 import { parseSave, SAVE_VERSION } from '../src/game/save';
 import { GameSession } from '../src/game/session';
 import { emptySolution, gemsOf, isComplete } from '../src/game/solution';
-import { isUnique, solve } from '../src/game/solve';
 import { isVisible } from '../src/game/visibility';
-import { place, randomValidLayout, seededRandom } from './helpers';
-
-const keyOf = (layout: readonly Placement[]): string =>
-  layout
-    .map((p) => `${p.gem}:${polygonKey(placedPolygon(p))}`)
-    .sort()
-    .join('|');
+import { place } from './helpers';
 
 describe('gemmes des extensions', () => {
   it('le Diamant est un demi-losange 2×1, transparent, non retournable', () => {
@@ -93,7 +83,7 @@ describe('rayon et extensions', () => {
       [2, 3],
       [0, 5],
     ]);
-    const colors = (layout: Placement[]) => signatureOf(layout).map((o) => o.color);
+    const colors = (layout: Placement[]) => shootAll(layout).map((o) => o.color);
     expect(colors([yellow]).some((c) => c === 'yellow')).toBe(true);
     // Avec le Diamant en plus, aucune couleur nouvelle n'apparaît.
     for (const color of colors([yellow, diamond])) {
@@ -143,106 +133,6 @@ describe('rayon et extensions', () => {
   });
 });
 
-describe('solveur et extensions', () => {
-  const POOLS: [GemId, GemId][] = [
-    ['diamond', 'yellow-triangle'],
-    ['diamond', 'white-rhombus'],
-    ['black-body', 'white-rhombus'],
-    ['black-body', 'yellow-triangle'],
-    ['diamond', 'black-body'],
-  ];
-
-  function allPoses(gem: GemId): Placement[] {
-    const shape = GEM_SHAPES[gem];
-    const poses: Placement[] = [];
-    for (const orientation of distinctOrientations(shape)) {
-      const box = boundingBox(orientedPolygon(shape, orientation));
-      for (let col = 0; col + box.maxX <= GRID_COLS; col++) {
-        for (let row = 0; row + box.maxY <= GRID_ROWS; row++) {
-          poses.push({ gem, orientation, col, row });
-        }
-      }
-    }
-    return poses;
-  }
-
-  function bruteForce(layout: readonly Placement[]): string[] {
-    const signature = signatureOf(layout);
-    const [first, second] = layout.map((p) => p.gem) as [GemId, GemId];
-    const found: string[] = [];
-    for (const a of allPoses(first)) {
-      for (const b of allPoses(second)) {
-        const pair = [a, b];
-        if (validatePlacements(pair).length > 0) continue;
-        if (!sameSignature(signatureOf(pair), signature)) continue;
-        if (!isVisible(pair)) continue;
-        found.push(keyOf(pair));
-      }
-    }
-    return found.sort();
-  }
-
-  it("donne le même ensemble de solutions qu'une énumération exhaustive (2 gemmes)", () => {
-    const random = seededRandom(23);
-    let compared = 0;
-    for (let i = 0; compared < 15 && i < 600; i++) {
-      const [gemA, gemB] = POOLS[compared % POOLS.length] as [GemId, GemId];
-      const pair: Placement[] = [];
-      for (const gem of [gemA, gemB]) {
-        const orientations = distinctOrientations(GEM_SHAPES[gem]);
-        const orientation = orientations[Math.floor(random() * orientations.length)];
-        if (orientation === undefined) continue;
-        const box = boundingBox(orientedPolygon(GEM_SHAPES[gem], orientation));
-        pair.push({
-          gem,
-          orientation,
-          col: Math.floor(random() * (GRID_COLS - box.maxX + 1)),
-          row: Math.floor(random() * (GRID_ROWS - box.maxY + 1)),
-        });
-      }
-      if (pair.length !== 2 || validatePlacements(pair).length > 0 || !isVisible(pair)) continue;
-      compared++;
-      const { solutions, complete } = solve(signatureOf(pair), [gemA, gemB], {
-        limit: Infinity,
-        maxNodes: 2_000_000,
-      });
-      expect(complete).toBe(true);
-      expect(solutions.map(keyOf).sort()).toEqual(bruteForce(pair));
-    }
-    expect(compared).toBe(15);
-  }, 300_000);
-
-  it('retrouve la vraie disposition parmi les solutions (7 gemmes)', () => {
-    const random = seededRandom(31);
-    let checked = 0;
-    for (let i = 0; checked < 4 && i < 200; i++) {
-      const base = randomValidLayout(random);
-      if (base === null) continue;
-      // Ajoute le Diamant et le Corps noir en les tirant au hasard.
-      const layout = [...base];
-      for (const gem of ['diamond', 'black-body'] as const) {
-        for (let attempt = 0; attempt < 200; attempt++) {
-          const poses = allPoses(gem);
-          const candidate = poses[Math.floor(random() * poses.length)];
-          if (candidate !== undefined && validatePlacements([...layout, candidate]).length === 0) {
-            layout.push(candidate);
-            break;
-          }
-        }
-      }
-      if (layout.length !== 7 || !isVisible(layout)) continue;
-      checked++;
-      const { solutions } = solve(
-        signatureOf(layout),
-        layout.map((p) => p.gem),
-        { limit: 10, maxNodes: 1_000_000 },
-      );
-      expect(solutions.map(keyOf)).toContain(keyOf(layout));
-    }
-    expect(checked).toBe(4);
-  }, 300_000);
-});
-
 describe('génération avec extensions', () => {
   const CASES = [
     { diamond: true, blackBody: false },
@@ -251,14 +141,13 @@ describe('génération avec extensions', () => {
   ];
 
   it.each(CASES)(
-    'mines valides, visibles et uniques avec %o',
+    'mines valides et visibles avec %o',
     (extensions) => {
       for (let i = 0; i < 6; i++) {
         const { placements } = generateMine(`ext-${i}`, extensions);
         expect(placements.map((p) => p.gem)).toEqual(gemsFor(extensions));
         expect(validatePlacements(placements)).toEqual([]);
         expect(isVisible(placements)).toBe(true);
-        expect(isUnique(placements)).toBe(true);
       }
     },
     180_000,

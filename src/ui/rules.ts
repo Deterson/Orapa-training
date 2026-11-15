@@ -82,7 +82,7 @@ export function rulesPage(version: string): string {
       <h1>Règles</h1>
 
       <h2>But</h2>
-      <p>Retrouver les gemmes cachées (5, plus les extensions choisies). Une seule solution possible.</p>
+      <p>Retrouver les gemmes cachées (5, plus les extensions choisies).</p>
 
       <h2>Grille</h2>
       <p>10 × 8. Case : ligne A–H + colonne 1–10 (<b>E4</b>). Repères du bord : 1–10 haut, 11–18 droite, I–R bas, A–H gauche.</p>

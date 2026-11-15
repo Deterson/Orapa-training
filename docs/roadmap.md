@@ -57,8 +57,8 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
 ### v0.3 Simulateur de laser (M) : fait
 
 - `laser.ts` : le rayon suit le milieu des cases ; virage de 90° sur une face à 45°, demi-tour
-  sur une face perpendiculaire. `shoot` tire depuis un repère, `shootAll` depuis les 36
-  (la « signature » d'une mine). Le résultat donne l'entrée, la sortie, la couleur, les
+  sur une face perpendiculaire. `shoot` tire depuis un repère, `shootAll` depuis les 36.
+  Le résultat donne l'entrée, la sortie, la couleur, les
   couleurs touchées, les contacts et le trajet à dessiner.
 - `colors.ts` : table de mélange des 16 combinaisons, indexée par l'ensemble des couleurs
   distinctes touchées.
@@ -81,29 +81,16 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
 - **Fini quand :** `isVisible(mine)` est fiable ; il servira à la génération **et** à l'aide de
   validation de la grille joueur. ✔
 
-### v0.5 Générateur à graine et unicité (L) : fait
+### v0.5 Générateur à graine (M) : fait
 
 - `rng.ts` : PRNG mulberry32 à graine texte ; `Math.random()` n'est utilisé que pour proposer
-  une nouvelle graine (`randomSeed`). `GENERATOR_VERSION` (1) accompagne chaque mine.
+  une nouvelle graine (`randomSeed`). `GENERATOR_VERSION` accompagne chaque mine.
 - `generate.ts` : tirage des 5 gemmes de la partie de base (position et orientation au hasard,
-  rejet si une règle de placement est violée), puis filtre de visibilité (règle e), puis
-  unicité. Même graine et même version : même mine.
-- `solve.ts` : solveur d'unicité **guidé par les rayons**. Il rejoue les tirs de la signature
-  et laisse les gemmes inconnues apparaître au fil du rayon ; la couleur et le point de sortie
-  annoncés coupent presque toutes les branches. Une première version, qui énumérait les poses
-  des gemmes, ne terminait pas en un temps raisonnable (plus de 10 s par mine).
-- Performance mesurée sur 150 mines aléatoires visibles : **123 ms en moyenne, 1,2 s au pire**
-  par vérification d'unicité ; 149 mines sur 150 étaient uniques, donc le rejet est rare
-  (moins de 3 tirages par mine en moyenne). Pas besoin de Web Worker ni de banque de mines
-  pour l'instant ; à revoir si le pire cas gêne l'interface (le solveur a un garde-fou
-  `maxNodes` : une recherche interrompue compte comme « non unique »).
-- Tests : le solveur donne **exactement les mêmes solutions qu'une énumération exhaustive**
-  sur 12 cas à deux gemmes ; il retrouve toujours la mine d'origine ; une mine réellement
-  ambiguë (le triangle jaune peut être une colonne plus loin sans qu'aucun tir ne le
-  révèle) est refusée avec ses deux solutions ; 100 graines donnent des mines valides,
-  visibles et uniques ; même graine, même mine.
-- **Fini quand :** « nouvelle mine » répond en un temps acceptable et toute mine produite
-  vérifie les trois propriétés. ✔
+  rejet si une règle de placement est violée), puis filtre de visibilité (règle e). Même graine
+  et même version : même mine.
+- Tests : 100 graines donnent des mines valides et visibles ; même graine, même mine.
+- **Fini quand :** « nouvelle mine » répond immédiatement et toute mine produite est valide et
+  visible. ✔
 
 ### v0.6 Interface : grille et tirs (M) : fait
 
@@ -263,8 +250,7 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
 - ✔ Toutes les règles de [`regles.md`](regles.md) de la partie de base sont implémentées et
   testées (201 tests). Seules les extensions Diamant et Corps noir manquent : leurs formes
   sont inconnues.
-- ✔ Toute mine générée est valide, visible et unique (100 graines testées ; solveur vérifié contre
-  une énumération exhaustive).
+- ✔ Toute mine générée est valide et visible (100 graines testées).
 - ✔ La sauvegarde locale restaure une partie en cours.
 - ✔ Déployée sur GitHub Pages, CI verte.
 
@@ -436,9 +422,6 @@ statistiques contre l'IA, mais le duel peut d'abord se jouer sans compte.
 - Le joueur place ses 5 gemmes sur son plateau en réutilisant la grille « Gemmes » (glisser-déposer,
   pivoter, retourner la rouge), avec les règles de placement a à e vérifiées en direct.
 - Boutons « Au hasard » (réutilise `randomLayout`) et « Valider ».
-- **Indicateur d'ambiguïté** : le solveur (`solve.ts`) dit si le plateau est ambigu (plusieurs
-  dispositions donnent les mêmes 36 résultats). Au jeu officiel un plateau ambigu est permis ;
-  c'est une décision à prendre (voir questions ouvertes).
 - Code de partage d'un plateau (position des gemmes encodée) pour le rejouer ou le proposer en défi.
 - **Fini quand :** on peut construire, valider et exporter son plateau.
 
@@ -459,14 +442,13 @@ statistiques contre l'IA, mais le duel peut d'abord se jouer sans compte.
 
 - L'IA ne voit **que les réponses** à ses questions. Elle en déduit l'ensemble des plateaux encore
   possibles.
-- Le solveur actuel part de la signature complète (36 tirs) ; il faut le généraliser à une
-  information **partielle** (quelques tirs et sondes seulement). Au début, les plateaux possibles se
-  comptent en millions : l'IA travaille sur un **échantillon** de plateaux compatibles (tirage par le
-  générateur, filtré par les réponses) et vérifie la certitude avec le solveur exact.
+- Elle ne dispose que d'une information **partielle** (quelques tirs et sondes). Au début, les
+  plateaux possibles se comptent en millions : l'IA travaille sur un **échantillon** de plateaux
+  compatibles (tirage par le générateur, filtré par les réponses).
 - Exécution dans un **Web Worker** pour ne jamais bloquer l'interface ; budget visé : moins de
   500 ms par question.
 - **Fini quand :** après chaque réponse, l'IA sait quels plateaux restent possibles, et trouve le
-  plateau exact quand la signature est complète.
+  plateau exact quand l'information suffit.
 
 ### v2.4 IA : stratégie et niveaux (M)
 
@@ -629,12 +611,10 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
   rouge, jaune et bleu. Les anciens traits verts des sauvegardes redeviennent noirs.
 - **v1.0.13** : les **extensions**. Au début de chaque nouvelle partie, une fenêtre propose le
   **Diamant** (demi-losange 2×1, transparent : il dévie le rayon sans changer sa couleur) et le
-  **Diamant noir** (rectangle 2×1 posé sur sa base, il absorbe le rayon). Le générateur, le solveur
-  d'unicité, la sauvegarde, la réserve de gemmes (normale et plein écran), le résultat et la page
+  **Diamant noir** (rectangle 2×1 posé sur sa base, il absorbe le rayon). Le générateur, la sauvegarde, la réserve de gemmes (normale et plein écran), le résultat et la page
   Règles les gèrent ; le choix figure dans l'adresse (`?seed=…&ext=dn`). Un rayon ou une sonde
   absorbés affichent un **signal wifi rouge barré « Signal perdu »** (message, historique, repère
-  d'entrée, case sondée). Génération avec extensions : environ 0,4 à 1,3 s en moyenne, jusqu'à
-  quelques secondes dans le pire cas (écran « Génération… », pas de Web Worker pour l'instant).
+  d'entrée, case sondée).
 - **v1.0.14** : en plein écran, la réserve est élargie pour contenir toutes les gemmes (le **triangle
   jaune** et le **diamant noir** dépassaient de son cadre) ; **toucher un repère déjà tiré** ouvre une
   **modale de résumé** (« E → F » et les pastilles de la couleur obtenue ; « transparent » écrit en
@@ -643,12 +623,13 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
 - **v1.0.15** : le **Diamant** s'affiche **creux** : bordure bleue franche et centre de la même teinte à
   30 % d'opacité (grille visible au travers), dans la réserve, la grille, le résultat, les règles et
   les sondes.
+- **v1.0.16** : la génération ne filtre plus que par les règles de placement (a à d) et la visibilité
+  (règle e) ; elle est instantanée et la suite de tests passe de 48 s à 1 s. `GENERATOR_VERSION` passe
+  à 2 : une même graine ne redonne plus la mine d'avant (les sauvegardes, qui stockent la mine
+  elle-même, ne sont pas touchées).
 
 ## Questions ouvertes
 
-- **Duel (v3) : plateau ambigu permis ?** Le jeu officiel l'autorise ; l'entraînement l'interdit
-  (une seule solution). Proposition : avertir le joueur et lui laisser le choix, avec une option
-  « imposer un plateau unique » pour que la partie reste toujours gagnable.
 - **Duel (v3) : « en même temps » ou tour par tour ?** Tu as écrit que l'IA joue en même temps que
   toi : course où chacun joue à son rythme ? Le livret prévoit des tours alternés. Proposition :
   prévoir les deux, avec la course par défaut ; à confirmer.

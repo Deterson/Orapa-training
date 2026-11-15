@@ -3,8 +3,7 @@
  *
  * Une mine est acceptée si :
  *  - ses gemmes respectent les règles de placement a à d (aucun recouvrement, pas côte à côte) ;
- *  - chaque gemme est atteignable en ligne droite depuis un bord (règle e) ;
- *  - elle est la seule disposition possible qui produise ses 36 résultats de tir (unicité).
+ *  - chaque gemme est atteignable en ligne droite depuis un bord (règle e).
  *
  * La graine détermine entièrement le résultat : même graine et même GENERATOR_VERSION, même mine.
  */
@@ -23,7 +22,6 @@ import {
 import { boundingBox } from './geometry';
 import { validatePlacements } from './placement';
 import { type Rng, createRng } from './rng';
-import { isUnique } from './solve';
 import { isVisible } from './visibility';
 
 /**
@@ -31,7 +29,7 @@ import { isVisible } from './visibility';
  * tirage, ordre des gemmes, règles). Les sauvegardes stockent la mine elle-même, pas seulement
  * la graine, pour rester lisibles après un tel changement.
  */
-export const GENERATOR_VERSION = 1;
+export const GENERATOR_VERSION = 2;
 
 export interface Mine {
   seed: string;
@@ -83,7 +81,7 @@ export function generateMineWithReport(
   const gems = gemsFor(extensions);
   for (let attempts = 1; attempts <= maxAttempts; attempts++) {
     const placements = randomLayout(rng, gems);
-    if (placements === null || !isVisible(placements) || !isUnique(placements)) continue;
+    if (placements === null || !isVisible(placements)) continue;
     return { mine: { seed, generatorVersion: GENERATOR_VERSION, placements }, attempts };
   }
   throw new Error(`Aucune mine valide trouvée pour la graine « ${seed} » en ${maxAttempts} essais`);

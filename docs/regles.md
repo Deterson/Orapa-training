@@ -177,10 +177,8 @@ site joue ce rôle).
 
 - **Pas d'adversaire** : la machine génère la mine, joue le rôle de maître du jeu et
   répond aux tirs.
-- **Une seule réponse valable** (règle du site, pas du livret) : la mine générée est la
-  seule configuration compatible avec les résultats de **tous** les tirs possibles. Le
-  joueur est responsable de tirer assez de lasers pour lever l'ambiguïté. La correction
-  est une égalité stricte.
+- **Correction par égalité stricte** (règle du site, pas du livret) : le joueur lève les
+  ambiguïtés avec des lasers et des sondes de cases ; la proposition doit être exactement la mine.
 - Les règles de placement a à e s'appliquent aussi à la grille de solution du joueur.
 - Le score d'une partie est son **nombre de lasers tirés** (voir `docs/roadmap.md` pour le
   traitement des « sondages de case »).

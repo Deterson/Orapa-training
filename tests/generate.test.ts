@@ -8,7 +8,6 @@ import {
 } from '../src/game/generate';
 import { validatePlacements } from '../src/game/placement';
 import { createRng, hashSeed, randomSeed } from '../src/game/rng';
-import { isUnique } from '../src/game/solve';
 import { isVisible } from '../src/game/visibility';
 
 describe('générateur pseudo-aléatoire', () => {
@@ -69,7 +68,7 @@ describe("génération d'une mine", () => {
     expect(mine.generatorVersion).toBe(GENERATOR_VERSION);
   });
 
-  it('produit des mines valides, visibles et uniques sur 100 graines', () => {
+  it('produit des mines valides et visibles sur 100 graines', () => {
     let attempts = 0;
     for (let i = 0; i < 100; i++) {
       const report = generateMineWithReport(`graine-${i}`);
@@ -78,7 +77,6 @@ describe("génération d'une mine", () => {
       expect(placements.map((p) => p.gem)).toEqual([...BASE_GEM_IDS]);
       expect(validatePlacements(placements), `graine-${i}`).toEqual([]);
       expect(isVisible(placements), `graine-${i}`).toBe(true);
-      expect(isUnique(placements), `graine-${i}`).toBe(true);
     }
     // Le rejet est rare : en moyenne moins de 3 tirages par mine.
     expect(attempts / 100).toBeLessThan(3);

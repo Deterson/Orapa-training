@@ -83,23 +83,10 @@ Résumé ; le détail et les tableaux sont dans `docs/regles.md`.
   atteignable par au moins un laser envoyé depuis un bord**, c'est-à-dire qu'il existe un
   point d'entrée dont le rayon, allant tout droit sans aucun rebond préalable, touche cette
   gemme comme **première** gemme rencontrée. Une mine qui viole cette règle est rejetée.
-- **Contrainte d'unicité** : la mine doit être la **seule** configuration possible
-  (avec l'ensemble de gemmes donné, rouge retournée ou non) qui produit les résultats de
-  l'ensemble des tirs possibles. Après génération :
-  1. calculer la « signature » de la mine = résultat du tir depuis **chaque** entrée ;
-  2. chercher par backtracking, avec élagage sur la signature, toutes les configurations
-     valides qui reproduisent exactement cette signature ;
-  3. n'accepter la mine que si la seule solution trouvée est elle-même ; sinon, rejeter
-     et retirer.
-  La visibilité est une condition nécessaire de l'unicité (une gemme invisible rendrait la
-  solution ambiguë) : elle sert de filtre rapide avant le solveur, plus coûteux.
-- Le solveur d'unicité vit dans `game/` (ex. `solve.ts`) et doit rester assez rapide pour
-  une génération interactive (viser < 1 s ; sinon, Web Worker, puis banque de mines
-  précalculées).
 - Option de difficulté (plus tard) : nombre de gemmes, extensions Diamant et Corps noir,
   limite de lasers.
 - Vérifier par un test, sur de nombreuses graines, que toute mine générée est valide,
-  visible et unique.
+  et visible.
 
 ## Vues du site (v2)
 
@@ -164,13 +151,10 @@ compris la particularité de la gemme rouge retournable.
 
 - Comparaison exacte des gemmes (type, couleur, position, orientation, face de la rouge)
   entre la grille joueur et la mine cachée.
-- **Une seule réponse valable.** Le générateur garantit que la mine est la seule
-  configuration compatible avec l'ensemble des tirs possibles. La correction est donc une
-  **égalité stricte** : il n'y a ni équivalence par tirs ni tolérance. Si le joueur se
-  trompe, c'est qu'il n'a pas tiré assez de lasers pour lever l'ambiguïté : c'est le cœur
-  de l'entraînement.
-- Pas besoin de comparer des signatures à la soumission ; le simulateur sert seulement au
-  tir et à l'outil de vérification d'hypothèse du joueur.
+- **Égalité stricte** : il n'y a ni équivalence par tirs ni tolérance. Les ambiguïtés se lèvent
+  avec des lasers et des sondes de cases ; si le joueur se trompe, c'est qu'il n'a pas assez
+  cherché : c'est le cœur de l'entraînement.
+- Le simulateur sert seulement au tir et à l'outil de vérification d'hypothèse du joueur.
 - Fin de partie officielle : à deux joueurs, une proposition fausse fait perdre
   immédiatement. En entraînement, **une seule proposition** (`MAX_ATTEMPTS = 1` dans
   `game/session.ts`) ; la constante permet un mode plus indulgent.
@@ -205,7 +189,6 @@ src/
     examples.ts    # ✔ disposition du schéma du livret (tests et banc d'essai)
     rng.ts         # ✔ PRNG à graine
     generate.ts    # ✔ génération aléatoire à graine, version du générateur
-    solve.ts       # ✔ solveur d'unicité guidé par les rayons
     session.ts     # ✔ partie en cours : mine privée, tirs, sondes, soumission ; seule porte d'entrée de l'UI
     verify.ts      # ✔ correction par égalité stricte, détail gemme par gemme
     probe.ts       # ✔ « Qu'y a-t-il en E4 ? »
@@ -282,7 +265,7 @@ v3.1 à v3.7 la **v4**.
 - v0.2 Modèle de données et géométrie, règles de placement a à d : **fait**.
 - v0.3 Simulateur de laser (tests : exemples du livret) : **fait**.
 - v0.4 Visibilité des gemmes (règle e) : **fait**.
-- v0.5 Générateur à graine + solveur d'unicité : **fait** (123 ms en moyenne par mine).
+- v0.5 Générateur à graine : **fait**.
 - v0.6 UI : grille et tirs : **fait**.
 - v0.7 UI : grille de solution (glisser-déposer, rotation, retournement de la rouge) : **fait**.
 - v0.8 UI : notes et dessin : **fait**.
@@ -324,6 +307,5 @@ v3.1 à v3.7 la **v4**.
   Proposition : oui.
 - Limite de lasers imposée, ou simple compteur indicatif ?
 - Supabase ou Firebase pour la v2 ?
-- Duel (v3) : plateau ambigu permis ? « en même temps » ou tour par tour ? règle de fin (livret ou indulgente) ? Voir `docs/roadmap.md`.
-- Coût du solveur d'unicité à la génération : à mesurer une fois le simulateur écrit.
+- Duel (v3) : « en même temps » ou tour par tour ? règle de fin (livret ou indulgente) ? Voir `docs/roadmap.md`.
 - Faut-il un mode « tutoriel » expliquant les effets de chaque gemme ?
