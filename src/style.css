@@ -920,6 +920,7 @@ h2 {
 }
 
 .modal {
+  position: relative;
   width: min(20rem, 100%);
   display: flex;
   flex-direction: column;
@@ -929,6 +930,49 @@ h2 {
   background: var(--surface);
   border: 1px solid var(--line);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.modal-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.recap {
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+}
+
+.recap .modal-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recap-result {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.recap .chip {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.recap .plus {
+  font-size: 1.2rem;
 }
 
 .modal-title {

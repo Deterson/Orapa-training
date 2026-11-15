@@ -60,7 +60,11 @@ import { gemOrigin, gemSize, solutionBoardSvg } from './solutionBoard';
 type Phase = 'loading' | 'options' | 'resume' | 'ready' | 'error';
 type Tab = 'shots' | 'solution' | 'notes' | 'result';
 type View = 'game' | 'rules';
-type Ask = { kind: 'fire'; label: string } | { kind: 'probe'; cell: string };
+type Ask =
+  | { kind: 'fire'; label: string }
+  | { kind: 'probe'; cell: string }
+  /** Résumé d'un tir déjà fait (numéro du tir) : aucune action, il se ferme d'un clic. */
+  | { kind: 'recap'; n: number };
 
 interface State {
   phase: Phase;
@@ -313,8 +317,23 @@ export function startApp(root: HTMLElement, version: string): void {
     const { ask } = state;
     if (state.choose) return optionsModal(state.choose);
     if (!ask) return '';
+    if (ask.kind === 'recap') return recapModal(ask.n);
     const title = ask.kind === 'fire' ? t.modal.fire(ask.label) : t.modal.probe(ask.cell);
     return `<div class="modal-backdrop" data-modal-backdrop><div class="modal" role="dialog" aria-modal="true" aria-label="${title}"><p class="modal-title">${title}</p><label class="check"><input type="checkbox" id="skip-confirm" />${t.modal.dontAsk}</label><div class="actions"><button type="button" data-action="modal-confirm">${t.modal.confirm}</button><button type="button" class="ghost" data-action="modal-cancel">${t.modal.cancel}</button></div></div></div>`;
+  };
+
+  /** Résumé d'un tir déjà fait : « E → F » et les pastilles de la couleur obtenue. Un clic n'importe où le ferme. */
+  const recapModal = (n: number): string => {
+    const shot = state.session?.shots.find((candidate) => candidate.n === n);
+    if (!shot) return '';
+    const lost = isAbsorbed(shot);
+    const route = lost ? `${shot.entry} → ${lostSignalHtml()}` : `${shot.entry} → ${shot.exit}`;
+    const result = lost
+      ? t.lostSignal
+      : shot.color === 'transparent'
+        ? RESULT_COLOR_LABELS[shot.color]
+        : chips(shot.color);
+    return `<div class="modal-backdrop" data-modal-backdrop data-recap><div class="modal recap" role="dialog" aria-modal="true" aria-label="${outcomeText(shot)}"><button type="button" class="modal-close" data-action="modal-cancel" aria-label="${t.modal.close}">×</button><p class="modal-title">${route}</p><p class="recap-result">${result}</p></div></div>`;
   };
 
   const resumePanel = (save: SaveData): string => {
@@ -661,8 +680,16 @@ export function startApp(root: HTMLElement, version: string): void {
   const askFire = (label: string): void => {
     const session = state.session;
     if (!session || session.finished) return;
-    if (state.skipConfirm || session.shots.some((shot) => shot.entry === label))
-      return doFire(label);
+    const known = session.shots.find((shot) => shot.entry === label);
+    if (known) {
+      // Déjà tiré : gratuit, on en montre le résumé.
+      state.selected = known.n;
+      state.ask = { kind: 'recap', n: known.n };
+      render();
+      root.querySelector<HTMLElement>('.modal-close')?.focus();
+      return;
+    }
+    if (state.skipConfirm) return doFire(label);
     state.ask = { kind: 'fire', label };
     render();
     root.querySelector<HTMLElement>('[data-action="modal-confirm"]')?.focus();
@@ -683,7 +710,7 @@ export function startApp(root: HTMLElement, version: string): void {
     if (!ask) return;
     const skip = root.querySelector<HTMLInputElement>('#skip-confirm')?.checked ?? false;
     state.ask = null;
-    if (!confirmed) return render();
+    if (!confirmed || ask.kind === 'recap') return render();
     if (skip) state.skipConfirm = true;
     if (ask.kind === 'fire') doFire(ask.label);
     else doProbe(ask.cell);
@@ -904,6 +931,7 @@ export function startApp(root: HTMLElement, version: string): void {
         .querySelectorAll('.gem-g.is-selected')
         .forEach((element) => element.classList.remove('is-selected'));
     }
+    if (target.closest('[data-recap]')) return closeAsk(false);
     if (target.hasAttribute('data-modal-backdrop')) return closeAsk(false);
     if (target.hasAttribute('data-options-backdrop')) {
       if (state.session || state.pending) closeOptions(false);

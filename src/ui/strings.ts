@@ -51,6 +51,7 @@ export const fr = {
     probe: (cell: string) => `Sonder ${cell} ?`,
     confirm: 'Confirmer',
     cancel: 'Annuler',
+    close: 'Fermer',
     dontAsk: 'Ne plus demander',
   },
   options: {

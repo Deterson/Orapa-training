@@ -632,6 +632,11 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
   absorbés affichent un **signal wifi rouge barré « Signal perdu »** (message, historique, repère
   d'entrée, case sondée). Génération avec extensions : environ 0,4 à 1,3 s en moyenne, jusqu'à
   quelques secondes dans le pire cas (écran « Génération… », pas de Web Worker pour l'instant).
+- **v1.0.14** : en plein écran, la réserve est élargie pour contenir toutes les gemmes (le **triangle
+  jaune** et le **diamant noir** dépassaient de son cadre) ; **toucher un repère déjà tiré** ouvre une
+  **modale de résumé** (« E → F » et les pastilles de la couleur obtenue ; « transparent » écrit en
+  toutes lettres, « Signal perdu » avec son pictogramme) qui se ferme par sa croix ou d'un clic
+  n'importe où. C'est gratuit et sans confirmation, même si « Ne plus demander » est coché.
 
 ## Questions ouvertes
 
