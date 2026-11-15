@@ -112,7 +112,7 @@ export const GEM_SHAPES: Readonly<Record<GemId, GemShape>> = {
   'black-body': {
     id: 'black-body',
     color: 'black',
-    label: 'Diamant noir',
+    label: 'Corps noir',
     // Sa base rectangulaire : il se pose toujours dessus, pointe vers le haut.
     vertices: [
       [0, 0],

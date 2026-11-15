@@ -61,7 +61,7 @@ en cases, origine en haut à gauche de la boîte englobante, y vers le bas :
 | Blanche 1 | losange (carré posé sur la pointe) | (1,0) (2,1) (1,2) (0,1) | 2×2 | 1 |
 | Blanche 2 | grand triangle, même forme que le bleu | (0,0) (4,0) (2,2) | 4×2 | 4 |
 | Diamant (ext.) ✅ | gemme transparente : demi-losange blanc (triangle de base 2, hauteur 1), forme donnée par le propriétaire | (0,0) (2,0) (1,1) | 2×1 | 4 |
-| Corps noir (ext.) ✅ | « diamant noir » : on ne modélise que sa base rectangulaire 2×1 (il se pose dessus, pointe vers le haut), forme donnée par le propriétaire | (0,0) (2,0) (2,1) (0,1) | 2×1 | 2 |
+| Corps noir (ext.) ✅ | on ne modélise que sa base rectangulaire 2×1 (il se pose dessus, pointe vers le haut), forme donnée par le propriétaire | (0,0) (2,0) (2,1) (0,1) | 2×1 | 2 |
 
 ### Retournement (précision propriétaire)
 
@@ -155,7 +155,9 @@ site joue ce rôle).
   dépend que de celles-ci.
 - ✅ **Corps noir** : se place pointe vers le haut sur sa base rectangulaire. Il
   **absorbe** le rayon : ni point de sortie ni couleur ; le maître du jeu annonce « Le
-  signal a été absorbé ». Sonder une case du corps noir donne la même réponse.
+  signal a été absorbé ». Sonder une case du corps noir donne la même réponse (« signal perdu »).
+- **Sonder un diamant** répond « diamant ». Le livret ne dit rien des sondes : ces deux réponses
+  sont un **arbitrage du propriétaire du projet**.
 - Sur le site : le choix se fait au début de chaque partie (adresse `?ext=d`, `?ext=n` ou
   `?ext=dn`) ; une partie compte alors 6 ou 7 gemmes. Un rayon ou une sonde absorbés affichent un
   signal wifi rouge barré « Signal perdu ». Une gemme retournable reste la rouge seule. Les règles
@@ -180,8 +182,8 @@ site joue ce rôle).
 - **Correction par égalité stricte** (règle du site, pas du livret) : le joueur lève les
   ambiguïtés avec des lasers et des sondes de cases ; la proposition doit être exactement la mine.
 - Les règles de placement a à e s'appliquent aussi à la grille de solution du joueur.
-- Le score d'une partie est son **nombre de lasers tirés** (voir `docs/roadmap.md` pour le
-  traitement des « sondages de case »).
+- Le score d'une partie est son **nombre de tirs** : un laser depuis un repère et la sonde d'une
+  case comptent chacun pour un ; redemander une réponse déjà connue est gratuit.
 
 ## Points à valider
 

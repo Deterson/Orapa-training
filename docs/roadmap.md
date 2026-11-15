@@ -103,7 +103,7 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
   Sur le repère d'entrée d'un tir : un badge avec son numéro ; sur le repère de sortie : un
   point de la couleur annoncée.
 - `ui/app.ts` : nouvelle partie (graine aléatoire ou `?seed=` dans l'adresse), copie du lien,
-  compteur de lasers, historique numéroté (cliquer un tir le met en avant sur la grille),
+  compteur de tirs, historique numéroté (cliquer un tir le met en avant sur la grille),
   message vocal pour les lecteurs d'écran.
 - **Décision :** le chemin du rayon n'est **pas** tracé dans la grille de tir, contrairement à ce
   que prévoyait la première version de la roadmap : dans le vrai jeu on ne voit que la sortie et
@@ -170,12 +170,12 @@ partie en cours, pour la reprendre plus tard dans le même navigateur.
   terminée, plus aucune action n'est possible** ; `reveal()` n'est permis qu'après la fin.
 - **Une seule proposition** (`MAX_ATTEMPTS = 1`), comme le jeu officiel à deux joueurs : une
   erreur fait perdre la partie et révèle la mine. La constante permet un mode plus indulgent.
-- **Sondages comptés à part des lasers** (« 2 sondages ») ; redemander une case est gratuit.
+- **Sondages** (comptés comme des tirs depuis la v1.0.17) ; redemander une case est gratuit.
   Mode « Sonder une case » dans l'onglet Tirs : toucher une case, ou saisir son nom (accessible
   au clavier). Les réponses restent affichées sur la grille et dans la liste des sondages.
 - Interface : boutons **Soumettre ma solution** (actif seulement si les 5 gemmes sont posées sans
   violation) et **Abandonner**, chacun avec confirmation ; chronomètre ; onglet **Résultat**
-  avec le verdict, les lasers, les sondages, le temps, la graine, la vraie mine, la
+  avec le verdict, le temps, la graine, la vraie mine, la
   proposition en pointillés (vert / rouge) et une phrase par gemme (« vous l'aviez en F7, elle
   est en A4 ») ; **Nouvelle partie** et **Rejouer cette mine** (même graine).
 - Vérifié de bout en bout dans un navigateur : sondes valides et invalides, abandon, victoire
@@ -278,7 +278,7 @@ directement la vue partie.
 |---|---|---|
 | **Accueil** (vue par défaut) | `#/` | la **partie en cours** (bouton « Reprendre »), la **liste des parties non terminées** (connecté seulement), le bouton **« Nouvelle partie »** |
 | **Partie** | `#/partie` | la vue actuelle : grille de tir, notes, gemmes à placer, résultat, plein écran |
-| **Profil** | `#/profil` (connecté) | nom Google, **pourcentage de parties gagnées**, moyenne de lasers avant victoire, **historique** des parties jouées |
+| **Profil** | `#/profil` (connecté) | nom Google, **pourcentage de parties gagnées**, moyenne de tirs avant victoire, **historique** des parties jouées |
 
 - **En-tête** : le **titre du site**, en haut à gauche, ramène à l'accueil ; en haut à droite, un
   bouton **« Connexion »** (non connecté) ou **« Déconnexion »** (connecté) qui lance l'OAuth Google ;
@@ -287,7 +287,7 @@ directement la vue partie.
   propose (« Reprendre »). Tant qu'elle n'est ni terminée ni abandonnée, « Nouvelle partie » n'est
   pas disponible (reprendre, abandonner ou se connecter) ; une fois terminée, on peut en lancer une
   autre. Pas de liste, pas d'historique, pas de profil.
-- **« Nouvelle partie »** (accueil) ouvre la fenêtre des **extensions** (Diamant, Diamant noir),
+- **« Nouvelle partie »** (accueil) ouvre la fenêtre des **extensions** (Diamant, Corps noir),
   la même qu'au début d'une partie, puis lance la génération et ouvre la vue Partie.
 - **Avec compte** : plusieurs parties en cours en même temps, chacune reprise depuis l'accueil.
   Les parties en cours sont donc **stockées côté serveur** (voir v1.3), pas seulement les parties
@@ -335,8 +335,7 @@ Table `games` (une ligne par partie, **en cours ou terminée**), au minimum :
 | `status` | `playing`, `won`, `lost` ou `abandoned` |
 | `snapshot` | JSON : la sauvegarde de `game/save.ts` (mine, tirs, solution, notes), renseignée tant que la partie est en cours, effacée à la fin |
 | `updated_at` | dernière modification (tri de la liste des parties en cours) |
-| `lasers_count` | lasers tirés pendant la partie |
-| `probes_count` | cases sondées (si l'action est retenue) |
+| `shots_count` | tirs pendant la partie : lasers et sondes de cases |
 | `started_at`, `ended_at`, `duration_s` | temps |
 | `shots`, `submission` | JSON : tirs effectués et solution proposée |
 
@@ -365,7 +364,7 @@ Table `games` (une ligne par partie, **en cours ou terminée**), au minimum :
 La vue affiche le **nom Google**, les statistiques ci-dessous et l'**historique** de la v1.4.
 Deux statistiques, **calculées à partir de `games`** (parties terminées seulement) :
 
-- **Moyenne de lasers tirés avant de gagner** = moyenne de `lasers_count` sur les parties
+- **Moyenne de tirs avant de gagner** = moyenne de `shots_count` sur les parties
   **gagnées** uniquement.
 - **Pourcentage de parties gagnées** = parties gagnées ÷ parties totales terminées.
 
@@ -611,12 +610,12 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
   rouge, jaune et bleu. Les anciens traits verts des sauvegardes redeviennent noirs.
 - **v1.0.13** : les **extensions**. Au début de chaque nouvelle partie, une fenêtre propose le
   **Diamant** (demi-losange 2×1, transparent : il dévie le rayon sans changer sa couleur) et le
-  **Diamant noir** (rectangle 2×1 posé sur sa base, il absorbe le rayon). Le générateur, la sauvegarde, la réserve de gemmes (normale et plein écran), le résultat et la page
+  **Corps noir** (rectangle 2×1 posé sur sa base, il absorbe le rayon). Le générateur, la sauvegarde, la réserve de gemmes (normale et plein écran), le résultat et la page
   Règles les gèrent ; le choix figure dans l'adresse (`?seed=…&ext=dn`). Un rayon ou une sonde
   absorbés affichent un **signal wifi rouge barré « Signal perdu »** (message, historique, repère
   d'entrée, case sondée).
 - **v1.0.14** : en plein écran, la réserve est élargie pour contenir toutes les gemmes (le **triangle
-  jaune** et le **diamant noir** dépassaient de son cadre) ; **toucher un repère déjà tiré** ouvre une
+  jaune** et le **corps noir** dépassaient de son cadre) ; **toucher un repère déjà tiré** ouvre une
   **modale de résumé** (« E → F » et les pastilles de la couleur obtenue ; « transparent » écrit en
   toutes lettres, « Signal perdu » avec son pictogramme) qui se ferme par sa croix ou d'un clic
   n'importe où. C'est gratuit et sans confirmation, même si « Ne plus demander » est coché.
@@ -627,6 +626,12 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
   (règle e) ; elle est instantanée et la suite de tests passe de 48 s à 1 s. `GENERATOR_VERSION` passe
   à 2 : une même graine ne redonne plus la mine d'avant (les sauvegardes, qui stockent la mine
   elle-même, ne sont pas touchées).
+- **v1.0.17** : Les extensions s'appellent **Diamant** et **Corps noir** partout (interface, règles, docs). Les
+  **sondes comptent comme des lasers** : un seul compteur de **tirs** (lasers + sondes de cases), le
+  compteur de sondes disparaît ; `shots_count` remplace `lasers_count` et `probes_count` en v2. Les
+  **extensions** de la partie (« Sans extension », « Diamant », « Corps noir ») s'affichent à côté de
+  la graine. Arbitrage du propriétaire, noté dans `regles.md` : sonder un corps noir répond
+  « signal perdu », sonder un diamant répond « diamant ».
 
 ## Questions ouvertes
 
@@ -640,11 +645,9 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
   invités ? Chronomètre par tour ?
 - Soumission : une seule tentative (comme à deux joueurs, une erreur = défaite) ou
   plusieurs essais ?
-- Un « sondage de case » compte-t-il dans le nombre de lasers ? Proposition : non, on le
-  compte à part (`probes_count`), et la moyenne de la v2 ne porte que sur les lasers.
 - Une partie abandonnée compte-t-elle comme perdue dans le pourcentage de victoires ?
   Proposition : oui.
-- Limite de lasers imposée ou simple compteur ?
+- Limite de tirs imposée ou simple compteur ?
 - Dimensions des gemmes : voir [`regles.md`](regles.md). (Règle d de contact : tranchée, voir `regles.md`.)
 - Supabase ou Firebase pour la v2 ?
 - Nombre maximal de parties en cours par compte (par exemple 10) ?

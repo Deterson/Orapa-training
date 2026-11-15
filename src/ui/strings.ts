@@ -57,8 +57,14 @@ export const fr = {
   options: {
     title: 'Extensions',
     diamond: 'Diamant',
-    blackBody: 'Diamant noir',
+    blackBody: 'Corps noir',
     play: 'Jouer',
+  },
+  /** Extensions de la partie en cours, affichées à côté de la graine. */
+  extensions: {
+    none: 'Sans extension',
+    diamond: 'Diamant',
+    blackBody: 'Corps noir',
   },
   hints: {
     storageOff: 'Sauvegarde indisponible.',

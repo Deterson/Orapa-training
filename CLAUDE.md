@@ -33,7 +33,7 @@ Permettre de s'entraîner seul·e à Orapa Mine, partie après partie :
    - **Déplacer des gemmes** sur sa propre grille de solution (glisser-déposer,
      rotation par quarts de tour, **retournement pour la gemme rouge uniquement**) ;
    - **Soumettre** sa solution et obtenir la correction.
-3. À la soumission : verdict (correct / incorrect), nombre de lasers utilisés,
+3. À la soumission : verdict (correct / incorrect), nombre de tirs (lasers et sondes),
    temps écoulé, et révélation de la vraie grille. Un bouton « nouvelle partie »
    relance une génération.
 
@@ -44,7 +44,7 @@ Périmètre par version (détail dans `docs/roadmap.md`) :
   compte, pas de serveur.
 - **v2** : trois **vues** (accueil, partie, profil), connexion **Google (OAuth)**, parties en
   cours enregistrées dans le compte, **historique** des parties, **vue de profil** (nom Google,
-  pourcentage de parties gagnées, moyenne de lasers tirés avant de gagner). Demande un
+  pourcentage de parties gagnées, moyenne de tirs avant de gagner). Demande un
   backend. Sans compte, le jeu reste jouable mais limité à **une seule partie à la fois**.
 - **v3** : le joueur **crée son plateau** (cache ses gemmes) et **joue contre une IA** qui cherche le
   sien pendant qu'il cherche celui de l'IA (fini le simple entraînement).
@@ -59,7 +59,7 @@ Résumé ; le détail et les tableaux sont dans `docs/regles.md`.
   (« E4 »). 36 points d'entrée : **1–10** en haut, **11–18** à droite, **I–R** en bas,
   **A–H** à gauche.
 - Partie de base : **5 gemmes** (1 rouge, 1 jaune, 1 bleue, 2 blanches) parmi un jeu de 7 ;
-  Diamant et Corps noir (« diamant noir ») en extensions, au choix au début de chaque partie
+  Diamant et Corps noir en extensions, au choix au début de chaque partie
   (`?ext=d|n|dn`) ; le Corps noir absorbe le rayon : affichage rouge « signal perdu » (wifi barré).
 - **La gemme rouge peut être retournée** (quadrillage foncé sur ses deux faces, seule pièce
   dans ce cas) ; les autres gemmes ne se retournent jamais. À signaler dans la page
@@ -104,7 +104,7 @@ le site n'a que la vue de jeu et la page Règles ; la v2 en fait trois vues :
 En haut à droite : un bouton **« Connexion »** ou **« Déconnexion »** (OAuth Google), à côté de la
 version du build. **Sans compte, une seule partie à la fois** (la sauvegarde locale) ; avec un
 compte, plusieurs parties en cours, enregistrées côté serveur. Sur l'accueil, « Nouvelle partie »
-ouvre la fenêtre des extensions (Diamant, Diamant noir), la même qu'en début de partie.
+ouvre la fenêtre des extensions (Diamant, Corps noir), la même qu'en début de partie.
 
 ## Interface
 
@@ -136,7 +136,9 @@ Zones :
 4. **Résultat** (fin de partie) : la vraie mine et la proposition ; les 36 repères restent cliquables pour tirer des lasers libres dans la mine révélée (trajet tracé, hors compteur).
 5. **Plein écran (téléphone, paysage)** : un seul plateau (`ui/immersiveBoard.ts`) avec réserve de gemmes à droite et colonne d'outils ; l'outil « Jouer » tire (repères), sonde (cases) et déplace les gemmes, les autres outils dessinent (les repères restent cliquables).
 6. **Barre d'actions** : Nouvelle partie, Soumettre, Abandonner/Révéler, compteur
-   de lasers, chronomètre.
+   de **tirs** (lasers et sondes de cases comptent pareil), chronomètre. Les **extensions** de la
+   partie (« Sans extension », « Diamant », « Corps noir » ou les deux) s'affichent à côté de la
+   graine, en haut de la vue de jeu.
 
 Il est acceptable que ces zones soient des calques d'une même grille ou des
 onglets/panneaux côte à côte ; le choix est à faire à l'implémentation, mais la
@@ -277,7 +279,7 @@ v3.1 à v3.7 la **v4**.
 
 - v1.1 Choix du backend. v1.2 Vues (accueil, partie, profil), navigation et connexion Google.
   v1.3 Modèle de données (parties en cours et terminées) et sécurité par utilisateur. v1.4 Parties
-  enregistrées et historique. v1.5 Vue Profil (nom, % de victoires, moyenne de lasers avant
+  enregistrées et historique. v1.5 Vue Profil (nom, % de victoires, moyenne de tirs avant
   victoire). v1.6 Vie privée et exploitation.
 
 **Vers la v3 : plateau personnalisé et duel contre une IA**
@@ -298,14 +300,14 @@ v3.1 à v3.7 la **v4**.
 - **Dimensions des gemmes** : lues sur les schémas, à confirmer sur les pièces (surtout le
   grand triangle, supposé identique en bleu et en blanc, et le losange blanc). Formes des
   extensions données par le propriétaire : Diamant = demi-losange 2×1 (triangle de base 2,
-  hauteur 1) ; Corps noir (« diamant noir ») = base rectangulaire 2×1.
+  hauteur 1) ; Corps noir = base rectangulaire 2×1.
 - ~~Contact entre gemmes (règle d)~~ : confirmé par le propriétaire, deux gemmes ne se touchent
   que par un **point** (jamais un segment) ; voir `docs/regles.md`.
 - ~~Soumission en entraînement~~ : décidé en v0.9, une seule tentative (`MAX_ATTEMPTS`).
 - ~~« Sonder une case »~~ : décidé en v0.9, proposée et comptée à part des lasers.
 - Une partie abandonnée compte-t-elle comme perdue dans le pourcentage de victoires (v2) ?
   Proposition : oui.
-- Limite de lasers imposée, ou simple compteur indicatif ?
+- Limite de tirs imposée, ou simple compteur indicatif ?
 - Supabase ou Firebase pour la v2 ?
 - Duel (v3) : « en même temps » ou tour par tour ? règle de fin (livret ou indulgente) ? Voir `docs/roadmap.md`.
 - Faut-il un mode « tutoriel » expliquant les effets de chaque gemme ?

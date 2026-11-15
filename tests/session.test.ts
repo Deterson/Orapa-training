@@ -15,14 +15,14 @@ describe('partie en cours : tirs', () => {
     expect(record).toEqual({ n: 1, entry: '15', exit: expected.exit, color: expected.color });
   });
 
-  it('numère les tirs et compte les lasers', () => {
+  it('numère les tirs et les compte', () => {
     const session = new GameSession(mine);
-    expect(session.laserCount).toBe(0);
+    expect(session.shotCount).toBe(0);
     session.fire('1');
     session.fire('I');
     session.fire('A');
     expect(session.shots.map((s) => s.n)).toEqual([1, 2, 3]);
-    expect(session.laserCount).toBe(3);
+    expect(session.shotCount).toBe(3);
   });
 
   it('ne compte pas deux fois le même repère', () => {
@@ -30,20 +30,20 @@ describe('partie en cours : tirs', () => {
     const first = session.fire('1');
     const again = session.fire('1');
     expect(again).toEqual(first);
-    expect(session.laserCount).toBe(1);
+    expect(session.shotCount).toBe(1);
   });
 
   it('accepte les minuscules et refuse un repère inconnu', () => {
     const session = new GameSession(mine);
     expect(session.fire('i').entry).toBe('I');
     expect(() => session.fire('Z')).toThrow();
-    expect(session.laserCount).toBe(1);
+    expect(session.shotCount).toBe(1);
   });
 
   it('permet de tirer depuis les 36 repères', () => {
     const session = new GameSession(mine);
     for (const entry of ENTRY_POINTS) session.fire(entry.label);
-    expect(session.laserCount).toBe(36);
+    expect(session.shotCount).toBe(36);
   });
 
   it('ne laisse pas fuiter la mine', () => {
@@ -81,13 +81,14 @@ describe('partie en cours : sondes de case', () => {
     ]);
   });
 
-  it('compte les sondes à part des lasers, et redemander une case est gratuit', () => {
+  it('compte les sondes comme des tirs, et redemander une case est gratuit', () => {
     const session = new GameSession(mine);
     session.fire('1');
     const first = session.probe('E4');
     expect(session.probe('e4')).toEqual(first);
     expect(session.probes).toHaveLength(1);
-    expect(session.laserCount).toBe(1);
+    // Un laser et une sonde : deux tirs. Redemander la case ne change rien.
+    expect(session.shotCount).toBe(2);
   });
 
   it('refuse une case inconnue', () => {
@@ -193,8 +194,7 @@ describe('partie en cours : chronomètre', () => {
     expect(session.summary).toEqual({
       seed: 'session',
       status: 'won',
-      lasers: 2,
-      probes: 1,
+      shots: 3,
       attempts: 1,
       elapsedMs: 12_000,
     });

@@ -145,6 +145,14 @@ h2 {
   font-size: 1rem;
 }
 
+.ext-chip {
+  padding: 4px 10px;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .play {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

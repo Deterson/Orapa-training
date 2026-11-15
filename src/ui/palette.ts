@@ -7,7 +7,7 @@ export const GEM_FILL: Record<GemPaint, string> = {
   yellow: '#e8b100',
   blue: '#2f6fb5',
   white: '#f4f4f4',
-  // Diamant : verre bleuté, dessiné creux (voir gemPolygons) ; diamant noir : presque noir.
+  // Diamant : verre bleuté, dessiné creux (voir gemPolygons) ; corps noir : presque noir.
   clear: '#3d97d6',
   black: '#1f1f25',
 };

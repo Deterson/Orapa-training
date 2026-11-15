@@ -96,7 +96,7 @@ export function rulesPage(version: string): string {
       <div class="gem-figures">${EXTENSION_GEM_IDS.map(gemFigure).join('')}</div>
       <ul class="rule-list">
         <li><b>Diamant</b> : dévie le rayon, sans changer sa couleur.</li>
-        <li><b>Diamant noir</b> : absorbe le rayon. ${lostSignalHtml()} <b>Signal perdu</b> : ni sortie, ni couleur. Se pose sur sa base.</li>
+        <li><b>Corps noir</b> : absorbe le rayon. ${lostSignalHtml()} <b>Signal perdu</b> : ni sortie, ni couleur. Se pose sur sa base.</li>
       </ul>
 
       <h2>Placement</h2>

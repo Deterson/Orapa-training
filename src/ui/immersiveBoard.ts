@@ -31,7 +31,7 @@ export interface ImmersiveView {
 /** Largeur ajoutée à droite de la grille pour la réserve. */
 const SIDE_WIDTH = 6.7;
 const TRAY_X = 11.4;
-/** Bord droit de la réserve : assez loin pour contenir la gemme la plus à droite (jaune, diamant noir). */
+/** Bord droit de la réserve : assez loin pour contenir la gemme la plus à droite (jaune, corps noir). */
 const TRAY_RIGHT = 16.8;
 
 export function immersiveBoardSvg(view: ImmersiveView): string {
