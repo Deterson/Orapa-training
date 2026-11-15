@@ -193,6 +193,7 @@ src/
     probe.ts       # ✔ « Qu'y a-t-il en E4 ? »
     save.ts        # ✔ format de la sauvegarde locale et validation stricte
     notes.ts       # ✔ notes : marques de cases, traits, gomme, annuler / rétablir
+    record.ts      # ✔ enregistrement d'une partie terminée (table `games`)
     solution.ts    # ✔ solution du joueur : poser, pivoter, retourner la rouge, règles, comparaison aux tirs
   ui/          # composants, interactions pointeur, rendu SVG
     app.ts         # ✔ état de l'application, partie, historique des tirs
@@ -211,7 +212,8 @@ src/
     index.ts       # ✔ crée le client
   main.ts
 tests/         # Vitest ; helpers.ts fournit `place`, un PRNG et des dispositions aléatoires valides
-docs/          # règles du jeu et roadmap
+supabase/      # migrations SQL (v2) et tests de sécurité par ligne (`npm run test:db`)
+docs/          # règles du jeu, roadmap, backend
 ```
 
 Règles :
@@ -236,6 +238,7 @@ npm test             # tests Vitest
 npm run lint         # ESLint
 npm run format       # Prettier (format:check pour vérifier seulement)
 npm run typecheck    # TypeScript sans émission
+npm run test:db      # tests SQL (sécurité par ligne) ; demande un Postgres, voir docs/backend.md
 npm run build        # contrôle des types + build statique dans dist/
 npm run preview      # sert dist/ comme en production
 ```
@@ -277,7 +280,7 @@ v3.1 à v3.7 la **v4**.
 **Vers la v2 : comptes, historique, profil**
 
 - v1.1 Choix du backend (**fait**, Supabase). v1.2 Connexion Google (**fait**). v1.3 Modèle de données et sécurité par
-  utilisateur. v1.4 Enregistrement et page Historique. v1.5 Page de profil (moyenne de lasers
+  utilisateur (**fait**). v1.4 Enregistrement et page Historique. v1.5 Page de profil (moyenne de lasers
   avant victoire, % de victoires). v1.6 Vie privée et exploitation.
 
 **Vers la v3 : plateau personnalisé et duel contre une IA**

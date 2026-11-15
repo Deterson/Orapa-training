@@ -129,6 +129,11 @@ export class GameSession {
     return session;
   }
 
+  /** Version du générateur qui a produit la mine : avec la graine, elle permet de la rejouer. */
+  get generatorVersion(): number {
+    return this.#mine.generatorVersion;
+  }
+
   get status(): GameStatus {
     return this.#status;
   }

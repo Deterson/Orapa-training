@@ -330,24 +330,35 @@ Autres décisions prises avec le propriétaire :
 - **Fini quand :** on peut se connecter, se déconnecter, recharger la page et rester connecté. (Code
   et tests ✔ ; essai réel en attente du projet Supabase.)
 
-### v1.3 Modèle de données et sécurité (M)
+### v1.3 Modèle de données et sécurité (M) : fait
 
-Table `games` (une ligne par partie terminée), au minimum :
+Table `games` (une ligne par partie terminée), migration
+`supabase/migrations/20261115000001_games.sql` :
 
 | Champ | Rôle |
 |---|---|
-| `id`, `user_id` | clés ; `user_id` = utilisateur connecté |
-| `seed`, `generator_version` | pour rejouer la mine |
+| `id`, `user_id` | `id` tiré par le navigateur au début de la partie (renvoyer la même partie ne crée pas de doublon) ; `user_id` = utilisateur connecté, rempli par la base |
+| `seed`, `generator_version`, `extensions` | pour rejouer la mine (`extensions` : `''`, `d`, `n` ou `dn`, comme l'adresse) |
 | `status` | `won`, `lost` ou `abandoned` |
-| `lasers_count` | lasers tirés pendant la partie |
-| `probes_count` | cases sondées (si l'action est retenue) |
+| `lasers_count`, `probes_count` | lasers tirés, cases sondées (comptées à part) |
 | `started_at`, `ended_at`, `duration_s` | temps |
-| `shots`, `submission` | JSON : tirs effectués et solution proposée |
+| `shots`, `submission` | JSON : repères tirés dans l'ordre, gemmes proposées (`null` si abandon) |
 
-- Règles de sécurité : chaque utilisateur ne lit et n'écrit **que ses propres lignes**.
-- Migrations versionnées dans le dépôt.
-- **Fini quand :** un utilisateur A ne peut jamais lire ni modifier les parties de B
-  (test d'accès automatisé).
+- **Sécurité par ligne** (RLS, forcée) : chaque utilisateur ne lit, n'écrit et ne supprime que ses
+  parties ; `anon` n'a aucun droit ; **aucun droit de mise à jour** (une partie est immuable).
+  Contraintes de forme : statut, bornes, `lasers_count` = nombre de tirs, proposition présente sauf
+  abandon, tailles de JSON bornées.
+- **Tests SQL** (`supabase/tests/`, `npm run test:db`, job `database` de la CI avec un Postgres
+  vide) : deux utilisateurs simulés ; A ne lit, n'écrit au nom de B, ne modifie ni ne supprime les
+  parties de B (et inversement) ; `anon` bloqué ; identifiant déjà pris par un autre : rien n'est
+  écrasé ni révélé ; contraintes de forme ; suppression du compte emporte ses parties. Vérifiés
+  « à l'envers » : affaiblir une politique (lecture, écriture, droit de mise à jour, RLS coupée) fait
+  échouer les tests.
+- `src/game/record.ts` : `buildRecord` (partie terminée → enregistrement), `recordToRow`,
+  `parseRow` (valide une ligne avec les mêmes bornes que la base : une partie refusée par la base ne
+  peut pas bloquer la file d'envoi de la v1.4). Aucune mine dans l'enregistrement.
+- **Fini quand :** un utilisateur A ne peut jamais lire ni modifier les parties de B (test d'accès
+  automatisé). ✔
 
 ### v1.4 Enregistrement et historique (M)
 
