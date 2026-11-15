@@ -5,7 +5,7 @@ Gameology ; édition française Miraludo). Le site génère une « mine » aléa
 gemmes cachées) et le joueur doit la reconstituer par déduction, en tirant des lasers, en
 prenant des notes et en plaçant ses propres gemmes, puis en soumettant sa solution.
 
-> Statut : **v1 livrée (v1.0.0)** ; **v2 complète côté code (v2.2.0)** : connexion Google,
+> Statut : **v1 livrée (v1.0.0)** ; **v2 complète côté code (v2.0.0)** : connexion Google,
 > parties en cours et terminées enregistrées sur le compte, historique, profil, suppression du
 > compte (Supabase, [`docs/backend.md`](docs/backend.md)), barre du haut, routeur et accueil, une
 > seule partie à la fois sans compte. Reste la **mise en service** : projet Supabase, identifiant
@@ -150,7 +150,7 @@ Zones :
    par un segment) sont refusés ou signalés avec la règle enfreinte.
 4. **Résultat** (fin de partie) : la vraie mine et la proposition ; les 36 repères restent cliquables pour tirer des lasers libres dans la mine révélée (trajet tracé, hors compteur).
 5. **Plein écran (téléphone, paysage)** : bouton à **pictogramme** (quatre coins) dans la barre de la partie, **affiché seulement sur écran tactile** (`pointer: coarse`) ; un seul plateau (`ui/immersiveBoard.ts`) avec réserve de gemmes à droite et colonne d'outils ; l'outil « Jouer » tire (repères), sonde (cases) et déplace les gemmes, les autres outils dessinent (les repères restent cliquables).
-6. **Barre de la partie** : graine, extensions, bouton **« Lien »** (copie l'adresse qui relance la même mine : graine et extensions, à partager ou à rouvrir plus tard). **Barre d'actions** : Soumettre, Abandonner/Révéler, compteur
+6. **Barre de la partie** : graine, extensions ; l'adresse du navigateur porte `?seed=…&ext=…` pendant la partie et relance la même mine. **Barre d'actions** : Soumettre, Abandonner/Révéler, compteur
    de **tirs** (lasers et sondes de cases comptent pareil), chronomètre. Les **extensions** de la
    partie (« Sans extension », « Diamant », « Corps noir » ou les deux) s'affichent à côté de la
    graine, en haut de la vue de jeu.

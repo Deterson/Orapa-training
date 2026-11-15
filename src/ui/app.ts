@@ -60,7 +60,6 @@ import {
   MAX_PLAYING,
   type PlayingSummary,
   buildProgress,
-  extensionsCode,
   extensionsFromCode,
   type ProfileStats,
   buildRecord,
@@ -736,7 +735,6 @@ export function startApp(
           <span class="ext-chip" title="Extensions">${extensions}</span>`
               : ''
           }
-          <button type="button" class="ghost" data-action="copy-link" title="${t.actions.copyLinkHint}"${session ? '' : ' disabled'}>${t.actions.copyLink}</button>
           <button type="button" class="ghost icon-btn fs-btn" data-action="enter-immersive" aria-label="${t.actions.fullscreen}" title="${t.actions.fullscreen}"${session && !session.finished ? '' : ' disabled'}>${FULLSCREEN_ICON}</button>
         </div>`;
     root.innerHTML = page(
@@ -788,19 +786,6 @@ export function startApp(
     const hash = routeHash(view);
     if (window.location.hash !== hash) window.location.hash = hash;
     enterView(view);
-  };
-
-  /** Adresse qui relance la mine en cours (graine et extensions), à partager ou à rouvrir plus tard. */
-  const shareLink = (): string => {
-    const url = new URL(window.location.href);
-    url.hash = '';
-    url.search = '';
-    if (state.session) {
-      url.searchParams.set('seed', state.session.seed);
-      const code = extensionsCode(extensionsOf(state.session.gems));
-      if (code) url.searchParams.set('ext', code);
-    }
-    return url.toString();
   };
 
   /** Remet une partie sauvegardée en mémoire (chronomètre en pause tant qu'on n'est pas sur la vue Partie). */
@@ -1636,14 +1621,6 @@ export function startApp(
       case 'clear-notes':
         state.notes = commit(state.notes, emptyNotes());
         return render();
-      case 'copy-link':
-        navigator.clipboard?.writeText(shareLink()).then(
-          () => {
-            state.notice = 'Lien copié';
-            render();
-          },
-          () => undefined,
-        );
     }
   });
 

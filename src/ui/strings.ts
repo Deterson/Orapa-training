@@ -19,8 +19,6 @@ export const fr = {
   },
   actions: {
     newGame: 'Nouvelle partie',
-    copyLink: 'Lien',
-    copyLinkHint: 'Copier le lien de cette mine',
     submit: 'Soumettre',
     abandon: 'Abandonner',
     replay: 'Rejouer',

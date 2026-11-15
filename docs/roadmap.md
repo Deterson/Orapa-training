@@ -346,7 +346,7 @@ Autres décisions prises avec le propriétaire :
 - **Fini quand :** on peut se connecter, se déconnecter, recharger la page et rester connecté. (Code
   et tests ✔ ; essai réel en attente du projet Supabase.)
 
-**Fait (vues et navigation, v2.1.0)** :
+**Fait (vues et navigation)** :
 
 - **Routeur** par adresse (`ui/router.ts`, testé) : `#/` accueil (par défaut), `#/partie`,
   `#/regles`, `#/historique`, `#/profil`, `#/confidentialite` ; les anciennes adresses restent
@@ -366,10 +366,10 @@ Autres décisions prises avec le propriétaire :
 - **Sans compte, une seule partie à la fois** : « Nouvelle partie » est désactivée (barre et accueil)
   tant que la partie n'est ni terminée ni abandonnée ; un lien vers une autre mine est ignoré
   (la partie en cours est gardée). Après la fin, « Nouvelle partie » et « Rejouer » refonctionnent.
-- **Barre de la partie** : graine, extensions, « Lien » (copie l'adresse `?seed=…&ext=…` qui relance
-  la même mine, pour la partager ou la rouvrir) et **plein écran** devenu un **pictogramme**, affiché
-  seulement sur écran tactile (`pointer: coarse`).
-- Avec compte, cette règle est levée (v2.2.0) : plusieurs parties en cours, enregistrées sur le compte
+- **Barre de la partie** : graine, extensions et **plein écran**, devenu un **pictogramme** affiché
+  seulement sur écran tactile (`pointer: coarse`). Le bouton « Lien » a été retiré : l'adresse du
+  navigateur porte déjà `?seed=…&ext=…` pendant la partie, et ce lien relance la même mine.
+- Avec compte, cette règle est levée (parties en cours côté serveur) : plusieurs parties en cours, enregistrées sur le compte
   (voir v1.3 et v1.4).
 - Vérifié dans un navigateur : accueil avec et sans partie, démarrage, rechargement sur la partie et
   sur l'accueil, lien vers une autre mine, abandon depuis l'accueil, lien partagé, retour arrière,
@@ -408,7 +408,7 @@ Table `games` (une ligne par partie terminée), migration
   peut pas bloquer la file d'envoi de la v1.4). Aucune mine dans l'enregistrement.
 - **Fini quand :** un utilisateur A ne peut jamais lire ni modifier les parties de B (test d'accès
   automatisé). ✔
-- **Parties en cours côté serveur (v2.2.0)**, migration `20261115000005_playing_games.sql` : la table
+- **Parties en cours côté serveur**, migration `20261115000005_playing_games.sql` : la table
   contient aussi des parties **en cours** (`status = 'playing'`, colonne `snapshot` = la sauvegarde
   du site, mine comprise, `ended_at` vide) en plus des terminées (`snapshot` effacé). `updated_at`
   suit chaque modification. Règles : un propriétaire ne **modifie** que ses parties **en cours** et
@@ -457,7 +457,7 @@ Table `games` (une ligne par partie terminée), migration
   rechargement.
 - **Fini quand :** les parties terminées apparaissent dans l'historique, sur n'importe quel
   navigateur où l'on se connecte. (Code et tests ✔ ; essai réel en attente du projet Supabase.)
-- **Parties en cours (v2.2.0)** : connecté, la partie est **créée en base au lancement** et sa
+- **Parties en cours** : connecté, la partie est **créée en base au lancement** et sa
   sauvegarde est **synchronisée** (`backend/sync.ts`) : la dernière version de chaque partie, au plus
   toutes les 8 s, seulement si elle a changé (le temps qui passe seul ne compte pas), avec délais
   croissants après une coupure, envoi immédiat à la déconnexion, au retour du réseau et quand la page
@@ -544,7 +544,7 @@ Règles de calcul (figées, testées) :
 - **Fini quand :** un utilisateur peut effacer son compte et ses parties, et aucun secret n'est dans
   le dépôt. ✔
 
-### Critères de sortie : livraison de la v2 (v2.2.0)
+### Critères de sortie : livraison de la v2 (v2.0.0)
 
 - **Code et tests : atteints.** Les trois vues sont navigables, le titre ramène à l'accueil, l'accueil
   liste les parties en cours ; historique et profil reflètent exactement les parties terminées (tests
@@ -797,15 +797,10 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
   la graine. Arbitrage du propriétaire, noté dans `regles.md` : sonder un corps noir répond
   « signal perdu », sonder un diamant répond « diamant ».
 
-- **v2.0.0** : première livraison de la v2 (étapes v1.1 à v1.6 : Supabase, connexion Google, historique
-  des parties terminées, profil, confidentialité), fusionnée avec la v1.0.17 en **v2.0.1** (sondes
-  comptées comme des tirs, migration 4).
-- **v2.1.0** : barre du haut (titre + version, Nouvelle partie, Règles ; Historique, Profil avec
-  avatar, Connexion / Déconnexion), routeur (`#/`, `#/partie`…), accueil, une seule partie à la fois
-  sans compte, plein écran en pictogramme sur écran tactile seulement (voir v1.2).
-- **v2.2.0** : parties en cours côté serveur (migration 5), liste sur l'accueil, reprise sur un autre
-  appareil, import, abandon à distance, dix parties en cours au plus (voir v1.3 et v1.4). La v2 est
-  complète côté code ; reste la mise en service.
+- **v2.0.0** : livraison de la v2 (étapes v1.1 à v1.6 : Supabase, connexion Google, historique et
+  profil, confidentialité, barre du haut, routeur et accueil, parties en cours côté serveur), fusionnée
+  avec la v1.0.17 (sondes comptées comme des tirs, migration 4). Complète côté code ; reste la mise
+  en service. (Les numéros v2.1 à v2.7 désignent des **étapes** de la v3, pas des versions du site.)
 
 ## Questions ouvertes
 
@@ -826,4 +821,4 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
 - Limite de tirs imposée ou simple compteur ?
 - Dimensions des gemmes : voir [`regles.md`](regles.md). (Règle d de contact : tranchée, voir `regles.md`.)
 - ~~Supabase ou Firebase pour la v2 ?~~ Décidé en v1.1 : Supabase.
-- ~~Nombre maximal de parties en cours par compte~~ : décidé en v2.2.0, 10 (imposé par la base).
+- ~~Nombre maximal de parties en cours par compte~~ : décidé pour la v2, 10 (imposé par la base).

@@ -43,7 +43,7 @@ const user = (over: Partial<AccountUser> = {}): AccountUser => ({
 
 const header = (over: Partial<Parameters<typeof headerHtml>[0]> = {}) =>
   headerHtml({
-    version: '2.1.0',
+    version: '2.0.0',
     view: 'home',
     newGameBlocked: false,
     accountReady: true,
@@ -57,12 +57,12 @@ describe('barre du haut', () => {
     const left = html.slice(html.indexOf('tb-left'), html.indexOf('tb-right'));
     expect(left).toContain('href="#/"');
     expect(left).toContain('Orapa Training');
-    expect(left).toContain('v2.1.0');
+    expect(left).toContain('v2.0.0');
     expect(left).toContain('data-action="new-game"');
     expect(left).toContain('href="#/regles"');
     // la version suit immédiatement le titre
-    expect(left.indexOf('v2.1.0')).toBeGreaterThan(left.indexOf('Orapa Training'));
-    expect(left.indexOf('v2.1.0')).toBeLessThan(left.indexOf('data-action="new-game"'));
+    expect(left.indexOf('v2.0.0')).toBeGreaterThan(left.indexOf('Orapa Training'));
+    expect(left.indexOf('v2.0.0')).toBeLessThan(left.indexOf('data-action="new-game"'));
   });
 
   it('déconnecté : seulement « Connexion » à droite', () => {
