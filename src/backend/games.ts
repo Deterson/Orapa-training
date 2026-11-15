@@ -44,8 +44,8 @@ export interface LoadedProgress {
 
 export interface GamesService {
   /**
-   * Enregistre la fin d'une partie : la partie en cours correspondante devient gagnée, perdue ou
-   * abandonnée ; si elle n'existait pas côté serveur, elle est créée terminée. Idempotent :
+   * Enregistre la fin d'une partie : la partie en cours correspondante devient gagnée ou
+   * perdue ; si elle n'existait pas côté serveur, elle est créée terminée. Idempotent :
    * renvoyer la même fin (nouvel essai) ne change rien.
    */
   finish(record: GameRecord): Promise<void>;
@@ -55,8 +55,6 @@ export interface GamesService {
   listPlaying(): Promise<PlayingSummary[]>;
   /** Le snapshot d'une partie en cours, ou null si elle n'existe plus (terminée, supprimée). */
   loadPlaying(id: string): Promise<LoadedProgress | null>;
-  /** Abandonne une partie en cours du compte (sans la charger). */
-  abandonPlaying(id: string, startedAt: string): Promise<void>;
   list(query: HistoryQuery): Promise<HistoryPage>;
   /** Statistiques du profil de l'utilisateur connecté. */
   stats(): Promise<ProfileStats>;
@@ -226,20 +224,6 @@ export function createGamesService(client: GamesClientLike): GamesService {
         throw new GamesError('Partie illisible', false);
       }
       return { save, updatedAt };
-    },
-
-    abandonPlaying: async (id, startedAt) => {
-      // La fin ne peut pas précéder le début (l'horloge de cet appareil peut retarder sur l'autre).
-      const endedAt = new Date(Math.max(Date.now(), Date.parse(startedAt) || 0)).toISOString();
-      const result = await run(
-        client
-          .from('games')
-          .update({ status: 'abandoned', snapshot: null, ended_at: endedAt, submission: null })
-          .eq('id', id)
-          .eq('status', 'playing')
-          .select('id'),
-      );
-      if (result.error) throw fail(result.error);
     },
 
     list: async (query) => {

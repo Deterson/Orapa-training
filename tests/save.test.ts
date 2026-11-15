@@ -73,9 +73,10 @@ describe('instantané de partie', () => {
   });
 
   it('reprend aussi une partie terminée, sans pouvoir la rejouer', () => {
-    const original = new GameSession(mine);
-    original.fire('1');
-    original.abandon();
+    const live = new GameSession(mine);
+    live.fire('1');
+    // Ancienne partie abandonnée : le statut n'est plus produit, mais il se relit.
+    const original = GameSession.fromSnapshot({ ...live.toSnapshot(), status: 'abandoned' });
     const restored = GameSession.fromSnapshot(original.toSnapshot());
     expect(restored.status).toBe('abandoned');
     expect(() => restored.fire('I')).toThrow();
@@ -107,6 +108,13 @@ describe("validation d'une sauvegarde", () => {
     const stroke = old.notes.strokes[0];
     if (stroke) stroke.ink = 'green';
     expect(parseSave(old)?.notes.strokes[0]?.ink).toBe('ink');
+  });
+
+  it("lit l'encre noire (ajoutée en 2.0.1)", () => {
+    const save = roundTrip(sampleSave()) as { notes: { strokes: { ink: string }[] } };
+    const stroke = save.notes.strokes[0];
+    if (stroke) stroke.ink = 'black';
+    expect(parseSave(save)?.notes.strokes[0]?.ink).toBe('black');
   });
 
   it("refuse tout ce qui n'est pas une sauvegarde", () => {

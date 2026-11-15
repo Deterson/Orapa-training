@@ -284,8 +284,8 @@ directement la vue partie.
   bouton **« Connexion »** (non connecté) ou **« Déconnexion »** (connecté) qui lance l'OAuth Google ;
   la version du build reste en petit à côté. Le nom du joueur, cliquable, mène au profil.
 - **Sans compte** : **une seule partie à la fois**, celle de la sauvegarde locale. L'accueil la
-  propose (« Reprendre »). Tant qu'elle n'est ni terminée ni abandonnée, « Nouvelle partie » n'est
-  pas disponible (reprendre, abandonner ou se connecter) ; une fois terminée, on peut en lancer une
+  propose (« Reprendre »). Tant qu'elle n'est pas terminée, « Nouvelle partie » n'est
+  pas disponible (terminer la partie ou se connecter) ; une fois terminée, on peut en lancer une
   autre. Pas de liste, pas d'historique, pas de profil.
 - **« Nouvelle partie »** (accueil) ouvre la fenêtre des **extensions** (Diamant, Corps noir),
   la même qu'au début d'une partie, puis lance la génération et ouvre la vue Partie.
@@ -645,6 +645,10 @@ statistiques contre l'IA, mais le duel peut d'abord se jouer sans compte.
 
 - Parties d'essai à chaque niveau, réglage des niveaux, accessibilité, page Règles complétée
   (règles du duel), textes courts.
+- **Mode « daltonien »** : option de l'interface (mémorisée) qui ne repose plus sur la seule teinte.
+  Palette adaptée aux daltoniens pour les gemmes, les rayons, les pastilles de l'historique et les
+  encres, et motifs ou lettres en plus de la couleur (par exemple des hachures par gemme, comme les
+  stries du « vide »). À valider avec des joueurs concernés ; les règles du jeu ne changent pas.
 
 ### Critères de sortie : livraison de la v3
 
@@ -801,6 +805,20 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
   profil, confidentialité, barre du haut, routeur et accueil, parties en cours côté serveur), fusionnée
   avec la v1.0.17 (sondes comptées comme des tirs, migration 4). Complète côté code ; reste la mise
   en service. (Les numéros v2.1 à v2.7 désignent des **étapes** de la v3, pas des versions du site.)
+- **v2.0.1** : **la vue de jeu tient sur une seule grille**, sans onglets Tirs / Gemmes / Notes. À
+  gauche, le compteur et l'**historique des tirs** (pastilles seules, sans le nom des couleurs : « transparent »
+  est une pastille au simple contour blanc, et le nom de la couleur apparaît au survol de la souris). Au
+  centre, la grille (plus grande, jusqu'à 4,2 rem par case) où l'on tire, sonde, déplace les gemmes
+  posées et note ; sous elle, à gauche les cases **Notes** et **Gemmes** (afficher ou masquer), à droite
+  **Annuler**, **Rétablir**, **Effacer**. À droite, en haut les **outils** (Crayon, **Ligne droite**
+  nouvelle, Gomme, Vide, Simuler pour tester un tir sur ses propres gemmes ; encres noir « auto »,
+  **noir** nouveau, rouge, jaune, bleu ; les marques R / J / B / Bl et « ? » sont retirées) et en bas la
+  **réserve des gemmes**, puis **Soumettre** en vert. Aucun outil actif = « jouer » ; recliquer l'outil
+  actif le désactive. **L'abandon est retiré** (bouton, accueil, liste du compte, `GameSession.abandon`,
+  `abandonPlaying`) : le statut `abandoned` n'est plus produit, mais les anciennes parties (sauvegardes,
+  historique du compte) se lisent toujours et comptent comme des défaites. **L'horloge n'est plus
+  affichée** pendant la partie (ni sur l'accueil) : le temps est compté comme avant et montré au résultat.
+  Le plein écran du téléphone est inchangé. Le mode « daltonien » est ajouté à la roadmap (v3).
 
 ## Questions ouvertes
 

@@ -1,7 +1,7 @@
 /**
- * Application : une partie à la fois, avec la grille de tir, la grille de solution et
- * l'historique des tirs. L'état de l'interface est petit : la partie, la solution du joueur,
- * l'onglet affiché et la sélection.
+ * Application : une partie à la fois, sur une seule grille (tirs, sondes, gemmes, notes) avec
+ * l'historique des tirs à gauche et les outils, les gemmes et « Soumettre » à droite. L'état de
+ * l'interface est petit : la partie, la solution du joueur, l'outil actif et la sélection.
  */
 import { RESULT_COLOR_LABELS, componentColors } from '../game/colors';
 import { cellLabel } from '../game/board';
@@ -46,9 +46,9 @@ import {
   toggleMark,
   undo,
 } from '../game/notes';
-import { shotBoardSvg } from './board';
-import { type Tool, notesBoardSvg, notesToolbar } from './notesBoard';
+import { type Tool, footerHtml, isDrawingTool, toolsHtml } from './notesBoard';
 import { notesLayerSvg } from './notesLayer';
+import { playBoardSvg } from './playBoard';
 import { INK_COLOR, INK_LABEL, RAY_COLOR, lostSignalHtml } from './palette';
 import { diffLine, resultBoardSvg } from './resultBoard';
 import type { AccountUser } from '../backend/auth';
@@ -79,10 +79,9 @@ import { rulesPage } from './rules';
 import { browserSaveStore } from './storage';
 import { t } from './strings';
 import { type ImmersiveTool, immersiveBoardSvg } from './immersiveBoard';
-import { gemOrigin, gemSize, solutionBoardSvg } from './solutionBoard';
+import { gemOrigin, gemSize, trayHtml } from './solutionBoard';
 
 type Phase = 'idle' | 'loading' | 'options' | 'ready' | 'error';
-type Tab = 'shots' | 'solution' | 'notes' | 'result';
 type Ask =
   | { kind: 'fire'; label: string }
   | { kind: 'probe'; cell: string }
@@ -94,7 +93,6 @@ interface State {
   /** Page affichée : la partie, les règles (« #regles ») ou l'historique (« #historique »). */
   view: View;
   session: GameSession | null;
-  tab: Tab;
   /** Tir mis en avant dans l'historique. */
   selected: number | null;
   solution: Solution;
@@ -104,22 +102,25 @@ interface State {
   /** Laser tiré après la fin de la partie, dans la mine révélée. */
   explored: ShotResult | null;
   notes: NotesHistory;
-  tool: Tool;
+  /** Outil actif ; null = jouer (tirer, sonder, déplacer les gemmes). */
+  tool: Tool | null;
   ink: Ink;
   /** Tir ou sonde en attente de confirmation (fenêtre modale). */
   ask: Ask | null;
   /** Confirmations désactivées pour cette partie. */
   skipConfirm: boolean;
-  /** Case du curseur clavier de l'onglet Tirs. */
+  /** Case du curseur clavier (sonder sans souris). */
   cursor: { row: number; col: number };
-  /** Notes affichées en transparence dans l'onglet Tirs. */
+  /** Notes affichées sur la grille. */
   showNotes: boolean;
+  /** Gemmes déjà posées affichées sur la grille. */
+  showGems: boolean;
   /** Mode plein écran (paysage) : tout sur une seule grille. */
   immersive: boolean;
   /** Outil actif du mode plein écran. */
   itool: ImmersiveTool;
-  /** Action définitive en attente de confirmation. */
-  confirm: 'submit' | 'abandon' | null;
+  /** Soumission en attente de confirmation (elle est définitive). */
+  confirm: 'submit' | null;
   /** Choix des extensions en cours (fenêtre de début de partie) ; null quand elle est fermée. */
   choose: Extensions | null;
   /** Message « signal perdu » affiché un instant. */
@@ -147,8 +148,6 @@ interface State {
   } | null;
   /** Parties en cours du compte, sur le serveur. */
   playing: { status: 'idle' | 'loading' | 'ready' | 'error'; games: PlayingSummary[] };
-  /** Partie du compte dont l'abandon attend confirmation (accueil). */
-  confirmRemote: string | null;
   /** Envoi de la partie terminée à l'historique : null (rien à envoyer), en attente, enregistrée. */
   recorded: 'pending' | 'saved' | null;
   history: {
@@ -242,15 +241,18 @@ function clearSeedFromUrl(): void {
 
 /**
  * Pastilles d'un résultat : une par couleur de gemme qui le compose, séparées par un « + »
- * (violet clair = rouge + bleu + blanc). Aucune pastille pour « transparent ». Le nom reste écrit.
+ * (violet clair = rouge + bleu + blanc). « Transparent » : une pastille au simple contour blanc.
+ * Le nom de la couleur n'est pas écrit : il apparaît au survol de la souris.
  */
 function chips(color: ShotRecord['color']): string {
   const parts = componentColors(color);
-  if (parts.length === 0) return '';
-  const dots = parts
-    .map((part) => `<span class="chip" style="background:${RAY_COLOR[part]}"></span>`)
-    .join('<span class="plus">+</span>');
-  return `<span class="chips" aria-hidden="true">${dots}</span>`;
+  const dots =
+    parts.length === 0
+      ? '<span class="chip chip-clear"></span>'
+      : parts
+          .map((part) => `<span class="chip" style="background:${RAY_COLOR[part]}"></span>`)
+          .join('<span class="plus">+</span>');
+  return `<span class="chips" aria-hidden="true" title="${RESULT_COLOR_LABELS[color]}">${dots}</span>`;
 }
 
 /** Résultat d'un tir en toutes lettres : « E → 4, bleu » ou « E → signal perdu ». */
@@ -286,6 +288,19 @@ function toBoardPoint(svg: SVGSVGElement, clientX: number, clientY: number): [nu
   return [point.x, point.y];
 }
 
+/** Point d'une grille SVG converti en pixels de l'écran. */
+function toScreenPoint(svg: SVGSVGElement, x: number, y: number): [number, number] {
+  const matrix = svg.getScreenCTM();
+  if (!matrix) return [0, 0];
+  const point = new DOMPoint(x, y).matrixTransform(matrix);
+  return [point.x, point.y];
+}
+
+/** Pixels de l'écran par unité (case) d'une grille SVG. */
+function pixelsPerUnit(svg: SVGSVGElement): number {
+  return svg.getScreenCTM()?.a || 1;
+}
+
 export interface App {
   /** Branche le backend (connexion Google) une fois chargé ; sans lui le site reste en mode v1. */
   attachBackend(backend: Backend): void;
@@ -308,19 +323,19 @@ export function startApp(
     phase: 'idle',
     view: viewFromHash(),
     session: null,
-    tab: 'shots',
     selected: null,
     solution: emptySolution(),
     selectedGem: null,
     hypothesis: null,
     explored: null,
     notes: newHistory(),
-    tool: 'pencil',
+    tool: null,
     ink: 'ink',
     ask: null,
     skipConfirm: false,
     cursor: { row: 0, col: 0 },
     showNotes: true,
+    showGems: true,
     immersive: false,
     itool: 'move',
     confirm: null,
@@ -332,7 +347,6 @@ export function startApp(
     authReady: false,
     game: null,
     playing: { status: 'idle', games: [] },
-    confirmRemote: null,
     recorded: null,
     history: { filter: 'all', sort: 'recent', page: 0, status: 'loading', games: [], total: 0 },
     profile: { status: 'loading', stats: null },
@@ -343,42 +357,66 @@ export function startApp(
 
   // ---------- Affichage ----------
 
-  const solutionPanel = (session: GameSession): string => {
+  /** Colonne de gauche : compteur de tirs, historique des tirs (pastilles seules) et sondes. */
+  const historyPanel = (session: GameSession | null): string => {
+    const shots = session?.shots ?? [];
+    const count = session?.shotCount ?? 0;
+    const list = shots.length
+      ? `<ol class="history" aria-label="Tirs">${shots
+          .map(
+            (shot) =>
+              `<li><button type="button" class="shot${state.selected === shot.n ? ' is-selected' : ''}" data-shot="${shot.n}" aria-label="${describe(shot)}"><span class="n">${shot.n}</span><span class="path"><b>${shot.entry}</b> → ${isAbsorbed(shot) ? lostSignalHtml() : `<b>${shot.exit}</b>`}</span>${isAbsorbed(shot) ? '' : chips(shot.color)}</button></li>`,
+          )
+          .join('')}</ol>`
+      : '';
+    const probes = session?.probes.length
+      ? `<ul class="probe-list" aria-label="Sondages">${session.probes
+          .map(
+            (probe) =>
+              `<li><b>${probe.cell}</b> · ${probe.content === 'black' ? `${lostSignalHtml()} ` : ''}${t.probe[probe.content]}</li>`,
+          )
+          .join('')}</ul>`
+      : '';
+    return `<aside class="play-history">
+        <div class="counter"><span class="count">${count}</span><span class="count-label">tir${plural(count, '', 's')}</span></div>
+        ${list}
+        ${probes}
+      </aside>`;
+  };
+
+  /** Colonne de droite : outils, gemmes à placer, état de la solution et « Soumettre » (en vert). */
+  const sidePanel = (session: GameSession): string => {
     const issues = solutionIssues(state.solution);
     const matches = compareWithShots(state.solution, session.shots);
     const matching = [...matches.values()].filter(Boolean).length;
     const placed = placedGems(state.solution).length;
     const total = Object.keys(state.solution).length;
-    const board = solutionBoardSvg({
-      solution: state.solution,
-      selected: state.selectedGem,
-      issues,
-      shots: session.shots,
-      hypothesis: state.hypothesis,
-      notes: state.showNotes ? state.notes.present : null,
-    });
+    const status = `${placed}/${total}${session.shots.length ? ` · ${matching}/${session.shots.length} tirs` : ''}`;
     const hypothesis = state.hypothesis
       ? `<p class="hypo">${outcomeHtml(state.hypothesis)}</p>`
       : '';
-    const status = `${placed}/${total}${session.shots.length ? ` · ${matching}/${session.shots.length} tirs` : ''}`;
-    return `
-      ${board}
-      ${optionsPanel()}
-      <p class="status">${status}</p>
-      ${hypothesis}
-      ${
-        issues.length
-          ? `<ul class="issues">${issues.map((issue) => `<li>${issue.message}</li>`).join('')}</ul>`
-          : ''
-      }`;
+    return `<aside class="play-side">
+        ${toolsHtml({ tool: state.tool, ink: state.ink })}
+        ${trayHtml({ solution: state.solution, selected: state.selectedGem, issues })}
+        <p class="status">${status}</p>
+        ${hypothesis}
+        ${
+          issues.length
+            ? `<ul class="issues">${issues.map((issue) => `<li>${issue.message}</li>`).join('')}</ul>`
+            : ''
+        }
+        ${actionsPanel(session)}
+      </aside>`;
   };
 
+  /** Résultat de la partie : la vraie mine, la proposition, le détail, et le temps (montré seulement ici). */
   const resultPanel = (session: GameSession): string => {
     const summary = session.summary;
     const diffs = compareSolution(session.reveal(), placedGems(state.solution));
     return `
       <div class="result is-${summary.status}">
         <h2>${t.status[summary.status]}</h2>
+        <p class="result-meta">${summary.shots} tir${plural(summary.shots, '', 's')} · ${formatTime(summary.elapsedMs)}</p>
         ${recordStatusHtml()}
         ${resultBoardSvg(diffs, session.shots, state.explored)}
         ${state.explored ? `<p class="hypo">${outcomeHtml(state.explored)}</p>` : ''}
@@ -390,22 +428,15 @@ export function startApp(
       </div>`;
   };
 
-  /** Soumettre ou abandonner, avec confirmation car l'action est définitive. */
+  /** « Soumettre » (vert), avec confirmation car l'action est définitive. */
   const actionsPanel = (session: GameSession): string => {
     if (session.finished) return '';
     if (state.confirm === 'submit') {
-      return `<div class="confirm" role="alertdialog" aria-label="Confirmer"><p>Soumettre ?</p><div class="actions"><button type="button" data-action="confirm-submit">${t.actions.submit}</button><button type="button" class="ghost" data-action="cancel-confirm">Annuler</button></div></div>`;
-    }
-    if (state.confirm === 'abandon') {
-      return `<div class="confirm" role="alertdialog" aria-label="Confirmer"><p>Abandonner ?</p><div class="actions"><button type="button" data-action="confirm-abandon">${t.actions.abandon}</button><button type="button" class="ghost" data-action="cancel-confirm">Annuler</button></div></div>`;
+      return `<div class="confirm" role="alertdialog" aria-label="Confirmer"><p>Soumettre ?</p><div class="actions"><button type="button" class="submit-btn" data-action="confirm-submit">${t.actions.submit}</button><button type="button" class="ghost" data-action="cancel-confirm">${t.modal.cancel}</button></div></div>`;
     }
     const ready = isSubmittable(state.solution);
-    return `<div class="actions"><button type="button" data-action="ask-submit"${ready ? '' : ' disabled title="Toutes les gemmes, bien placées"'}>${t.actions.submit}</button><button type="button" class="ghost" data-action="ask-abandon">${t.actions.abandon}</button></div>`;
+    return `<button type="button" class="submit-btn" data-action="ask-submit"${ready ? '' : ' disabled title="Toutes les gemmes, bien placées"'}>${t.actions.submit}</button>`;
   };
-
-  /** Sous la grille de tir : afficher ou non les notes en transparence. */
-  const optionsPanel = (): string =>
-    `<div class="notes-tools"><label class="check"><input type="checkbox" id="show-notes" data-toggle="notes"${state.showNotes ? ' checked' : ''} />${t.actions.showNotes}</label></div>`;
 
   /** Message « signal perdu », quelques secondes, quand le Corps noir absorbe un rayon ou une sonde. */
   const toastHtml = (): string =>
@@ -494,7 +525,7 @@ export function startApp(
 
   /** Colonne d'outils à droite de la grille en plein écran. */
   const immersiveHud = (session: GameSession): string => {
-    const inks = (['ink', 'red', 'yellow', 'blue'] as const)
+    const inks = (['ink', 'black', 'red', 'yellow', 'blue'] as const)
       .map(
         (name) =>
           `<button type="button" class="ink" data-ink="${name}" aria-pressed="${state.ink === name}" aria-label="Encre ${INK_LABEL[name]}"><span style="background:${INK_COLOR[name]}" aria-hidden="true"></span></button>`,
@@ -505,7 +536,7 @@ export function startApp(
       <aside class="immersive-hud" aria-label="Outils">
         <div class="hud-top">
           <button type="button" class="ghost" data-action="exit-immersive" aria-label="Quitter le plein écran">✕</button>
-          <span class="hud-meta"><b>${count}</b> tir${plural(count, '', 's')} · <span id="timer">${formatTime(session.elapsedMs())}</span></span>
+          <span class="hud-meta"><b>${count}</b> tir${plural(count, '', 's')}</span>
         </div>
         <div class="hud-grid">
           ${hudTool('move', 'Jouer')}
@@ -545,7 +576,7 @@ export function startApp(
       </div>`;
   };
 
-  /** Une partie est en cours dans cette fenêtre (chargée ou sauvegardée) : pas terminée, pas abandonnée. */
+  /** Une partie est en cours dans cette fenêtre (chargée ou sauvegardée) : pas terminée. */
   const inProgress = (): boolean =>
     state.session !== null && state.phase === 'ready' && !state.session.finished;
 
@@ -566,14 +597,14 @@ export function startApp(
     state.session !== null || state.phase === 'loading' || state.phase === 'error';
 
   /** Barre du haut + contenu + éléments communs (modale, annonces pour lecteurs d'écran). */
-  const page = (body: string, before = ''): string => `${before}${headerHtml({
+  const page = (body: string, before = '', wide = false): string => `${before}${headerHtml({
     version,
     view: state.view,
     newGameBlocked: newGameBlocked(),
     accountReady: state.backend !== null && state.authReady,
     user: state.account,
   })}
-      <main class="app">${body}</main>
+      <main class="app${wide ? ' is-play' : ''}">${body}</main>
       <p class="sr-only" aria-live="polite">${state.notice}</p>
       ${toastHtml()}
       ${modal()}`;
@@ -582,7 +613,6 @@ export function startApp(
     seed: session.seed,
     extensions: extensionsLabel(session.gems),
     shots: session.shotCount,
-    elapsedMs: session.elapsedMs(),
   });
 
   const render = (): void => {
@@ -649,7 +679,6 @@ export function startApp(
       root.innerHTML = page(
         homePage({
           current,
-          confirmAbandon: state.confirm === 'abandon' && current !== null,
           newGameBlocked: newGameBlocked(),
           accounts: state.backend !== null,
           signedIn: state.account !== null,
@@ -662,11 +691,9 @@ export function startApp(
               seed: game.seed,
               extensions: extensionsLabelOfCode(game.extensions),
               shots: game.lasersCount + game.probesCount,
-              elapsedMs: game.durationS * 1000,
               updatedAt: game.updatedAt,
             })),
           othersStatus: state.playing.status,
-          confirmRemote: state.confirmRemote,
           limitReached: limitReached(),
         }),
       );
@@ -674,59 +701,31 @@ export function startApp(
       return;
     }
     const { session } = state;
-    const shots = session?.shots ?? [];
-    let board: string;
+    let center: string;
     if (state.phase === 'ready' && session) {
-      if (state.tab === 'shots') {
-        board = `${shotBoardSvg(
-          { shots, selected: state.selected },
-          {
+      center = session.finished
+        ? resultPanel(session)
+        : `${playBoardSvg({
+            solution: state.solution,
+            selected: state.selectedGem,
+            issues: solutionIssues(state.solution),
+            shots: session.shots,
+            selectedShot: state.selected,
             probes: session.probes,
-            probeable: !session.finished,
-            cursor: state.cursor,
-            gems: placedGems(state.solution),
             notes: state.showNotes ? state.notes.present : null,
-          },
-        )}${optionsPanel()}`;
-      } else if (state.tab === 'result' && session.finished) {
-        board = resultPanel(session);
-      } else if (state.tab === 'solution') {
-        board = solutionPanel(session);
-      } else {
-        const view = {
-          history: state.notes,
-          shots,
-          gems: placedGems(state.solution),
-          tool: state.tool,
-          ink: state.ink,
-        };
-        board = `${notesBoardSvg(view)}${notesToolbar(view)}`;
-      }
+            showGems: state.showGems,
+            tool: state.tool,
+            ink: state.ink,
+            hypothesis: state.hypothesis,
+            cursor: state.cursor,
+          })}${footerHtml({ history: state.notes, showNotes: state.showNotes, showGems: state.showGems })}`;
     } else {
-      board = `<p class="placeholder" role="status">${
+      center = `<p class="placeholder" role="status">${
         state.phase === 'error' ? 'Échec de la génération.' : 'Génération…'
       }</p>`;
     }
 
-    const history = shots.length
-      ? `<ol class="history" aria-label="Tirs">${shots
-          .map(
-            (shot) =>
-              `<li><button type="button" class="shot${state.selected === shot.n ? ' is-selected' : ''}" data-shot="${shot.n}"><span class="n">${shot.n}</span><span class="path"><b>${shot.entry}</b> → ${isAbsorbed(shot) ? lostSignalHtml() : `<b>${shot.exit}</b>`}</span>${chips(shot.color)}<span class="color-name">${isAbsorbed(shot) ? t.lostSignal.toLowerCase() : RESULT_COLOR_LABELS[shot.color]}</span></button></li>`,
-          )
-          .join('')}</ol>`
-      : '';
-
-    const count = session?.shotCount ?? 0;
     const extensions = session ? extensionsLabel(session.gems) : '';
-    const probeHistory = session?.probes.length
-      ? `<ul class="probe-list" aria-label="Sondages">${(session?.probes ?? [])
-          .map(
-            (probe) =>
-              `<li><b>${probe.cell}</b> · ${probe.content === 'black' ? `${lostSignalHtml()} ` : ''}${t.probe[probe.content]}</li>`,
-          )
-          .join('')}</ul>`
-      : '';
     const gameBar = `
         <div class="gamebar">
           <code class="seed" title="Graine">${session ? escapeHtml(session.seed) : '…'}</code>${
@@ -737,32 +736,20 @@ export function startApp(
           }
           <button type="button" class="ghost icon-btn fs-btn" data-action="enter-immersive" aria-label="${t.actions.fullscreen}" title="${t.actions.fullscreen}"${session && !session.finished ? '' : ' disabled'}>${FULLSCREEN_ICON}</button>
         </div>`;
+    const playing = state.phase === 'ready' && session !== null && !session.finished;
     root.innerHTML = page(
       `${gameBar}
         ${store.available ? '' : `<p class="warning" role="status">${t.hints.storageOff}</p>`}
-        <div class="play">
-          <section class="board-wrap" id="plateau" tabindex="-1" aria-label="Plateau">
-            <div class="tabs" role="tablist">
-              <button type="button" role="tab" class="tab${state.tab === 'shots' ? ' is-active' : ''}" aria-selected="${state.tab === 'shots'}" data-tab="shots">${t.tabs.shots}</button>
-              <button type="button" role="tab" class="tab${state.tab === 'solution' ? ' is-active' : ''}" aria-selected="${state.tab === 'solution'}" data-tab="solution">${t.tabs.solution}</button>
-              <button type="button" role="tab" class="tab${state.tab === 'notes' ? ' is-active' : ''}" aria-selected="${state.tab === 'notes'}" data-tab="notes">${t.tabs.notes}</button>${
-                session?.finished
-                  ? `<button type="button" role="tab" class="tab${state.tab === 'result' ? ' is-active' : ''}" aria-selected="${state.tab === 'result'}" data-tab="result">${t.tabs.result}</button>`
-                  : ''
-              }
-            </div>
-            ${board}
+        <div class="play${session?.finished ? ' is-result' : ''}">
+          ${historyPanel(session)}
+          <section class="play-center" id="plateau" tabindex="-1" aria-label="Plateau">
+            ${center}
           </section>
-          <aside class="side">
-            <div class="counter"><span class="count">${count}</span><span class="count-label">tir${plural(count, '', 's')}</span></div>
-            <p class="meta"><span id="timer">${formatTime(session?.elapsedMs() ?? 0)}</span></p>
-            ${session ? actionsPanel(session) : ''}
-            ${history}
-            ${probeHistory}
-          </aside>
+          ${playing && session ? sidePanel(session) : ''}
         </div>
         ${state.backend ? `<footer class="foot"><a class="nav-link" href="${routeHash('privacy')}">${t.privacy.link}</a></footer>` : ''}`,
       `<a class="skip-link" href="#plateau" data-action="skip">${t.skipToContent}</a>`,
+      true,
     );
     persist();
   };
@@ -808,7 +795,7 @@ export function startApp(
     state.explored = null;
     state.ask = null;
     state.confirm = null;
-    state.tab = 'shots';
+    state.tool = null;
     state.phase = 'ready';
     writeSeedToUrl(state.session.seed, extensionsOf(state.session.gems));
   };
@@ -830,7 +817,7 @@ export function startApp(
     state.ask = null;
     state.skipConfirm = false;
     state.confirm = null;
-    state.tab = 'shots';
+    state.tool = null;
     state.notice = '';
     navigate('game');
     // Laisse le navigateur afficher « Génération… » avant le calcul de la mine.
@@ -1138,20 +1125,6 @@ export function startApp(
     }
   };
 
-  /** Abandonne une partie du compte sans la charger : elle entre dans l'historique comme abandonnée. */
-  const abandonRemote = async (id: string): Promise<void> => {
-    const { backend } = state;
-    const game = state.playing.games.find((candidate) => candidate.id === id);
-    state.confirmRemote = null;
-    if (!backend || !game) return render();
-    try {
-      await backend.games.abandonPlaying(id, game.startedAt);
-    } catch {
-      state.notice = t.home.actionFailed;
-    }
-    loadPlayingList();
-  };
-
   /** Ajoute au compte la partie locale en cours. */
   const importCurrent = async (): Promise<void> => {
     const { game, account } = state;
@@ -1196,7 +1169,7 @@ export function startApp(
     clearSeedFromUrl();
     state.confirm = null;
     state.ask = null;
-    state.tab = 'result';
+    state.tool = null;
     state.notice = state.session ? t.status[state.session.status] : '';
     recordGame();
     render();
@@ -1268,6 +1241,8 @@ export function startApp(
   const editSolution = (next: Solution, gem: GemId | null = state.selectedGem): void => {
     if (state.session?.finished) return;
     state.solution = next;
+    // Une gemme posée doit se voir.
+    state.showGems = true;
     state.selectedGem = gem;
     state.hypothesis = null;
     render();
@@ -1284,22 +1259,35 @@ export function startApp(
 
   const beginDrag = (event: PointerEvent, element: SVGGElement, gem: GemId): void => {
     if (state.session?.finished) return;
+    // La gemme vit dans la grille (posée) ou dans la réserve, deux grilles SVG à la même échelle.
     const svg = element.ownerSVGElement;
-    if (!svg) return;
+    const board = root.querySelector<SVGSVGElement>('.notes-svg');
+    if (!svg || !board) return;
     event.preventDefault();
-    const start = toBoardPoint(svg, event.clientX, event.clientY);
-    const [originX, originY] = gemOrigin(state.solution, gem, state.immersive ? 'side' : 'bottom');
+    const [localX, localY] = gemOrigin(state.solution, gem, state.immersive ? 'side' : 'panel');
+    // Coin haut-gauche de la gemme, converti en coordonnées de la grille de jeu.
+    const [screenX, screenY] = toScreenPoint(svg, localX, localY);
+    const boardMatrix = board.getScreenCTM();
+    const [originX, originY] = boardMatrix
+      ? (() => {
+          const p = new DOMPoint(screenX, screenY).matrixTransform(boardMatrix.inverse());
+          return [p.x, p.y] as const;
+        })()
+      : [localX, localY];
     const { width, height } = gemSize(state.solution, gem);
+    const boardScale = pixelsPerUnit(board);
+    const elementScale = pixelsPerUnit(svg);
     let moved = false;
 
-    const delta = (e: PointerEvent): [number, number] => {
-      const [x, y] = toBoardPoint(svg, e.clientX, e.clientY);
-      return [x - start[0], y - start[1]];
-    };
+    /** Déplacement du pointeur, en pixels de l'écran. */
+    const delta = (e: PointerEvent): [number, number] => [
+      e.clientX - event.clientX,
+      e.clientY - event.clientY,
+    ];
     const onMove = (e: PointerEvent): void => {
       const [dx, dy] = delta(e);
-      if (Math.hypot(dx, dy) > 0.2) moved = true;
-      element.setAttribute('transform', `translate(${dx} ${dy})`);
+      if (Math.hypot(dx, dy) / boardScale > 0.2) moved = true;
+      element.setAttribute('transform', `translate(${dx / elementScale} ${dy / elementScale})`);
       element.classList.add('is-dragging');
     };
     const finish = (e: PointerEvent, cancelled: boolean): void => {
@@ -1313,8 +1301,8 @@ export function startApp(
         state.selectedGem = state.selectedGem === gem ? null : gem;
         return render();
       }
-      const x = originX + dx;
-      const y = originY + dy;
+      const x = originX + dx / boardScale;
+      const y = originY + dy / boardScale;
       const centerX = x + width / 2;
       const centerY = y + height / 2;
       const onBoard =
@@ -1335,7 +1323,7 @@ export function startApp(
   };
 
   /** Crayon, gomme et marques de cases sur la grille de notes. */
-  const beginNotes = (event: PointerEvent, tool: Tool): void => {
+  const beginNotes = (event: PointerEvent, tool: 'pencil' | 'line' | 'eraser' | 'empty'): void => {
     const board = (): SVGSVGElement | null => root.querySelector<SVGSVGElement>('.notes-svg');
     const point = (e: PointerEvent): NotePoint => {
       const svg = board();
@@ -1363,7 +1351,17 @@ export function startApp(
     const onMove = (e: PointerEvent): void => {
       const p = point(e);
       if (Math.hypot(p[0] - start[0], p[1] - start[1]) > 0.15) moved = true;
-      if (tool === 'pencil') {
+      if (tool === 'line') {
+        // Ligne droite : du point de départ au pointeur, dans la grille.
+        const inside: NotePoint = [
+          Math.min(Math.max(p[0], 0), GRID_COLS),
+          Math.min(Math.max(p[1], 0), GRID_ROWS),
+        ];
+        points.splice(1, points.length, inside);
+        root
+          .querySelector('#note-preview')
+          ?.setAttribute('points', points.map(([x, y]) => `${x},${y}`).join(' '));
+      } else if (tool === 'pencil') {
         const last = points.at(-1) ?? start;
         const inside: NotePoint = [
           Math.min(Math.max(p[0], 0), GRID_COLS),
@@ -1384,7 +1382,7 @@ export function startApp(
       window.removeEventListener('pointercancel', onCancel);
       state.notes = base;
       if (!cancelled) {
-        if (tool === 'pencil') {
+        if (tool === 'pencil' || (tool === 'line' && moved)) {
           const rounded = points.map(([x, y]): NotePoint => [
             Math.round(x * 100) / 100,
             Math.round(y * 100) / 100,
@@ -1392,9 +1390,9 @@ export function startApp(
           state.notes = commit(base, addStroke(base.present, { ink, points: rounded }));
         } else if (tool === 'eraser') {
           state.notes = commit(base, working);
-        } else if (!moved) {
+        } else if (tool === 'empty' && !moved) {
           const cell = cellAt(point(e));
-          if (cell) state.notes = commit(base, toggleMark(base.present, cell, tool));
+          if (cell) state.notes = commit(base, toggleMark(base.present, cell, 'empty'));
         }
       }
       render();
@@ -1421,14 +1419,14 @@ export function startApp(
       }
       return;
     }
-    if (state.tab === 'notes') {
-      if ((event.target as Element).closest('.notes-svg')) beginNotes(event, state.tool);
-      return;
-    }
-    if (state.tab !== 'solution') return;
-    const element = (event.target as Element).closest<SVGGElement>('[data-gem]');
+    if (state.session?.finished) return;
+    const target = event.target as Element;
+    // Les gemmes posées ne reçoivent plus le pointeur quand un outil de dessin est actif (voir le CSS) :
+    // seules celles de la réserve se déplacent alors.
+    const element = target.closest<SVGGElement>('[data-gem]');
     const gem = element?.dataset['gem'] as GemId | undefined;
-    if (element && gem) beginDrag(event, element, gem);
+    if (element && gem) return beginDrag(event, element, gem);
+    if (isDrawingTool(state.tool) && target.closest('.notes-svg')) beginNotes(event, state.tool);
   });
 
   root.addEventListener('click', (event) => {
@@ -1463,12 +1461,6 @@ export function startApp(
     if (explore?.dataset['explore']) return exploreMine(explore.dataset['explore']);
     const hypo = target.closest<HTMLElement>('[data-hypo]');
     if (hypo?.dataset['hypo']) return testOnSolution(hypo.dataset['hypo']);
-    const tab = target.closest<HTMLElement>('[data-tab]')?.dataset['tab'];
-    if (tab === 'shots' || tab === 'solution' || tab === 'notes' || tab === 'result') {
-      state.tab = tab;
-      state.selectedGem = null;
-      return render();
-    }
     const itool = target.closest<HTMLElement>('[data-itool]')?.dataset['itool'];
     if (itool) {
       state.itool = itool as ImmersiveTool;
@@ -1477,14 +1469,21 @@ export function startApp(
     }
     const tool = target.closest<HTMLElement>('[data-tool]')?.dataset['tool'];
     if (tool) {
-      state.tool = tool as Tool;
+      // Cliquer l'outil actif le désactive : on revient au jeu.
+      state.tool = state.tool === tool ? null : (tool as Tool);
+      state.selectedGem = null;
+      state.hypothesis = null;
+      // Dessiner sur des notes masquées ne se verrait pas.
+      if (isDrawingTool(state.tool)) state.showNotes = true;
       return render();
     }
     const ink = target.closest<HTMLElement>('[data-ink]')?.dataset['ink'];
     if (ink) {
       state.ink = ink as Ink;
       if (state.immersive) state.itool = 'pencil';
-      else if (state.tool !== 'pencil') state.tool = 'pencil';
+      else if (state.tool !== 'pencil' && state.tool !== 'line') state.tool = 'pencil';
+      state.showNotes = true;
+      state.hypothesis = null;
       return render();
     }
     const shot = target.closest<HTMLElement>('[data-shot]');
@@ -1520,14 +1519,6 @@ export function startApp(
       case 'resume-remote': {
         const id = target.closest<HTMLElement>('[data-id]')?.dataset['id'];
         if (id) void resumeRemote(id);
-        return;
-      }
-      case 'ask-abandon-remote':
-        state.confirmRemote = target.closest<HTMLElement>('[data-id]')?.dataset['id'] ?? null;
-        return render();
-      case 'confirm-abandon-remote': {
-        const id = target.closest<HTMLElement>('[data-id]')?.dataset['id'];
-        if (id) void abandonRemote(id);
         return;
       }
       case 'retry-playing':
@@ -1592,12 +1583,8 @@ export function startApp(
       case 'ask-submit':
         if (state.session && isSubmittable(state.solution)) state.confirm = 'submit';
         return render();
-      case 'ask-abandon':
-        state.confirm = 'abandon';
-        return render();
       case 'cancel-confirm':
         state.confirm = null;
-        state.confirmRemote = null;
         return render();
       case 'confirm-submit':
         if (state.session && isSubmittable(state.solution)) {
@@ -1606,9 +1593,6 @@ export function startApp(
         }
         state.confirm = null;
         return render();
-      case 'confirm-abandon':
-        state.session?.abandon();
-        return showResult();
       case 'replay':
         if (state.session) void beginGame(state.session.seed, extensionsOf(state.session.gems));
         return;
@@ -1635,10 +1619,12 @@ export function startApp(
       return;
     }
     const target = event.target as HTMLInputElement;
-    if (target.dataset['toggle'] !== 'notes') return;
-    state.showNotes = target.checked;
+    const toggle = target.dataset['toggle'];
+    if (toggle !== 'notes' && toggle !== 'gems') return;
+    if (toggle === 'notes') state.showNotes = target.checked;
+    else state.showGems = target.checked;
     render();
-    root.querySelector<HTMLInputElement>('#show-notes')?.focus();
+    root.querySelector<HTMLInputElement>(`[data-toggle="${toggle}"]`)?.focus();
   });
 
   root.addEventListener('keydown', (event) => {
@@ -1685,22 +1671,7 @@ export function startApp(
       gemButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       return;
     }
-    const tabButton = target.closest<HTMLElement>('[role="tab"]');
-    if (tabButton && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
-      const tabs = [...root.querySelectorAll<HTMLElement>('[role="tab"]')];
-      const index = tabs.indexOf(tabButton);
-      const next = tabs[(index + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
-      const name = next?.dataset['tab'];
-      if (name === 'shots' || name === 'solution' || name === 'notes' || name === 'result') {
-        event.preventDefault();
-        state.tab = name;
-        state.selectedGem = null;
-        render();
-        root.querySelector<HTMLElement>(`[data-tab="${name}"]`)?.focus();
-      }
-      return;
-    }
-    if (state.tab === 'notes' && (event.ctrlKey || event.metaKey)) {
+    if (!state.session?.finished && (event.ctrlKey || event.metaKey)) {
       const key = event.key.toLowerCase();
       if (key === 'z' && !event.shiftKey) {
         event.preventDefault();
@@ -1714,7 +1685,7 @@ export function startApp(
       }
     }
     const gemElement = target.closest<HTMLElement>('[data-gem]');
-    if (gemElement?.dataset['gem'] && state.tab === 'solution') {
+    if (gemElement?.dataset['gem'] && !state.session?.finished) {
       const gem = gemElement.dataset['gem'] as GemId;
       const move = (dCol: number, dRow: number): void => {
         if (state.solution[gem]) editSolution(nudgeGem(state.solution, gem, dCol, dRow), gem);
@@ -1764,15 +1735,9 @@ export function startApp(
     }
   });
 
-  // Chronomètre : met à jour le texte sans refaire tout l'affichage. Le temps écoulé est aussi
+  // Le temps écoulé n'est pas affiché pendant la partie (seulement à la fin), mais il est compté et
   // sauvegardé régulièrement, au cas où la page serait fermée sans prévenir.
-  let ticks = 0;
-  window.setInterval(() => {
-    const session = state.session;
-    const timer = root.querySelector('#timer');
-    if (session && timer) timer.textContent = formatTime(session.elapsedMs());
-    if (++ticks % 15 === 0) persist();
-  }, 1000);
+  window.setInterval(persist, 15_000);
   window.addEventListener('hashchange', () => {
     const next = viewFromHash();
     if (next === state.view) return;
@@ -1874,7 +1839,6 @@ export function startApp(
           }
           state.playing = { status: 'idle', games: [] };
           playingToken++;
-          state.confirmRemote = null;
           // Autre compte ou déconnexion : l'historique et le profil affichés ne sont plus les bons.
           state.history = { ...state.history, page: 0, status: 'loading', games: [], total: 0 };
           state.profile = { status: 'loading', stats: null };

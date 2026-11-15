@@ -24,7 +24,6 @@ const unusedMethods = {
   saveProgress: () => Promise.reject(new Error('inutilisé')),
   listPlaying: () => Promise.reject(new Error('inutilisé')),
   loadPlaying: () => Promise.reject(new Error('inutilisé')),
-  abandonPlaying: () => Promise.reject(new Error('inutilisé')),
   stats: () => Promise.reject(new Error('inutilisé')),
 };
 

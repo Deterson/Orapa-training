@@ -36,14 +36,17 @@ import type { CellMark, Ink } from '../game/notes';
 
 /** Couleur de l'encre du crayon. */
 export const INK_COLOR: Record<Ink, string> = {
+  // S'adapte au thème : sombre en clair, clair en sombre.
   ink: 'var(--fg)',
+  black: '#000000',
   red: '#d33a2c',
   yellow: '#e8b100',
   blue: '#2f6fb5',
 };
 
 export const INK_LABEL: Record<Ink, string> = {
-  ink: 'noir',
+  ink: 'auto',
+  black: 'noir',
   red: 'rouge',
   yellow: 'jaune',
   blue: 'bleu',

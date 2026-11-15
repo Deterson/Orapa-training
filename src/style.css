@@ -137,21 +137,170 @@ h2 {
   font-size: 0.85rem;
 }
 
+/* Vue de jeu : historique à gauche, grille au centre, outils et gemmes à droite. --u est la taille
+   d'une case (la grille et la réserve des gemmes ont la même échelle). */
+.app.is-play {
+  max-width: none;
+}
+
 .play {
+  --u: calc((100vw - 2rem) / 12.2);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 20px;
 }
 
-@media (min-width: 52rem) {
+.play-center {
+  min-width: 0;
+  order: 1;
+}
+
+.play-side {
+  order: 2;
+}
+
+.play-history {
+  order: 3;
+}
+
+@media (min-width: 56rem) {
   .play {
-    grid-template-columns: minmax(0, 1fr) 18rem;
+    --u: min(4.2rem, calc((100vw - 16.5rem) / 18.8), max(2.9rem, calc((100dvh - 11rem) / 10.2)));
+    grid-template-columns: 12rem calc(12.2 * var(--u)) calc(6.6 * var(--u));
+    justify-content: center;
     align-items: start;
+    gap: 1.25rem;
+  }
+
+  .play.is-result {
+    grid-template-columns: 12rem minmax(0, 44rem);
+  }
+
+  .play-history {
+    order: 1;
+    max-height: calc(10.2 * var(--u));
+    overflow-y: auto;
+  }
+
+  .play-center {
+    order: 2;
+  }
+
+  .play-side {
+    order: 3;
   }
 }
 
-.board-wrap {
+.play-history {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   min-width: 0;
+}
+
+.play-side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.board-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-top: 6px;
+}
+
+.board-toggles,
+.board-undo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.board-undo button {
+  min-height: 38px;
+  padding: 4px 12px;
+}
+
+.board-gems .gem-g.is-placed polygon {
+  fill-opacity: 0.92;
+}
+
+.board-notes {
+  pointer-events: none;
+}
+
+/* Un outil de dessin actif : les gemmes posées laissent passer le pointeur jusqu'à la grille. */
+.play-svg:not(.tool-play):not(.tool-simulate) .board-gems .gem-g {
+  pointer-events: none;
+}
+
+.play-svg.tool-pencil,
+.play-svg.tool-line,
+.play-svg.tool-eraser {
+  touch-action: none;
+}
+
+/* Colonne d'outils */
+.tools {
+  display: grid;
+  gap: 6px;
+}
+
+.tool-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.tool {
+  min-height: 40px;
+  padding: 4px 12px;
+}
+
+.ink-auto {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  border: 1px solid #0006;
+  background: linear-gradient(135deg, #111 50%, #fff 50%);
+}
+
+/* Réserve des gemmes : même échelle que la grille ; une gemme glissée dépasse de son cadre. */
+.tray-svg {
+  display: block;
+  width: calc(6.6 * var(--u));
+  height: auto;
+  overflow: visible;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* « Soumettre » : en vert, sous les gemmes. */
+button.submit-btn {
+  width: 100%;
+  min-height: 48px;
+  color: #fff;
+  background: #1f8f4e;
+  border-color: #1f8f4e;
+  font-weight: 700;
+}
+
+.confirm .submit-btn {
+  width: auto;
+}
+
+.result-meta {
+  margin: 2px 0 8px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .placeholder {
@@ -266,6 +415,7 @@ h2 {
 
 .count-label {
   color: var(--muted);
+  line-height: 1;
 }
 
 .hint {
@@ -315,33 +465,6 @@ h2 {
   border-radius: 50%;
   border: 1px solid #0006;
   flex: none;
-}
-
-.color-name {
-  min-width: 5.5rem;
-  text-align: right;
-}
-
-.tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 12px;
-  border-bottom: 1px solid var(--line);
-}
-
-.tab {
-  color: var(--muted);
-  background: transparent;
-  border: 0;
-  border-bottom: 3px solid transparent;
-  border-radius: 0;
-  padding: 8px 16px;
-  font-weight: 600;
-}
-
-.tab.is-active {
-  color: var(--fg);
-  border-bottom-color: var(--accent);
 }
 
 .tray {
@@ -409,13 +532,6 @@ polygon.gem-clear,
   stroke-width: 0.12;
 }
 
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 12px 0 8px;
-}
-
 .status,
 .hypo {
   margin: 6px 0;
@@ -438,6 +554,7 @@ polygon.gem-clear,
 }
 
 .notes-svg.tool-pencil,
+.notes-svg.tool-line,
 .notes-svg.tool-eraser {
   touch-action: none;
   cursor: crosshair;
@@ -483,14 +600,6 @@ polygon.gem-clear,
   stroke-width: 0.03;
 }
 
-.notes-tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-top: 10px;
-}
-
 .tool,
 .ink {
   color: var(--fg);
@@ -502,26 +611,6 @@ polygon.gem-clear,
 .ink[aria-pressed='true'] {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent);
-}
-
-.swatch {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 600;
-}
-
-.swatch span {
-  width: 1rem;
-  height: 1rem;
-  border-radius: 50%;
-  border: 1px solid #0006;
-}
-
-.inks {
-  display: inline-flex;
-  gap: 4px;
-  margin-left: 6px;
 }
 
 .ink {
@@ -537,12 +626,6 @@ polygon.gem-clear,
   height: 1.1rem;
   border-radius: 50%;
   border: 1px solid #0006;
-}
-
-.meta {
-  margin: 0;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
 }
 
 .actions {
@@ -723,16 +806,6 @@ polygon.gem-clear,
   outline: none;
 }
 
-.tabs {
-  overflow-x: auto;
-  white-space: nowrap;
-  scrollbar-width: thin;
-}
-
-.tab {
-  flex: none;
-}
-
 .rules {
   max-width: 44rem;
   display: flex;
@@ -832,23 +905,8 @@ polygon.gem-clear,
   }
 }
 
-/* Glisser-déposer des gemmes au doigt : le navigateur ne doit pas faire défiler la page. */
-.board-svg.solution-svg {
-  touch-action: none;
-}
-
 .note-empty {
   fill: url(#pat-empty);
-  pointer-events: none;
-}
-
-.ghost-gems {
-  opacity: 0.4;
-  pointer-events: none;
-}
-
-.ghost-notes {
-  opacity: 0.55;
   pointer-events: none;
 }
 
@@ -881,6 +939,15 @@ polygon.gem-clear,
 .chips {
   display: inline-flex;
   flex: none;
+}
+
+/* Résultat « transparent » : pastille au simple contour blanc (cerclé d'un filet sombre pour rester lisible). */
+.chip.chip-clear {
+  background: transparent;
+  border: 2px solid #fff;
+  box-shadow:
+    0 0 0 1px #0007,
+    inset 0 0 0 1px #0004;
 }
 
 .chips {

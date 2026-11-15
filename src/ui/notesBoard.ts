@@ -1,64 +1,67 @@
 /**
- * Calque de notes : marques de cases et traits au crayon, par-dessus la grille et les
- * résultats de tirs. Dessin en SVG ; les interactions sont dans app.ts.
+ * Outils de la colonne de droite (crayon, ligne droite, gomme, vide, simulation, couleurs) et rangée
+ * du bas de la grille (afficher les notes et les gemmes ; annuler, rétablir, effacer). Le dessin des
+ * notes est dans notesLayer.ts ; les interactions sont dans app.ts.
  */
-import type { Placement } from '../game/gems';
-import type { CellMark, Ink, NotesHistory } from '../game/notes';
-import type { ShotRecord } from '../game/session';
-import { boardFrame, entryLabelsSvg, ghostGemsSvg } from './board';
-import { notesLayerSvg } from './notesLayer';
-import { GEM_FILL, INK_COLOR, INK_LABEL, MARK_LABEL, MARK_LETTER } from './palette';
+import type { Ink, NotesHistory } from '../game/notes';
+import { INK_COLOR, INK_LABEL } from './palette';
+import { t } from './strings';
 
-export type Tool = 'pencil' | 'eraser' | CellMark;
+/**
+ * Outil actif. Aucun (null) = « jouer » : les repères tirent, les cases sondent, les gemmes se
+ * déplacent. « simulate » : les repères testent un tir sur les gemmes posées par le joueur.
+ */
+export type Tool = 'pencil' | 'line' | 'eraser' | 'empty' | 'simulate';
 
-export interface NotesView {
-  history: NotesHistory;
-  shots: readonly ShotRecord[];
-  /** Gemmes posées par le joueur, affichées en transparence comme sur l'onglet Tirs. */
-  gems: readonly Placement[];
-  tool: Tool;
+/** Outils qui dessinent sur la grille (les gemmes posées n'interceptent alors plus le pointeur). */
+export function isDrawingTool(tool: Tool | null): tool is 'pencil' | 'line' | 'eraser' | 'empty' {
+  return tool !== null && tool !== 'simulate';
+}
+
+const INKS: readonly Ink[] = ['ink', 'black', 'red', 'yellow', 'blue'];
+
+export interface ToolsView {
+  tool: Tool | null;
   ink: Ink;
 }
 
-const COLOR_MARKS = ['red', 'yellow', 'blue', 'white'] as const;
-const OTHER_MARKS = ['empty', 'maybe'] as const;
-
-export function notesBoardSvg(view: NotesView): string {
-  const content = `${ghostGemsSvg(view.gems)}${entryLabelsSvg({ shots: view.shots, selected: null }, 'note', false)}<g id="note-layer">${notesLayerSvg(view.history.present)}</g><polyline id="note-preview" class="note-stroke" points="" stroke="${INK_COLOR[view.ink]}"/>`;
-  return boardFrame(
-    'Grille de notes : posez des marques sur les cases ou dessinez au crayon',
-    content,
-    `notes-svg tool-${view.tool}`,
-  );
+/** Colonne d'outils : cliquer l'outil actif le désactive (retour au jeu). */
+export function toolsHtml({ tool, ink }: ToolsView): string {
+  const pressed = (name: Tool): string => `aria-pressed="${tool === name}"`;
+  const button = (name: Tool, label: string, content = label): string =>
+    `<button type="button" class="tool" data-tool="${name}" ${pressed(name)} aria-label="${label}" title="${label}">${content}</button>`;
+  const inks = INKS.map((name) => {
+    const swatch =
+      name === 'ink'
+        ? '<span class="ink-auto" aria-hidden="true"></span>'
+        : `<span style="background:${INK_COLOR[name]}" aria-hidden="true"></span>`;
+    return `<button type="button" class="ink" data-ink="${name}" aria-pressed="${ink === name}" aria-label="Encre ${INK_LABEL[name]}" title="Encre ${INK_LABEL[name]}">${swatch}</button>`;
+  }).join('');
+  return `<div class="tools" role="toolbar" aria-label="${t.tools.label}">
+      <div class="tool-row">${button('pencil', t.tools.pencil)}${button('line', t.tools.line)}${button('eraser', t.tools.eraser)}</div>
+      <div class="tool-row ink-row" role="group" aria-label="${t.tools.inks}">${inks}</div>
+      <div class="tool-row">${button('empty', t.tools.empty, `<span class="empty-swatch" aria-hidden="true"></span>${t.tools.empty}`)}${button('simulate', t.tools.simulate)}</div>
+    </div>`;
 }
 
-export function notesToolbar(view: NotesView): string {
-  const { tool, ink, history } = view;
-  const pressed = (name: Tool): string => `aria-pressed="${tool === name}"`;
-  const colorTools = COLOR_MARKS.map(
-    (mark) =>
-      `<button type="button" class="tool swatch" data-tool="${mark}" ${pressed(mark)} aria-label="Marquer une gemme ${MARK_LABEL[mark]}" title="Gemme ${MARK_LABEL[mark]}"><span style="background:${GEM_FILL[mark]}" aria-hidden="true"></span>${MARK_LETTER[mark]}</button>`,
-  ).join('');
-  const otherTools = OTHER_MARKS.map(
-    (mark) =>
-      `<button type="button" class="tool" data-tool="${mark}" ${pressed(mark)} aria-label="${mark === 'empty' ? 'Case vide' : 'Doute'}">${mark === 'empty' ? '<span class="empty-swatch" aria-hidden="true"></span>Vide' : '?'}</button>`,
-  ).join('');
-  const inks = (['ink', 'red', 'yellow', 'blue'] as const)
-    .map(
-      (name) =>
-        `<button type="button" class="ink" data-ink="${name}" aria-pressed="${ink === name}" aria-label="Encre ${INK_LABEL[name]}" title="Encre ${INK_LABEL[name]}"><span style="background:${INK_COLOR[name]}" aria-hidden="true"></span></button>`,
-    )
-    .join('');
-  return `
-    <div class="notes-tools" role="toolbar" aria-label="Outils de notes">
-      <button type="button" class="tool" data-tool="pencil" ${pressed('pencil')}>Crayon</button>
-      <button type="button" class="tool" data-tool="eraser" ${pressed('eraser')}>Gomme</button>
-      <span class="inks" role="group" aria-label="Couleur du crayon">${inks}</span>
-    </div>
-    <div class="notes-tools" role="toolbar" aria-label="Marques de cases">${colorTools}${otherTools}</div>
-    <div class="notes-tools" role="toolbar" aria-label="Historique des notes">
-      <button type="button" class="ghost" data-action="undo" aria-label="Annuler" title="Annuler"${history.past.length ? '' : ' disabled'}>↶</button>
-      <button type="button" class="ghost" data-action="redo" aria-label="Rétablir" title="Rétablir"${history.future.length ? '' : ' disabled'}>↷</button>
-      <button type="button" class="ghost" data-action="clear-notes"${Object.keys(history.present.marks).length + history.present.strokes.length ? '' : ' disabled'}>Effacer</button>
+export interface FooterView {
+  history: NotesHistory;
+  showNotes: boolean;
+  showGems: boolean;
+}
+
+/** Sous la grille : cases à cocher à gauche ; annuler, rétablir, effacer à droite. */
+export function footerHtml({ history, showNotes, showGems }: FooterView): string {
+  const hasNotes = Object.keys(history.present.marks).length + history.present.strokes.length > 0;
+  return `<div class="board-foot">
+      <div class="board-toggles">
+        <label class="check"><input type="checkbox" data-toggle="notes"${showNotes ? ' checked' : ''} />${t.actions.showNotes}</label>
+        <label class="check"><input type="checkbox" data-toggle="gems"${showGems ? ' checked' : ''} />${t.actions.showGems}</label>
+      </div>
+      <div class="board-undo" role="toolbar" aria-label="Historique des notes">
+        <button type="button" class="ghost" data-action="undo"${history.past.length ? '' : ' disabled'}>${t.actions.undo}</button>
+        <button type="button" class="ghost" data-action="redo"${history.future.length ? '' : ' disabled'}>${t.actions.redo}</button>
+        <button type="button" class="ghost" data-action="clear-notes"${hasNotes ? '' : ' disabled'}>${t.actions.clear}</button>
+      </div>
     </div>`;
 }

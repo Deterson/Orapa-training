@@ -49,7 +49,8 @@ Périmètre par version (détail dans `docs/roadmap.md`) :
   pourcentage de parties gagnées, moyenne de tirs avant de gagner). Demande un
   backend. Sans compte, le jeu reste jouable mais limité à **une seule partie à la fois**.
 - **v3** : le joueur **crée son plateau** (cache ses gemmes) et **joue contre une IA** qui cherche le
-  sien pendant qu'il cherche celui de l'IA (fini le simple entraînement).
+  sien pendant qu'il cherche celui de l'IA (fini le simple entraînement) ; mode **daltonien**
+  (palette et motifs qui ne reposent pas sur la seule teinte).
 - **v4** : **duel en direct** contre un autre joueur (arbitre serveur qui répond aux lasers sans
   révéler les plateaux).
 
@@ -107,7 +108,7 @@ comprises. Un lien `?seed=…` (avec `ext=`) lance cette mine directement.
 
 Pages :
 
-1. **Accueil** (`ui/home.ts`) : la partie en cours (Reprendre, Abandonner, Importer), la liste des
+1. **Accueil** (`ui/home.ts`) : la partie en cours (Reprendre, Importer), la liste des
    parties en cours du compte (connecté seulement, 10 au plus) et « Nouvelle partie » (fenêtre des extensions : Diamant, Corps
    noir).
 2. **Partie** : la vue décrite dans « Interface » ci-dessous. Sans partie, l'adresse retombe sur
@@ -116,9 +117,10 @@ Pages :
 4. **Historique** (connecté) : les parties terminées, filtre victoires / défaites, tri, « Rejouer ».
    (Page à part, à la demande du propriétaire, et non dans la vue Profil.)
 
-**Sans compte, une seule partie à la fois** (la sauvegarde locale) : tant qu'elle n'est ni terminée ni
-abandonnée, « Nouvelle partie » est désactivée (reprendre, abandonner ou se connecter) et un lien
-vers une autre mine est ignoré. Avec un compte, plusieurs parties en cours (10 au plus), enregistrées côté
+**Sans compte, une seule partie à la fois** (la sauvegarde locale) : tant qu'elle n'est pas terminée,
+« Nouvelle partie » est désactivée (la terminer, ou se connecter) et un lien vers une autre mine est
+ignoré. **Il n'y a pas d'abandon** (retiré en 2.0.1) : on termine une partie en la soumettant ; le
+statut `abandoned` n'existe plus que dans les anciennes données, où il compte comme une défaite. Avec un compte, plusieurs parties en cours (10 au plus), enregistrées côté
 serveur et synchronisées (`backend/sync.ts`) : on les reprend depuis n'importe quel appareil.
 
 ## Interface
@@ -136,30 +138,48 @@ Les étiquettes d'accessibilité (`aria-label`, texte pour lecteurs d'écran) re
 
 La **version du build** (`vX.Y.Z`, issue de `package.json`) s'affiche en petit à droite du titre, dans la barre du haut : l'incrémenter à chaque livraison.
 
+**Une seule grille, pas d'onglets** (plus de « Tirs / Gemmes / Notes »). Trois colonnes sur ordinateur
+(`playBoard.ts`, `notesBoard.ts`, `solutionBoard.ts`) ; sur petit écran elles s'empilent (grille, puis outils
+et gemmes, puis historique). La grille est plus grande qu'avant (jusqu'à 4,2 rem par case, bornée par la
+largeur et la hauteur de la fenêtre) ; la réserve de gemmes a la même échelle que la grille.
+
 Zones :
 
-1. **Grille de tir** : les repères de bord sont cliquables pour tirer un laser, et **toucher une case la sonde**. Chaque tir ou sonde demande une confirmation en modale (« Laser en E ? », « Sonder E4 ? »), désactivable pour la partie ; redemander un laser déjà tiré est gratuit et ouvre à la place une **modale de résumé** (« E → F » + pastilles de la couleur, fermée d'un clic n'importe où), redemander une case sondée est gratuit. Le numéro du tir figure sur le repère d'entrée (en haut à droite) et, dans une pastille de la couleur obtenue (en bas à droite), sur le repère de sortie ; ces pastilles restent visibles en mode notes. **Le chemin du rayon n'est jamais tracé**
-   (il trahirait les gemmes) ; il ne l'est que sur la grille de solution du joueur. Historique des tirs (numéroté) consultable et effaçable à
-   l'affichage (mais le **compteur de tirs** ne baisse jamais). Les **gemmes posées** par le joueur et ses **notes** s'y affichent en **transparence** sous les repères ; une case à cocher « Notes » masque ou affiche les notes (les gemmes restent affichées).
-2. **Grille de notes / dessin** : les gemmes posées y sont affichées en transparence comme sur l'onglet Tirs ; calque libre pour annoter les cases (couleur,
-   **vide (stries diagonales grises transparentes)**, doute, crayon, gomme, annuler/rétablir). N'a aucun effet sur la
-   correction.
-3. **Grille de solution** (onglet « Gemmes ») : le joueur y dépose les gemmes de sa réserve (les mêmes
-   que celles cachées) et les déplace ; la gemme sélectionnée porte un **bouton rond ↻ (pivoter)** à son coin
-   haut-droit, et la rouge un bouton **⇋ (retourner)** ; pas de barre de boutons en bas. Les notes s'y affichent en transparence (même case « Notes »). Les placements invalides (chevauchement, hors grille, contact
-   par un segment) sont refusés ou signalés avec la règle enfreinte.
-4. **Résultat** (fin de partie) : la vraie mine et la proposition ; les 36 repères restent cliquables pour tirer des lasers libres dans la mine révélée (trajet tracé, hors compteur).
-5. **Plein écran (téléphone, paysage)** : bouton à **pictogramme** (quatre coins) dans la barre de la partie, **affiché seulement sur écran tactile** (`pointer: coarse`) ; un seul plateau (`ui/immersiveBoard.ts`) avec réserve de gemmes à droite et colonne d'outils ; l'outil « Jouer » tire (repères), sonde (cases) et déplace les gemmes, les autres outils dessinent (les repères restent cliquables).
-6. **Barre de la partie** : graine, extensions ; l'adresse du navigateur porte `?seed=…&ext=…` pendant la partie et relance la même mine. **Barre d'actions** : Soumettre, Abandonner/Révéler, compteur
-   de **tirs** (lasers et sondes de cases comptent pareil), chronomètre. Les **extensions** de la
-   partie (« Sans extension », « Diamant », « Corps noir » ou les deux) s'affichent à côté de la
-   graine, en haut de la vue de jeu.
+1. **Colonne de gauche : compteur et historique des tirs.** Le **compteur de tirs** ne baisse jamais ;
+   l'historique (numéroté, consultable) montre le trajet « E → F » et des **pastilles** de la couleur
+   obtenue, **sans le nom** de la couleur : « transparent » est une pastille au **simple contour blanc**, et
+   le nom de la couleur apparaît **au survol de la souris** (pour toutes les couleurs). Viennent ensuite les
+   sondes. **Pas d'horloge** : le temps n'est montré qu'au résultat.
+2. **Grille de jeu (au centre).** Les repères de bord sont cliquables pour tirer un laser, et **toucher une
+   case la sonde**. Chaque tir ou sonde demande une confirmation en modale (« Laser en E ? », « Sonder E4 ? »),
+   désactivable pour la partie ; redemander un laser déjà tiré est gratuit et ouvre à la place une **modale de
+   résumé** (« E → F » + pastilles de la couleur, fermée d'un clic n'importe où), redemander une case sondée est
+   gratuit. Le numéro du tir figure sur le repère d'entrée (en haut à droite) et, dans une pastille de la
+   couleur obtenue (en bas à droite), sur le repère de sortie. **Le chemin du rayon n'est jamais tracé** (il
+   trahirait les gemmes) ; il ne l'est que par l'outil « Simuler » (sur les gemmes du joueur) et à la fin.
+   Les **gemmes posées** par le joueur (déplaçables, la gemme sélectionnée porte un **bouton rond ↻
+   (pivoter)** à son coin haut-droit, et la rouge un bouton **⇋ (retourner)**) et ses **notes** sont dessinées
+   sur cette grille. Les placements invalides (chevauchement, hors grille, contact par un segment) sont
+   refusés ou signalés avec la règle enfreinte.
+3. **Sous la grille.** À gauche, deux cases à cocher **« Notes »** et **« Gemmes »** : afficher ou masquer les
+   notes et les gemmes déjà placées. À droite, **« Annuler »**, **« Rétablir »** et **« Effacer »** (les notes).
+4. **Colonne de droite, en haut : outils de notes.** **Crayon**, **Ligne droite**, **Gomme**, **Vide** (stries
+   diagonales grises transparentes), **Simuler** (les repères testent un tir sur les gemmes du joueur et en
+   tracent le trajet : « mon placement produirait-il bien ce résultat ? ») et le choix de l'encre : noir « auto »
+   (suit le thème), **noir**, rouge, jaune, bleu. Plus de marques « R J B Bl » ni de « ? » (les anciennes notes
+   restent lisibles). **Aucun outil actif = « jouer »** (tirer, sonder, déplacer les gemmes) ; recliquer
+   l'outil actif le désactive ; un outil de dessin laisse passer le pointeur à travers les gemmes posées.
+   Les notes n'ont aucun effet sur la correction.
+5. **Colonne de droite, en bas : gemmes à placer et « Soumettre ».** La réserve (les mêmes gemmes que celles
+   cachées) se glisse sur la grille ; **« Soumettre »** est **en vert**, sous les gemmes (activé quand toutes sont
+   bien placées), avec confirmation. **Pas de bouton « Abandonner ».**
+6. **Résultat** (fin de partie) : « Gagné » / « Perdu », le **nombre de tirs et le temps** (seul endroit où
+   l'horloge apparaît), la vraie mine et la proposition ; les 36 repères restent cliquables pour tirer des
+   lasers libres dans la mine révélée (trajet tracé, hors compteur).
+7. **Plein écran (téléphone, paysage)** : bouton à **pictogramme** (quatre coins) dans la barre de la partie, **affiché seulement sur écran tactile** (`pointer: coarse`) ; un seul plateau (`ui/immersiveBoard.ts`) avec réserve de gemmes à droite et colonne d'outils ; l'outil « Jouer » tire (repères), sonde (cases) et déplace les gemmes, les autres outils dessinent (les repères restent cliquables).
+8. **Barre de la partie** : graine, extensions ; l'adresse du navigateur porte `?seed=…&ext=…` pendant la partie et relance la même mine. Les **extensions** de la partie (« Sans extension », « Diamant », « Corps noir » ou les deux) s'affichent à côté de la graine, en haut de la vue de jeu. Les **tirs** (lasers et sondes de cases comptent pareil) sont dans la colonne de gauche.
 
-Il est acceptable que ces zones soient des calques d'une même grille ou des
-onglets/panneaux côte à côte ; le choix est à faire à l'implémentation, mais la
-**simulation du laser doit pouvoir être affichée sur la grille de solution** du
-joueur (outil de vérification d'hypothèse : « mon placement produirait-il bien
-ce résultat ? »).
+La **simulation du laser doit pouvoir être affichée sur la grille du joueur** (outil « Simuler »).
 
 Une page **« Règles »** du site expose les règles de `docs/regles.md` aux joueurs, y
 compris la particularité de la gemme rouge retournable.
@@ -176,7 +196,7 @@ compris la particularité de la gemme rouge retournable.
   immédiatement. En entraînement, **une seule proposition** (`MAX_ATTEMPTS = 1` dans
   `game/session.ts`) ; la constante permet un mode plus indulgent.
 - Après soumission : afficher les différences (gemmes manquantes / mal placées /
-  en trop) et la vraie mine.
+  en trop), la vraie mine, le nombre de tirs et le temps écoulé.
 
 ## Stack et conventions
 
@@ -211,14 +231,15 @@ src/
     verify.ts      # ✔ correction par égalité stricte, détail gemme par gemme
     probe.ts       # ✔ « Qu'y a-t-il en E4 ? »
     save.ts        # ✔ format de la sauvegarde locale et validation stricte
-    notes.ts       # ✔ notes : marques de cases, traits, gomme, annuler / rétablir
+    notes.ts       # ✔ notes : marque « vide », traits (crayon, ligne droite), gomme, annuler / rétablir
     record.ts      # ✔ enregistrement d'une partie terminée (table `games`)
     solution.ts    # ✔ solution du joueur : poser, pivoter, retourner la rouge, règles, comparaison aux tirs
   ui/          # composants, interactions pointeur, rendu SVG
     app.ts         # ✔ état de l'application, partie, historique des tirs
-    board.ts       # ✔ grille SVG, repères du bord, marques des tirs
-    solutionBoard.ts # ✔ grille de solution et réserve de gemmes
-    notesBoard.ts  # ✔ calque de notes et ses outils
+    board.ts       # ✔ cadre SVG de la grille, repères du bord, marques des tirs et des sondes
+    playBoard.ts   # ✔ la grille de jeu unique (tirs, sondes, gemmes posées, notes, simulation)
+    solutionBoard.ts # ✔ gemmes : réserve à droite de la grille, dessin d'une gemme, boutons ↻ ⇋
+    notesBoard.ts  # ✔ colonne d'outils (crayon, ligne, gomme, vide, simuler, encres) et pied de grille
     resultBoard.ts # ✔ écran de résultat : vraie mine et proposition
     storage.ts     # ✔ accès protégé au localStorage
     rules.ts       # ✔ page « Règles » (schémas tirés des données du jeu)
@@ -338,7 +359,7 @@ v3.1 à v3.7 la **v4**.
 - ~~Soumission en entraînement~~ : décidé en v0.9, une seule tentative (`MAX_ATTEMPTS`).
 - ~~« Sonder une case »~~ : décidé en v0.9, proposée et comptée à part des lasers.
 - ~~Une partie abandonnée compte-t-elle comme perdue dans le pourcentage de victoires (v2) ?~~
-  Décidé en v1.1 : oui.
+  Décidé en v1.1 : oui. (L'abandon a depuis été retiré, 2.0.1 ; les anciennes parties comptent toujours.)
 - Limite de tirs imposée, ou simple compteur indicatif ?
 - ~~Supabase ou Firebase pour la v2 ?~~ Décidé en v1.1 : Supabase.
 - Duel (v3) : « en même temps » ou tour par tour ? règle de fin (livret ou indulgente) ? Voir `docs/roadmap.md`.

@@ -273,16 +273,6 @@ describe('parties en cours', () => {
     const broken = fakeClient([ok([{ snapshot: { version: 1 }, updated_at: 'x' }])]).client;
     await expect(createGamesService(broken).loadPlaying(ID)).rejects.toThrow('illisible');
   });
-
-  it('abandonne une partie en cours sans la charger, la fin ne précède pas le début', async () => {
-    const future = new Date(Date.now() + 3_600_000).toISOString();
-    const { client, calls } = fakeClient([ok([{ id: ID }])]);
-    await createGamesService(client).abandonPlaying(ID, future);
-    const update = calls.find((call) => call[0] === 'update')?.[1] as Record<string, unknown>;
-    expect(update).toMatchObject({ status: 'abandoned', snapshot: null, submission: null });
-    expect(Date.parse(update['ended_at'] as string)).toBeGreaterThanOrEqual(Date.parse(future));
-    expect(calls).toContainEqual(['eq', 'status', 'playing']);
-  });
 });
 
 describe('historique', () => {

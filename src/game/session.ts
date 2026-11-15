@@ -18,6 +18,10 @@ import { isCorrect } from './verify';
  */
 export const MAX_ATTEMPTS = 1;
 
+/**
+ * `abandoned` n'est plus produit par le jeu (l'abandon a été retiré) : il reste pour relire les
+ * anciennes parties (sauvegardes locales, historique du compte), où il compte comme une défaite.
+ */
 export type GameStatus = 'playing' | 'won' | 'lost' | 'abandoned';
 
 /** Résultat annoncé d'un tir. */
@@ -265,12 +269,6 @@ export class GameSession {
       attemptsLeft: this.finished ? 0 : MAX_ATTEMPTS - this.#attempts,
       status: this.#status,
     };
-  }
-
-  /** Renonce et révèle la mine. */
-  abandon(): void {
-    this.#assertPlaying();
-    this.#finish('abandoned');
   }
 
   /** La vraie mine : réservée aux parties terminées. */

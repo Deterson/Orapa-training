@@ -40,7 +40,7 @@ Une fois le site relié à un projet Supabase ([`docs/backend.md`](docs/backend.
 - **Historique** (`#/historique`) : parties terminées, filtre victoires / défaites, tri, lien pour
   rejouer la même mine ; envoi avec file locale en cas de coupure.
 - **Profil** (`#/profil`) : nombre de parties, victoires, % de victoires et tirs moyens par
-  victoire (une partie abandonnée compte comme perdue).
+  victoire (les anciennes parties abandonnées, l'abandon n'existant plus, comptent comme perdues).
 - **Confidentialité** (`#/confidentialite`) : ce qui est gardé, suppression du compte et de ses parties.
 - Chaque utilisateur ne voit que ses parties (sécurité par ligne, testée en CI).
 

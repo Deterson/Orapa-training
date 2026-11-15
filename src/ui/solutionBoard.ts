@@ -1,9 +1,9 @@
 /**
- * Grille de solution : le joueur y pose ses gemmes. Dessin en SVG ; les interactions
- * (glisser-déposer, clavier) sont dans app.ts.
+ * Gemmes du joueur : la réserve (à droite de la grille, ou dans la grille du mode plein écran) et le
+ * dessin d'une gemme, posée ou non. Dessin en SVG ; les interactions (glisser-déposer, clavier) sont
+ * dans app.ts.
  */
 import { cellLabel } from '../game/board';
-import { GRID_COLS, GRID_ROWS } from '../game/constants';
 import {
   EXTENSION_GEM_IDS,
   GEM_SHAPES,
@@ -12,47 +12,36 @@ import {
   placedPolygon,
 } from '../game/gems';
 import { translate } from '../game/geometry';
-import type { ShotResult } from '../game/laser';
-import type { Notes } from '../game/notes';
-import type { ShotRecord } from '../game/session';
-import { type Solution, type SolutionIssue, gemsOf, sizeOf } from '../game/solution';
-import { boardFrame, entryLabelsSvg } from './board';
-import { notesLayerSvg } from './notesLayer';
-import { RAY_COLOR, gemPolygons } from './palette';
+import type { SolutionIssue } from '../game/solution';
+import { type Solution, gemsOf, sizeOf } from '../game/solution';
+import { gemPolygons } from './palette';
 import { t } from './strings';
-
-/** Haut de la réserve, sous la grille et ses repères. */
-export const TRAY_TOP = GRID_ROWS + 1.7;
-/** Hauteur de la réserve : une rangée de plus quand le Diamant ou le Corps noir sont en jeu. */
-const TRAY_HEIGHT = 5.4;
-const TRAY_HEIGHT_EXTENDED = 6.8;
 
 /** Vrai si la partie compte le Diamant ou le Corps noir. */
 export function hasExtensions(solution: Solution): boolean {
   return EXTENSION_GEM_IDS.some((gem) => solution[gem] !== undefined);
 }
 
-function trayHeight(solution: Solution): number {
-  return hasExtensions(solution) ? TRAY_HEIGHT_EXTENDED : TRAY_HEIGHT;
-}
+/** Réserve à droite de la grille (affichage normal, « panel ») ou dans la grille (plein écran, « side »). */
+export type TrayLayout = 'panel' | 'side';
 
-/** Hauteur ajoutée sous la grille pour la réserve. */
-function trayExtra(solution: Solution): number {
-  return TRAY_TOP + trayHeight(solution) - GRID_ROWS - 1.1 + 0.2;
-}
+/** Réserve de l'affichage normal : largeur et hauteur, en cases (la même échelle que la grille). */
+export const PANEL_WIDTH = 6.6;
+const PANEL_HEIGHT = 6.8;
+const PANEL_HEIGHT_EXTENDED = 8.2;
 
-/** Emplacement de chaque gemme dans la réserve (coin haut-gauche, orientation de départ). */
-const SLOTS: Record<GemId, readonly [number, number]> = {
-  'blue-triangle': [0.4, TRAY_TOP + 0.4],
-  'white-triangle': [5.6, TRAY_TOP + 0.4],
-  'red-parallelogram': [0.4, TRAY_TOP + 3.3],
-  'yellow-triangle': [4.2, TRAY_TOP + 2.9],
-  'white-rhombus': [7.0, TRAY_TOP + 2.9],
-  diamond: [0.4, TRAY_TOP + 5.3],
-  'black-body': [3.6, TRAY_TOP + 5.3],
+/** Emplacement de chaque gemme dans la réserve « panel » (coin haut-gauche, orientation de départ). */
+const PANEL_SLOTS: Record<GemId, readonly [number, number]> = {
+  'blue-triangle': [0.3, 0.3],
+  'yellow-triangle': [4.3, 0.3],
+  'white-triangle': [0.3, 2.8],
+  'white-rhombus': [4.3, 2.8],
+  'red-parallelogram': [0.3, 5.3],
+  diamond: [0.3, 6.6],
+  'black-body': [3.0, 6.6],
 };
 
-/** Emplacements de la réserve placée à droite de la grille (plein écran en paysage). */
+/** Emplacements de la réserve placée dans la grille du plein écran (téléphone en paysage). */
 const SIDE_SLOTS: Record<GemId, readonly [number, number]> = {
   'blue-triangle': [12.0, 0.2],
   'white-triangle': [12.0, 2.6],
@@ -76,18 +65,18 @@ const SIDE_SLOTS_EXTENDED: Record<GemId, readonly [number, number]> = {
 };
 
 function slotOf(layout: TrayLayout, solution: Solution, gem: GemId): readonly [number, number] {
-  if (layout === 'bottom') return SLOTS[gem];
+  if (layout === 'panel') return PANEL_SLOTS[gem];
   return (hasExtensions(solution) ? SIDE_SLOTS_EXTENDED : SIDE_SLOTS)[gem];
 }
 
-/** Réserve sous la grille (affichage normal) ou à sa droite (plein écran). */
-export type TrayLayout = 'bottom' | 'side';
-
-/** Coin haut-gauche actuel de la gemme : sur la grille si elle est posée, sinon dans la réserve. */
+/**
+ * Coin haut-gauche actuel de la gemme : sur la grille si elle est posée (coordonnées de la grille),
+ * sinon dans la réserve (coordonnées de la réserve).
+ */
 export function gemOrigin(
   solution: Solution,
   gem: GemId,
-  layout: TrayLayout = 'bottom',
+  layout: TrayLayout = 'panel',
 ): [number, number] {
   const placement = solution[gem];
   if (placement) return [placement.col, placement.row];
@@ -95,26 +84,13 @@ export function gemOrigin(
   return [x, y];
 }
 
-export interface SolutionView {
+export interface GemsView {
   solution: Solution;
   selected: GemId | null;
   issues: readonly SolutionIssue[];
-  shots: readonly ShotRecord[];
-  /** Tir simulé sur la grille du joueur, dont on dessine le trajet. */
-  hypothesis: ShotResult | null;
-  /** Notes du joueur, en transparence sous les gemmes ; null pour les masquer. */
-  notes: Notes | null;
 }
 
-function points(list: readonly (readonly [number, number])[]): string {
-  return list.map(([x, y]) => `${x},${y}`).join(' ');
-}
-
-export function gemGroupSvg(
-  view: Pick<SolutionView, 'solution' | 'selected' | 'issues'>,
-  gem: GemId,
-  layout: TrayLayout = 'bottom',
-): string {
+export function gemGroupSvg(view: GemsView, gem: GemId, layout: TrayLayout = 'panel'): string {
   const shape = GEM_SHAPES[gem];
   const placement = view.solution[gem];
   const polygon = placement
@@ -144,7 +120,7 @@ export function gemSize(solution: Solution, gem: GemId): { width: number; height
 }
 
 /** Bouton rond posé au coin haut-droit de la gemme sélectionnée : pivoter, et retourner pour la rouge. */
-export function gemButtonsSvg(view: Pick<SolutionView, 'solution' | 'selected'>): string {
+export function gemButtonsSvg(view: Pick<GemsView, 'solution' | 'selected'>): string {
   const gem = view.selected;
   const placement = gem ? view.solution[gem] : null;
   if (!gem || !placement) return '';
@@ -158,20 +134,15 @@ export function gemButtonsSvg(view: Pick<SolutionView, 'solution' | 'selected'>)
   return `${rotate}${flip}`;
 }
 
-export function solutionBoardSvg(view: SolutionView): string {
-  const tray = `<rect class="tray" x="0" y="${TRAY_TOP}" width="${GRID_COLS}" height="${trayHeight(view.solution)}" rx="0.3"/>`;
+/**
+ * Réserve des gemmes à poser, à droite de la grille : une grille SVG à part, à la même échelle que
+ * la grille de jeu (le CSS donne la même taille à la case). Les gemmes déjà posées n'y figurent plus.
+ */
+export function trayHtml(view: GemsView): string {
+  const height = hasExtensions(view.solution) ? PANEL_HEIGHT_EXTENDED : PANEL_HEIGHT;
   const gems = gemsOf(view.solution)
-    .map((gem) => gemGroupSvg(view, gem))
+    .filter((gem) => view.solution[gem] === null)
+    .map((gem) => gemGroupSvg(view, gem, 'panel'))
     .join('');
-  const ray = view.hypothesis
-    ? `<polyline class="ray-outline" points="${points(view.hypothesis.path)}"/><polyline class="ray" points="${points(view.hypothesis.path)}" stroke="${RAY_COLOR[view.hypothesis.color]}"/>`
-    : '';
-  const marks = { shots: view.shots, selected: null };
-  const ghostNotes = view.notes ? `<g class="ghost-notes">${notesLayerSvg(view.notes)}</g>` : '';
-  return boardFrame(
-    "Grille de solution : posez les gemmes à l'endroit où vous pensez qu'elles sont",
-    `${tray}${ghostNotes}${gems}${ray}${entryLabelsSvg(marks, 'hypo')}${gemButtonsSvg(view)}`,
-    'solution-svg',
-    trayExtra(view.solution),
-  );
+  return `<svg class="tray-svg" viewBox="0 0 ${PANEL_WIDTH} ${height}" role="group" aria-label="Gemmes à placer" style="--tray-h:${height}"><rect class="tray" x="0" y="0" width="${PANEL_WIDTH}" height="${height}" rx="0.3"/>${gems}</svg>`;
 }

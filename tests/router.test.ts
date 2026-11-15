@@ -113,47 +113,34 @@ describe('barre du haut', () => {
 });
 
 describe('accueil', () => {
-  const current = { seed: 'abc<b>', extensions: 'Diamant', shots: 3, elapsedMs: 125_000 };
+  const current = { seed: 'abc<b>', extensions: 'Diamant', shots: 3 };
   const home = (over: Partial<HomeModel> = {}): HomeModel => ({
     current,
-    confirmAbandon: false,
     newGameBlocked: false,
     accounts: false,
     signedIn: false,
     canImport: false,
     others: [],
     othersStatus: 'idle',
-    confirmRemote: null,
     limitReached: false,
     ...over,
   });
 
-  it('montre la partie en cours avec Reprendre et Abandonner', () => {
-    const html = homePage(home({ confirmAbandon: false, newGameBlocked: true, accounts: false }));
+  it('montre la partie en cours avec Reprendre, sans horloge ni abandon', () => {
+    const html = homePage(home({ newGameBlocked: true, accounts: false }));
     expect(html).toContain('3 tirs');
-    expect(html).toContain('02:05');
+    expect(html).not.toMatch(/dd:dd/);
     expect(html).toContain('Diamant');
     expect(html).toContain('data-action="resume-game"');
-    expect(html).toContain('data-action="ask-abandon"');
+    expect(html).not.toContain('bandon');
     expect(html).not.toContain('<b>');
   });
 
-  it("demande confirmation avant d'abandonner", () => {
-    const html = homePage(home({ confirmAbandon: true, newGameBlocked: true, accounts: false }));
-    expect(html).toContain('data-action="confirm-abandon"');
-    expect(html).toContain('data-action="cancel-confirm"');
-    expect(html).not.toContain('data-action="resume-game"');
-  });
-
   it('bloque « Nouvelle partie » avec une partie en cours, et explique comment faire', () => {
-    const offline = homePage(
-      home({ confirmAbandon: false, newGameBlocked: true, accounts: false }),
-    );
+    const offline = homePage(home({ newGameBlocked: true, accounts: false }));
     expect(offline).toMatch(/data-action="new-game" disabled|disabled>Nouvelle/);
-    expect(offline).toContain('Reprendre ou abandonner');
-    const withAccounts = homePage(
-      home({ confirmAbandon: false, newGameBlocked: true, accounts: true }),
-    );
+    expect(offline).toContain('Terminer la partie en cours');
+    const withAccounts = homePage(home({ newGameBlocked: true, accounts: true }));
     expect(withAccounts).toContain('se connecter');
   });
 
@@ -169,14 +156,13 @@ describe('accueil', () => {
       seed: 'serveur<i>',
       extensions: 'Corps noir',
       shots: 5,
-      elapsedMs: 61_000,
       updatedAt: '2026-03-01T10:05:00.000Z',
       ...over,
     });
     const signedIn = (over: Partial<HomeModel> = {}) =>
       home({ accounts: true, signedIn: true, othersStatus: 'ready', ...over });
 
-    it('liste les parties en cours du compte avec Reprendre et Abandonner', () => {
+    it('liste les parties en cours du compte avec Reprendre (sans abandon ni horloge)', () => {
       const html = homePage(signedIn({ others: [remote()] }));
       expect(html).toContain('Parties en cours');
       expect(html).toContain('5 tirs');
@@ -184,15 +170,9 @@ describe('accueil', () => {
       expect(html).toContain(
         'data-action="resume-remote" data-id="00000000-0000-4000-8000-000000000001"',
       );
-      expect(html).toContain('data-action="ask-abandon-remote"');
+      expect(html).not.toContain('bandon');
+      expect(html).not.toMatch(/dd:dd/);
       expect(html).not.toContain('<i>');
-    });
-
-    it("demande confirmation avant d'abandonner une partie du compte", () => {
-      const id = remote().id;
-      const html = homePage(signedIn({ others: [remote()], confirmRemote: id }));
-      expect(html).toContain('data-action="confirm-abandon-remote"');
-      expect(html).not.toContain('data-action="resume-remote"');
     });
 
     it('ne liste rien pour un visiteur sans compte', () => {

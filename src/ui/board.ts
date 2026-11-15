@@ -5,18 +5,14 @@
 import { ENTRY_POINTS, type EntryPoint, cellLabel, parseCell } from '../game/board';
 import { GEM_PAINT_LABELS } from '../game/colors';
 import { GRID_COLS, GRID_ROWS } from '../game/constants';
-import { GEM_SHAPES, type Placement, placedPolygon } from '../game/gems';
 import { isAbsorbed } from '../game/laser';
-import type { Notes } from '../game/notes';
 import type { ProbeRecord, ShotRecord } from '../game/session';
-import { notesLayerSvg } from './notesLayer';
 import {
   CLEAR_FILL_OPACITY,
   GEM_FILL,
   PAINT_LETTER,
   PATTERN_DEFS,
   RAY_COLOR,
-  gemPolygons,
   lostSignalSvg,
   readableOn,
 } from './palette';
@@ -119,18 +115,6 @@ export function boardFrame(
     </svg>`;
 }
 
-export interface ShotBoardOptions {
-  /** Gemmes posées par le joueur, affichées en transparence sous les repères. */
-  gems?: readonly Placement[];
-  /** Notes du joueur, affichées en transparence ; null pour les masquer. */
-  notes?: Notes | null;
-  probes?: readonly ProbeRecord[];
-  /** Les cases sont cliquables pour sonder (partie en cours). */
-  probeable?: boolean;
-  /** Case du curseur clavier, pour sonder sans souris. */
-  cursor?: { row: number; col: number };
-}
-
 export function probeMarksSvg(probes: readonly ProbeRecord[]): string {
   return probes
     .map((probe) => {
@@ -163,30 +147,7 @@ export function probeTargetsSvg(): string {
 }
 
 /** Curseur clavier : un seul arrêt de tabulation, déplacé aux flèches, Entrée pour sonder. */
-function cursorSvg({ row, col }: { row: number; col: number }): string {
+export function cursorSvg({ row, col }: { row: number; col: number }): string {
   const label = cellLabel({ row, col });
   return `<rect class="cell-cursor" data-cursor tabindex="0" role="button" aria-label="Case ${label} : Entrée pour sonder, flèches pour changer de case" x="${col}" y="${row}" width="1" height="1"/>`;
-}
-
-/** Gemmes du joueur en transparence, affichées sous les repères (onglets Tirs et Notes). */
-export function ghostGemsSvg(gems: readonly Placement[]): string {
-  if (gems.length === 0) return '';
-  return `<g class="ghost-gems">${gems
-    .map((placement) => {
-      const shape = GEM_SHAPES[placement.gem];
-      return gemPolygons(placedPolygon(placement), shape.color, 'real-gem');
-    })
-    .join('')}</g>`;
-}
-
-/** Grille de tir : aucune gemme n'est visible, seulement les résultats des tirs et des sondes. */
-export function shotBoardSvg(marks: ShotMarks, options: ShotBoardOptions = {}): string {
-  const { probes = [], probeable = false, cursor, gems = [], notes = null } = options;
-  const ghostGems = ghostGemsSvg(gems);
-  const ghostNotes = notes ? `<g class="ghost-notes">${notesLayerSvg(notes)}</g>` : '';
-  return boardFrame(
-    'Grille de tir : 10 colonnes, 8 lignes, repères du bord cliquables',
-    `${ghostGems}${ghostNotes}${entryLabelsSvg(marks)}${probeMarksSvg(probes)}${probeable ? probeTargetsSvg() : ''}${probeable && cursor ? cursorSvg(cursor) : ''}`,
-    probeable ? 'is-probeable' : '',
-  );
 }

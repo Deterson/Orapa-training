@@ -118,14 +118,10 @@ describe('partie en cours : soumission', () => {
     expect(() => session.fire('1')).toThrow();
     expect(() => session.probe('A1')).toThrow();
     expect(() => session.submit(mine.placements)).toThrow();
-    expect(() => session.abandon()).toThrow();
   });
 
-  it('abandonner termine la partie', () => {
-    const session = new GameSession(mine);
-    session.abandon();
-    expect(session.status).toBe('abandoned');
-    expect(() => session.fire('1')).toThrow();
+  it("n'offre plus d'abandon", () => {
+    expect('abandon' in new GameSession(mine)).toBe(false);
   });
 });
 
@@ -136,11 +132,9 @@ describe('partie en cours : révélation', () => {
   });
 
   it('révèle la mine à la fin', () => {
-    for (const end of [(s: GameSession) => s.abandon(), (s: GameSession) => s.submit([])]) {
-      const session = new GameSession(mine);
-      end(session);
-      expect(session.reveal().map((p) => p.gem)).toEqual([...BASE_GEM_IDS]);
-    }
+    const session = new GameSession(mine);
+    session.submit([]);
+    expect(session.reveal().map((p) => p.gem)).toEqual([...BASE_GEM_IDS]);
   });
 });
 
@@ -151,7 +145,7 @@ describe('partie en cours : chronomètre', () => {
     expect(session.elapsedMs()).toBe(0);
     time += 5000;
     expect(session.elapsedMs()).toBe(5000);
-    session.abandon();
+    session.submit([]);
     time += 60_000;
     expect(session.elapsedMs()).toBe(5000);
   });
@@ -176,7 +170,7 @@ describe('partie en cours : chronomètre', () => {
     let time = 0;
     const session = new GameSession(mine, { now: () => time });
     time = 3000;
-    session.abandon();
+    session.submit([]);
     session.pause();
     session.resume();
     time = 50_000;

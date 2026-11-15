@@ -26,13 +26,20 @@ function finished(how: 'won' | 'lost' | 'abandoned'): {
   guess: typeof mine.placements;
 } {
   let clock = 1_000_000;
-  const session = new GameSession(mine, { now: () => clock });
+  let session = new GameSession(mine, { now: () => clock });
   session.fire('1');
   session.fire('15');
   session.probe('E4');
   clock += 125_400;
-  if (how === 'abandoned') session.abandon();
-  else session.submit(how === 'won' ? mine.placements : mine.placements.slice(1));
+  if (how === 'abandoned') {
+    // L'abandon n'existe plus dans le jeu : seules les anciennes parties portent ce statut.
+    session = GameSession.fromSnapshot(
+      { ...session.toSnapshot(), status: 'abandoned' },
+      { now: () => clock },
+    );
+  } else {
+    session.submit(how === 'won' ? mine.placements : mine.placements.slice(1));
+  }
   return { session, guess: how === 'won' ? mine.placements : mine.placements.slice(1) };
 }
 
