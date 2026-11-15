@@ -22,7 +22,7 @@ export interface HistoryModel {
 }
 
 const FILTERS: readonly HistoryFilter[] = ['all', 'won', 'lost'];
-const SORTS: readonly HistorySort[] = ['recent', 'oldest', 'lasers'];
+const SORTS: readonly HistorySort[] = ['recent', 'oldest', 'shots'];
 
 export const isHistoryFilter = (value: unknown): value is HistoryFilter =>
   FILTERS.includes(value as HistoryFilter);
@@ -43,11 +43,13 @@ export function replayHref(game: Pick<GameRecord, 'seed' | 'extensions'>): strin
 }
 
 function row(game: GameRecord): string {
-  const lasers = `${game.lasersCount} laser${plural(game.lasersCount, '', 's')}`;
+  // Depuis la v1.0.17, un laser et la sonde d'une case comptent chacun pour un tir.
+  const shots = game.lasersCount + game.probesCount;
+  const count = `${shots} tir${plural(shots, '', 's')}`;
   return `<li class="h-row is-${game.status}">
     <span class="h-date">${escapeHtml(formatDate(game.endedAt))}</span>
     <span class="h-status">${t.status[game.status]}</span>
-    <span class="h-lasers">${lasers}</span>
+    <span class="h-lasers">${count}</span>
     <span class="h-time">${formatTime(game.durationS * 1000)}</span>
     <a class="h-replay nav-link" href="${escapeHtml(replayHref(game))}" title="${escapeHtml(game.seed)}">${t.history.replay}</a>
   </li>`;

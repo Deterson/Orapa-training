@@ -123,5 +123,5 @@ export const GEM_COLOR_LABELS: Record<GemColor, string> = {
 export const GEM_PAINT_LABELS: Record<GemPaint, string> = {
   ...GEM_COLOR_LABELS,
   clear: 'diamant',
-  black: 'diamant noir',
+  black: 'corps noir',
 };

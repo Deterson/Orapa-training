@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type ProfileStats, parseStats } from '../src/game/record';
-import { type ProfileModel, formatAvgLasers, formatWinRate, profilePage } from '../src/ui/profile';
+import { type ProfileModel, formatAvgShots, formatWinRate, profilePage } from '../src/ui/profile';
 
 const stats = (over: Partial<ProfileStats> = {}): ProfileStats => ({
   total: 6,
@@ -8,7 +8,7 @@ const stats = (over: Partial<ProfileStats> = {}): ProfileStats => ({
   losses: 1,
   abandoned: 2,
   winRate: 0.5,
-  avgLasersToWin: 7.67,
+  avgShotsToWin: 7.67,
   ...over,
 });
 
@@ -26,12 +26,12 @@ describe('lecture des statistiques', () => {
     losses: 1,
     abandoned: 2,
     win_rate: '0.5000',
-    avg_lasers_to_win: '7.67',
+    avg_shots_to_win: '7.67',
   };
 
   it('lit la ligne de la base (décimaux en texte ou en nombre, ligne seule ou tableau)', () => {
     expect(parseStats(row)).toEqual(stats());
-    expect(parseStats([{ ...row, win_rate: 0.5, avg_lasers_to_win: 7.67 }])).toEqual(stats());
+    expect(parseStats([{ ...row, win_rate: 0.5, avg_shots_to_win: 7.67 }])).toEqual(stats());
   });
 
   it('sans partie : taux et moyenne null', () => {
@@ -41,7 +41,7 @@ describe('lecture des statistiques', () => {
       losses: 0,
       abandoned: 0,
       win_rate: null,
-      avg_lasers_to_win: null,
+      avg_shots_to_win: null,
     };
     expect(parseStats(empty)).toEqual({
       total: 0,
@@ -49,7 +49,7 @@ describe('lecture des statistiques', () => {
       losses: 0,
       abandoned: 0,
       winRate: null,
-      avgLasersToWin: null,
+      avgShotsToWin: null,
     });
   });
 
@@ -60,9 +60,9 @@ describe('lecture des statistiques', () => {
       losses: 1,
       abandoned: 2,
       win_rate: 0,
-      avg_lasers_to_win: null,
+      avg_shots_to_win: null,
     };
-    expect(parseStats(lost)).toMatchObject({ winRate: 0, avgLasersToWin: null });
+    expect(parseStats(lost)).toMatchObject({ winRate: 0, avgShotsToWin: null });
   });
 
   it('refuse les lignes incohérentes', () => {
@@ -72,10 +72,10 @@ describe('lecture des statistiques', () => {
       { ...row, wins: 1.5 },
       { ...row, win_rate: 1.2 },
       { ...row, win_rate: 'abc' },
-      { ...row, avg_lasers_to_win: 40 },
-      { ...row, avg_lasers_to_win: null },
+      { ...row, avg_shots_to_win: 117 },
+      { ...row, avg_shots_to_win: null },
       { ...row, win_rate: null },
-      { total_games: 0, wins: 0, losses: 0, abandoned: 0, win_rate: 0, avg_lasers_to_win: null },
+      { total_games: 0, wins: 0, losses: 0, abandoned: 0, win_rate: 0, avg_shots_to_win: null },
     ];
     for (const value of bad) expect(parseStats(value)).toBeNull();
     for (const value of [null, undefined, 3, 'x', []]) expect(parseStats(value)).toBeNull();
@@ -88,13 +88,13 @@ describe('affichage des statistiques', () => {
     expect(formatWinRate(stats({ winRate: 2 / 3 }))).toMatch(/^66,7\s%$/);
     expect(formatWinRate(stats({ winRate: 1 }))).toMatch(/^100\s%$/);
     expect(formatWinRate(stats({ winRate: 0 }))).toMatch(/^0\s%$/);
-    expect(formatAvgLasers(stats({ avgLasersToWin: 7.67 }))).toBe('7,7');
-    expect(formatAvgLasers(stats({ avgLasersToWin: 12 }))).toBe('12');
-    expect(formatAvgLasers(stats({ avgLasersToWin: 0 }))).toBe('0');
+    expect(formatAvgShots(stats({ avgShotsToWin: 7.67 }))).toBe('7,7');
+    expect(formatAvgShots(stats({ avgShotsToWin: 12 }))).toBe('12');
+    expect(formatAvgShots(stats({ avgShotsToWin: 0 }))).toBe('0');
   });
 
   it('« — » sans victoire ou sans partie, jamais 0', () => {
-    expect(formatAvgLasers(stats({ wins: 0, avgLasersToWin: null }))).toBe('—');
+    expect(formatAvgShots(stats({ wins: 0, avgShotsToWin: null }))).toBe('—');
     expect(formatWinRate(stats({ total: 0, winRate: null }))).toBe('—');
   });
 
@@ -115,7 +115,7 @@ describe('affichage des statistiques', () => {
           losses: 0,
           abandoned: 0,
           winRate: null,
-          avgLasersToWin: null,
+          avgShotsToWin: null,
         }),
       }),
       'v',
@@ -124,11 +124,11 @@ describe('affichage des statistiques', () => {
     expect(none).not.toContain('p-stats');
     const noWin = profilePage(
       model({
-        stats: stats({ wins: 0, losses: 3, abandoned: 3, winRate: 0, avgLasersToWin: null }),
+        stats: stats({ wins: 0, losses: 3, abandoned: 3, winRate: 0, avgShotsToWin: null }),
       }),
       'v',
     );
-    expect(noWin).toMatch(/Lasers par victoire<\/dt><dd aria-label="Pas encore de victoire">—</);
+    expect(noWin).toMatch(/Tirs par victoire<\/dt><dd aria-label="Pas encore de victoire">—</);
   });
 
   it('gère chargement, erreur et absence de compte', () => {

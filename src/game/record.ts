@@ -81,8 +81,8 @@ export function buildRecord(input: BuildInput): GameRecord {
     generatorVersion: session.generatorVersion,
     extensions: extensionsCode(input.extensions),
     status,
-    lasersCount: summary.lasers,
-    probesCount: summary.probes,
+    lasersCount: session.shots.length,
+    probesCount: session.probes.length,
     startedAt: new Date(startedAt).toISOString(),
     endedAt: new Date(input.endedAt).toISOString(),
     durationS: Math.max(0, Math.round(summary.elapsedMs / 1000)),
@@ -216,8 +216,8 @@ export interface ProfileStats {
   abandoned: number;
   /** Part de victoires entre 0 et 1 ; null sans aucune partie. */
   winRate: number | null;
-  /** Moyenne de lasers tirés sur les parties gagnées ; null sans victoire (jamais 0 par défaut). */
-  avgLasersToWin: number | null;
+  /** Moyenne de tirs (lasers et sondes) sur les parties gagnées ; null sans victoire (jamais 0 par défaut). */
+  avgShotsToWin: number | null;
 }
 
 const count = (value: unknown): number | null => (isInt(value, 0, 1e9) ? value : null);
@@ -236,12 +236,12 @@ export function parseStats(value: unknown): ProfileStats | null {
   const losses = count(row['losses']);
   const abandoned = count(row['abandoned']);
   const winRate = nullableNumber(row['win_rate'], 1);
-  const avgLasersToWin = nullableNumber(row['avg_lasers_to_win'], 36);
+  const avgShotsToWin = nullableNumber(row['avg_shots_to_win'], 116);
   if (total === null || wins === null || losses === null || abandoned === null) return null;
-  if (winRate === undefined || avgLasersToWin === undefined) return null;
+  if (winRate === undefined || avgShotsToWin === undefined) return null;
   // Cohérence : les trois issues font le total, et sans partie ou sans victoire pas de chiffre.
   if (wins + losses + abandoned !== total) return null;
   if ((total === 0) !== (winRate === null)) return null;
-  if ((wins === 0) !== (avgLasersToWin === null)) return null;
-  return { total, wins, losses, abandoned, winRate, avgLasersToWin };
+  if ((wins === 0) !== (avgShotsToWin === null)) return null;
+  return { total, wins, losses, abandoned, winRate, avgShotsToWin };
 }

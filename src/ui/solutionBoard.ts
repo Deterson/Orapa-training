@@ -23,11 +23,11 @@ import { t } from './strings';
 
 /** Haut de la réserve, sous la grille et ses repères. */
 export const TRAY_TOP = GRID_ROWS + 1.7;
-/** Hauteur de la réserve : une rangée de plus quand le Diamant ou le diamant noir sont en jeu. */
+/** Hauteur de la réserve : une rangée de plus quand le Diamant ou le Corps noir sont en jeu. */
 const TRAY_HEIGHT = 5.4;
 const TRAY_HEIGHT_EXTENDED = 6.8;
 
-/** Vrai si la partie compte le Diamant ou le diamant noir. */
+/** Vrai si la partie compte le Diamant ou le Corps noir. */
 export function hasExtensions(solution: Solution): boolean {
   return EXTENSION_GEM_IDS.some((gem) => solution[gem] !== undefined);
 }

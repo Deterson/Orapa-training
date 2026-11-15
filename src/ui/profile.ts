@@ -28,8 +28,8 @@ export function formatWinRate(stats: ProfileStats): string {
 }
 
 /** Moyenne de lasers avant victoire, une décimale au plus : « 7,7 ». « — » sans victoire. */
-export function formatAvgLasers(stats: ProfileStats): string {
-  return stats.avgLasersToWin === null ? t.profile.noWin : number(stats.avgLasersToWin, 1);
+export function formatAvgShots(stats: ProfileStats): string {
+  return stats.avgShotsToWin === null ? t.profile.noWin : number(stats.avgShotsToWin, 1);
 }
 
 function card(label: string, value: string, hint = ''): string {
@@ -60,7 +60,7 @@ export function profilePage(model: ProfileModel, version: string): string {
       ${card(t.profile.games, String(stats.total))}
       ${card(t.profile.wins, String(stats.wins))}
       ${card(t.profile.winRate, formatWinRate(stats))}
-      ${card(t.profile.avgLasers, formatAvgLasers(stats), stats.avgLasersToWin === null ? t.profile.noWinLabel : '')}
+      ${card(t.profile.avgShots, formatAvgShots(stats), stats.avgShotsToWin === null ? t.profile.noWinLabel : '')}
     </dl>`;
   }
   return `<article class="profile-page">

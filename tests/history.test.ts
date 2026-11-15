@@ -9,7 +9,7 @@ const game = (over: Partial<GameRecord> = {}): GameRecord => ({
   extensions: '',
   status: 'won',
   lasersCount: 7,
-  probesCount: 0,
+  probesCount: 2,
   startedAt: '2026-03-01T10:00:00.000Z',
   endedAt: '2026-03-01T10:05:00.000Z',
   durationS: 125,
@@ -31,10 +31,10 @@ const model = (over: Partial<HistoryModel> = {}): HistoryModel => ({
 });
 
 describe("page d'historique", () => {
-  it('affiche résultat, lasers, durée et lien pour rejouer', () => {
+  it('affiche résultat, tirs (lasers + sondes), durée et lien pour rejouer', () => {
     const html = historyPage(model(), '1.4.0');
     expect(html).toContain('Gagné');
-    expect(html).toContain('7 lasers');
+    expect(html).toContain('9 tirs');
     expect(html).toContain('02:05');
     expect(html).toContain('href="./?seed=graine"');
   });
@@ -69,9 +69,9 @@ describe("page d'historique", () => {
   });
 
   it('marque le filtre actif et le tri choisi', () => {
-    const html = historyPage(model({ filter: 'won', sort: 'lasers' }), 'v');
+    const html = historyPage(model({ filter: 'won', sort: 'shots' }), 'v');
     expect(html).toMatch(/aria-pressed="true" data-hfilter="won"/);
-    expect(html).toMatch(/<option value="lasers" selected>/);
+    expect(html).toMatch(/<option value="shots" selected>/);
   });
 
   it('pagine seulement quand il y a plusieurs pages', () => {

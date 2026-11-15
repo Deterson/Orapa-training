@@ -5,16 +5,16 @@ Site d'entraînement au jeu de société **Orapa Mine** (Junghee Choi et Wanjin 
 
 La machine cache 5 gemmes dans une mine de 10 × 8 cases. Vous tirez des lasers depuis les bords,
 lisez le point de sortie et la couleur du rayon, puis reconstituez la mine par déduction.
-**Chaque mine n'a qu'une seule solution possible** : si vous vous trompez, c'est que vous n'avez
-pas tiré assez de lasers.
+Quand un doute subsiste, un laser ou la sonde d'une case le lève : si vous vous trompez, c'est que
+vous n'avez pas assez cherché.
 
 **Jouer :** https://deterson.github.io/Orapa-training/
 
 ## Ce que fait la version 1
 
 - **Mine aléatoire** à partir d'une graine (`?seed=...`) : même graine, même mine. Chaque mine
-  est validée : règles de placement du livret, gemmes toutes atteignables en ligne droite depuis
-  un bord, et solution unique (vérifiée par un solveur).
+  est validée : règles de placement du livret et gemmes toutes atteignables en ligne droite depuis
+  un bord.
 - **Tirs** : 36 repères sur le bord (1–18, A–R), résultat = repère de sortie + couleur.
 - **Sonder une case** : « Qu'y a-t-il en E4 ? ».
 - **Ma solution** : glisser-déposer des gemmes (souris ou doigt), pivoter, retourner la gemme
@@ -37,7 +37,7 @@ Une fois le site relié à un projet Supabase ([`docs/backend.md`](docs/backend.
 - **Connexion Google** (facultative : le jeu reste identique sans compte).
 - **Historique** (`#historique`) : parties terminées, filtre victoires / défaites, tri, lien pour
   rejouer la même mine ; envoi avec file locale en cas de coupure.
-- **Profil** (`#profil`) : nombre de parties, victoires, % de victoires et lasers moyens par
+- **Profil** (`#profil`) : nombre de parties, victoires, % de victoires et tirs moyens par
   victoire (une partie abandonnée compte comme perdue).
 - **Confidentialité** (`#confidentialite`) : ce qui est gardé, suppression du compte et de ses parties.
 - Chaque utilisateur ne voit que ses parties (sécurité par ligne, testée en CI).
@@ -62,7 +62,7 @@ fait à chaque push sur `main`.
 ## Organisation
 
 - `src/game/` : toute la logique du jeu, sans DOM (grille, gemmes, géométrie, laser, génération,
-  solveur d'unicité, session, solution, notes, sauvegarde).
+  session, solution, notes, sauvegarde).
 - `src/ui/` : l'interface (SVG et DOM).
 - `src/backend/` : connexion Google, parties, file d'envoi (Supabase, chargé à la demande).
 - `supabase/` : migrations SQL et leurs tests.
@@ -74,5 +74,5 @@ fait à chaque push sur `main`.
 ## À confirmer sur les pièces physiques
 
 Les dimensions des gemmes de base ont été lues sur les schémas du livret. Les formes des extensions
-(Diamant : demi-losange 2×1 ; diamant noir : rectangle 2×1) viennent du propriétaire du projet.
+(Diamant : demi-losange 2×1 ; corps noir : rectangle 2×1) viennent du propriétaire du projet.
 Elles se choisissent au début de chaque partie.

@@ -99,7 +99,7 @@ export function findFirstHit(polygons: readonly Polygon[], from: Vec, dir: Vec):
 }
 
 /** Nouvelle direction après un rebond sur un côté de direction `edge`. */
-export function reflect(dir: Vec, edge: Vec): Vec {
+function reflect(dir: Vec, edge: Vec): Vec {
   const [ex, ey] = edge;
   // Côté aligné sur la grille, forcément perpendiculaire au rayon : demi-tour.
   if (ex === 0 || ey === 0) {
@@ -116,7 +116,7 @@ export function reflect(dir: Vec, edge: Vec): Vec {
 }
 
 /** Point du bord par lequel sort un rayon qui avance depuis `position` dans la direction `dir`. */
-export function exitPointAt(position: Vec, dir: Vec): EntryPoint {
+function exitPointAt(position: Vec, dir: Vec): EntryPoint {
   const across = dir[0] !== 0 ? 1 : 0;
   return entryPoint(exitSide(dir[0], dir[1]), Math.floor(position[across] ?? 0));
 }
@@ -211,33 +211,13 @@ export function shoot(placements: readonly Placement[], entry: string | EntryPoi
   return trace(buildScene(placements), point);
 }
 
-/** Tire un laser depuis chacun des 36 points d'entrée : la « signature » complète de la mine. */
+/** Tire un laser depuis chacun des 36 points d'entrée. */
 export function shootAll(placements: readonly Placement[]): ShotResult[] {
   const scene = buildScene(placements);
   return ENTRY_POINTS.map((entry) => trace(scene, entry));
 }
 
-/** Résultat observable d'un tir : tout ce que le joueur apprend (le trajet n'en fait pas partie). */
-export interface ShotOutcome {
-  /** Repère de sortie, ou ABSORBED. */
-  exit: string;
-  color: ResultColor;
-}
-
-/** Les 36 résultats d'une mine, dans l'ordre de ENTRY_POINTS. */
-export type Signature = readonly ShotOutcome[];
-
-export function signatureOf(placements: readonly Placement[]): Signature {
-  return shootAll(placements).map(({ exit, color }) => ({ exit, color }));
-}
-
 /** Vrai si le Corps noir a absorbé ce rayon. */
 export function isAbsorbed(outcome: { exit: string }): boolean {
   return outcome.exit === ABSORBED;
-}
-
-export function sameSignature(a: Signature, b: Signature): boolean {
-  return (
-    a.length === b.length && a.every((x, i) => x.exit === b[i]?.exit && x.color === b[i]?.color)
-  );
 }

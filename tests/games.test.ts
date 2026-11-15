@@ -110,7 +110,7 @@ describe('service des parties', () => {
     const { client, calls } = fakeClient({ data: [row], count: 41, error: null });
     const page = await createGamesService(client).list({
       filter: 'lost',
-      sort: 'lasers',
+      sort: 'shots',
       page: 2,
       pageSize: 20,
     });
@@ -119,7 +119,7 @@ describe('service des parties', () => {
       ['from', 'games'],
       ['select', '*', { count: 'exact' }],
       ['in', 'status', ['lost', 'abandoned']],
-      ['order', 'lasers_count', { ascending: true }],
+      ['order', 'shots_count', { ascending: true }],
       ['order', 'ended_at', { ascending: false }],
       ['order', 'id', { ascending: true }],
       ['range', 40, 59],
@@ -183,7 +183,7 @@ describe('service des parties', () => {
       losses: 1,
       abandoned: 2,
       win_rate: 0.5,
-      avg_lasers_to_win: 7.67,
+      avg_shots_to_win: 7.67,
     };
 
     it('appelle la fonction du profil et lit la ligne', async () => {
@@ -194,7 +194,7 @@ describe('service des parties', () => {
         losses: 1,
         abandoned: 2,
         winRate: 0.5,
-        avgLasersToWin: 7.67,
+        avgShotsToWin: 7.67,
       });
       expect(calls).toEqual([['rpc', 'profile_stats']]);
     });

@@ -11,6 +11,7 @@ import type { Notes } from '../game/notes';
 import type { ProbeRecord, ShotRecord } from '../game/session';
 import { notesLayerSvg } from './notesLayer';
 import {
+  CLEAR_FILL_OPACITY,
   GEM_FILL,
   PAINT_LETTER,
   PATTERN_DEFS,
@@ -143,7 +144,7 @@ export function probeMarksSvg(probes: readonly ProbeRecord[]): string {
       if (probe.content === 'black') {
         return `<g class="probe-gem probe-lost"><rect x="${cell.col + 0.12}" y="${cell.row + 0.12}" width="0.76" height="0.76" rx="0.1" fill="${GEM_FILL.black}"/>${lostSignalSvg(cx, cy, 0.62)}<title>Case ${probe.cell} : signal perdu</title></g>`;
       }
-      return `<g class="probe-gem"><rect x="${cell.col + 0.18}" y="${cell.row + 0.18}" width="0.64" height="0.64" rx="0.1" fill="${GEM_FILL[probe.content]}"/><text x="${cx}" y="${cy + 0.02}">${PAINT_LETTER[probe.content]}</text><title>Case ${probe.cell} : gemme ${GEM_PAINT_LABELS[probe.content]}</title></g>`;
+      return `<g class="probe-gem"><rect x="${cell.col + 0.18}" y="${cell.row + 0.18}" width="0.64" height="0.64" rx="0.1" fill="${GEM_FILL[probe.content]}"${probe.content === 'clear' ? ` fill-opacity="${CLEAR_FILL_OPACITY}" stroke="#2b6fa8" stroke-width="0.06"` : ''}/><text x="${cx}" y="${cy + 0.02}">${PAINT_LETTER[probe.content]}</text><title>Case ${probe.cell} : gemme ${GEM_PAINT_LABELS[probe.content]}</title></g>`;
     })
     .join('');
 }

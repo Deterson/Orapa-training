@@ -56,11 +56,12 @@ end $$;
 
 
 -- Une partie valide dont on choisit le propriétaire, le statut et le nombre de lasers (stats).
-create function tt.game_of(p_user uuid, p_status text, p_lasers integer) returns void language plpgsql as $$
+create function tt.game_of(p_user uuid, p_status text, p_lasers integer, p_probes integer default 0)
+returns void language plpgsql as $$
 begin
   insert into public.games (user_id, seed, generator_version, status, lasers_count, probes_count,
     started_at, ended_at, duration_s, shots, submission)
-  values (p_user, 'graine', 1, p_status, p_lasers, 0, '2026-01-01 10:00+00', '2026-01-01 10:05+00', 300,
+  values (p_user, 'graine', 1, p_status, p_lasers, p_probes, '2026-01-01 10:00+00', '2026-01-01 10:05+00', 300,
     (select coalesce(jsonb_agg(i::text), '[]'::jsonb) from generate_series(1, p_lasers) i),
     case when p_status = 'abandoned' then null else '[{"gem":"red"}]'::jsonb end);
 end $$;

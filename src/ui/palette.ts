@@ -7,8 +7,8 @@ export const GEM_FILL: Record<GemPaint, string> = {
   yellow: '#e8b100',
   blue: '#2f6fb5',
   white: '#f4f4f4',
-  // Diamant : verre bleuté ; diamant noir : presque noir.
-  clear: '#c9e9f5',
+  // Diamant : verre bleuté, dessiné creux (voir gemPolygons) ; corps noir : presque noir.
+  clear: '#3d97d6',
   black: '#1f1f25',
 };
 
@@ -71,6 +71,9 @@ export const PATTERN_DEFS = `<defs>
   <pattern id="pat-empty" width="0.24" height="0.24" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="0.24" stroke="#6b7280" stroke-opacity="0.5" stroke-width="0.07"/></pattern>
 </defs>`;
 
+/** Opacité du centre du Diamant : sa bordure est pleine, son intérieur seulement teinté. */
+export const CLEAR_FILL_OPACITY = 0.3;
+
 /** Teinte un peu plus foncée de `hex` (#rrggbb) : `factor` < 1 assombrit. */
 function darken(hex: string, factor: number): string {
   const channel = (start: number): string =>
@@ -86,7 +89,7 @@ export const GEM_GRID_COLOR: Record<GemPaint, string> = {
   yellow: darken(GEM_FILL.yellow, 0.78),
   blue: darken(GEM_FILL.blue, 0.78),
   white: darken(GEM_FILL.white, 0.8),
-  clear: darken(GEM_FILL.clear, 0.78),
+  clear: darken(GEM_FILL.clear, 0.8),
   // Sur le noir, un quadrillage plus foncé ne se verrait pas : plus clair.
   black: '#4a4a55',
 };
@@ -120,14 +123,18 @@ export function lostSignalHtml(): string {
  * comme sur les vraies pièces), un peu plus foncé que la couleur de la gemme.
  */
 export function gemPolygons(polygon: Polygon, color: GemPaint, className = '', title = ''): string {
-  const cls = className ? ` class="${className}"` : '';
+  // Diamant : bordure franche, centre à 30 % d'opacité (le verre laisse voir la grille dessous).
+  const hollow = color === 'clear';
+  const classes = [className, hollow ? 'gem-clear' : ''].filter(Boolean).join(' ');
+  const cls = classes ? ` class="${classes}"` : '';
+  const opacity = hollow ? ` fill-opacity="${CLEAR_FILL_OPACITY}"` : '';
   const label = title ? `<title>${title}</title>` : '';
   const points = polygon.map(([x, y]) => `${x},${y}`).join(' ');
   const path = gridSegments(polygon)
     .map(([[x1, y1], [x2, y2]]) => `M${x1} ${y1}L${x2} ${y2}`)
     .join('');
   const grid = path ? `<path class="gem-grid" d="${path}" stroke="${GEM_GRID_COLOR[color]}"/>` : '';
-  return `<polygon${cls} points="${points}" fill="${GEM_FILL[color]}">${label}</polygon>${grid}`;
+  return `<polygon${cls} points="${points}" fill="${GEM_FILL[color]}"${opacity}>${label}</polygon>${grid}`;
 }
 
 /** Couleur de texte lisible (sombre ou claire) sur un fond donné en #rrggbb. */

@@ -76,7 +76,11 @@ import { gemOrigin, gemSize, solutionBoardSvg } from './solutionBoard';
 type Phase = 'loading' | 'options' | 'resume' | 'ready' | 'error';
 type Tab = 'shots' | 'solution' | 'notes' | 'result';
 type View = 'game' | 'rules' | 'history' | 'profile' | 'privacy';
-type Ask = { kind: 'fire'; label: string } | { kind: 'probe'; cell: string };
+type Ask =
+  | { kind: 'fire'; label: string }
+  | { kind: 'probe'; cell: string }
+  /** Résumé d'un tir déjà fait (numéro du tir) : aucune action, il se ferme d'un clic. */
+  | { kind: 'recap'; n: number };
 
 interface State {
   phase: Phase;
@@ -161,7 +165,7 @@ function seedFromUrl(): string | null {
   }
 }
 
-/** Extensions demandées par l'adresse : `ext=d` (Diamant), `ext=n` (diamant noir), `ext=dn` (les deux). */
+/** Extensions demandées par l'adresse : `ext=d` (Diamant), `ext=n` (Corps noir), `ext=dn` (les deux). */
 function extensionsFromUrl(): Extensions {
   try {
     const flags = new URLSearchParams(window.location.search).get('ext') ?? '';
@@ -225,6 +229,13 @@ function outcomeHtml(outcome: Pick<ShotRecord, 'entry' | 'exit' | 'color'>): str
 
 function describe(shot: ShotRecord): string {
   return `${shot.n} : ${outcomeText(shot)}`;
+}
+
+/** Extensions en jeu, en quelques mots : « Sans extension », « Diamant », « Diamant · Corps noir »... */
+function extensionsLabel(gems: readonly GemId[]): string {
+  const { diamond, blackBody } = extensionsOf(gems);
+  const names = [diamond ? t.extensions.diamond : '', blackBody ? t.extensions.blackBody : ''];
+  return names.filter(Boolean).join(' · ') || t.extensions.none;
 }
 
 /** Point de l'écran converti en coordonnées de la grille (unité : la case). */
@@ -371,8 +382,23 @@ export function startApp(root: HTMLElement, version: string): App {
     const { ask } = state;
     if (state.choose) return optionsModal(state.choose);
     if (!ask) return '';
+    if (ask.kind === 'recap') return recapModal(ask.n);
     const title = ask.kind === 'fire' ? t.modal.fire(ask.label) : t.modal.probe(ask.cell);
     return `<div class="modal-backdrop" data-modal-backdrop><div class="modal" role="dialog" aria-modal="true" aria-label="${title}"><p class="modal-title">${title}</p><label class="check"><input type="checkbox" id="skip-confirm" />${t.modal.dontAsk}</label><div class="actions"><button type="button" data-action="modal-confirm">${t.modal.confirm}</button><button type="button" class="ghost" data-action="modal-cancel">${t.modal.cancel}</button></div></div></div>`;
+  };
+
+  /** Résumé d'un tir déjà fait : « E → F » et les pastilles de la couleur obtenue. Un clic n'importe où le ferme. */
+  const recapModal = (n: number): string => {
+    const shot = state.session?.shots.find((candidate) => candidate.n === n);
+    if (!shot) return '';
+    const lost = isAbsorbed(shot);
+    const route = lost ? `${shot.entry} → ${lostSignalHtml()}` : `${shot.entry} → ${shot.exit}`;
+    const result = lost
+      ? t.lostSignal
+      : shot.color === 'transparent'
+        ? RESULT_COLOR_LABELS[shot.color]
+        : chips(shot.color);
+    return `<div class="modal-backdrop" data-modal-backdrop data-recap><div class="modal recap" role="dialog" aria-modal="true" aria-label="${outcomeText(shot)}"><button type="button" class="modal-close" data-action="modal-cancel" aria-label="${t.modal.close}">×</button><p class="modal-title">${route}</p><p class="recap-result">${result}</p></div></div>`;
   };
 
   const resumePanel = (save: SaveData): string => {
@@ -380,7 +406,7 @@ export function startApp(root: HTMLElement, version: string): App {
     return `
       <div class="resume" role="alertdialog" aria-label="Partie en cours">
         <h2>Partie en cours</h2>
-        <p><b>${escapeHtml(session.mine.seed)}</b> · ${session.shots.length} laser${plural(session.shots.length, '', 's')} · ${session.probes.length} sonde${plural(session.probes.length, '', 's')} · ${formatTime(session.elapsedMs)}</p>
+        <p><b>${escapeHtml(session.mine.seed)}</b> · ${session.shots.length + session.probes.length} tir${plural(session.shots.length + session.probes.length, '', 's')} · ${formatTime(session.elapsedMs)}</p>
         <div class="actions">
           <button type="button" data-action="resume">${t.actions.resume}</button>
           <button type="button" class="ghost" data-action="discard-save">${t.actions.newGame}</button>
@@ -423,12 +449,12 @@ export function startApp(root: HTMLElement, version: string): App {
           `<button type="button" class="ink" data-ink="${name}" aria-pressed="${state.ink === name}" aria-label="Encre ${INK_LABEL[name]}"><span style="background:${INK_COLOR[name]}" aria-hidden="true"></span></button>`,
       )
       .join('');
-    const count = session.laserCount;
+    const count = session.shotCount;
     return `
       <aside class="immersive-hud" aria-label="Outils">
         <div class="hud-top">
           <button type="button" class="ghost" data-action="exit-immersive" aria-label="Quitter le plein écran">✕</button>
-          <span class="hud-meta"><b>${count}</b> laser${plural(count, '', 's')} · <span id="timer">${formatTime(session.elapsedMs())}</span></span>
+          <span class="hud-meta"><b>${count}</b> tir${plural(count, '', 's')} · <span id="timer">${formatTime(session.elapsedMs())}</span></span>
         </div>
         <div class="hud-grid">
           ${hudTool('move', 'Jouer')}
@@ -578,9 +604,9 @@ export function startApp(root: HTMLElement, version: string): App {
           .join('')}</ol>`
       : '';
 
-    const count = session?.laserCount ?? 0;
-    const probeCount = session?.probes.length ?? 0;
-    const probeHistory = probeCount
+    const count = session?.shotCount ?? 0;
+    const extensions = session ? extensionsLabel(session.gems) : '';
+    const probeHistory = session?.probes.length
       ? `<ul class="probe-list" aria-label="Sondages">${(session?.probes ?? [])
           .map(
             (probe) =>
@@ -597,7 +623,12 @@ export function startApp(root: HTMLElement, version: string): App {
             <h1>${t.appName}</h1>
           </div>
           <div class="seed-box">
-            <code class="seed" title="Graine">${session ? escapeHtml(session.seed) : '…'}</code>
+            <code class="seed" title="Graine">${session ? escapeHtml(session.seed) : '…'}</code>${
+              extensions
+                ? `
+            <span class="ext-chip" title="Extensions">${extensions}</span>`
+                : ''
+            }
             ${accountHtml()}
             <button type="button" class="ghost" data-action="copy-link"${session ? '' : ' disabled'}>${t.actions.copyLink}</button>
             <a class="nav-link" href="#regles">${t.nav.rules}</a>
@@ -620,8 +651,8 @@ export function startApp(root: HTMLElement, version: string): App {
             ${board}
           </section>
           <aside class="side">
-            <div class="counter"><span class="count">${count}</span><span class="count-label">laser${plural(count, '', 's')}</span></div>
-            <p class="meta">${probeCount} sonde${plural(probeCount, '', 's')} · <span id="timer">${formatTime(session?.elapsedMs() ?? 0)}</span></p>
+            <div class="counter"><span class="count">${count}</span><span class="count-label">tir${plural(count, '', 's')}</span></div>
+            <p class="meta"><span id="timer">${formatTime(session?.elapsedMs() ?? 0)}</span></p>
             ${session ? actionsPanel(session) : ''}
             ${history}
             ${probeHistory}
@@ -903,8 +934,16 @@ export function startApp(root: HTMLElement, version: string): App {
   const askFire = (label: string): void => {
     const session = state.session;
     if (!session || session.finished) return;
-    if (state.skipConfirm || session.shots.some((shot) => shot.entry === label))
-      return doFire(label);
+    const known = session.shots.find((shot) => shot.entry === label);
+    if (known) {
+      // Déjà tiré : gratuit, on en montre le résumé.
+      state.selected = known.n;
+      state.ask = { kind: 'recap', n: known.n };
+      render();
+      root.querySelector<HTMLElement>('.modal-close')?.focus();
+      return;
+    }
+    if (state.skipConfirm) return doFire(label);
     state.ask = { kind: 'fire', label };
     render();
     root.querySelector<HTMLElement>('[data-action="modal-confirm"]')?.focus();
@@ -925,7 +964,7 @@ export function startApp(root: HTMLElement, version: string): App {
     if (!ask) return;
     const skip = root.querySelector<HTMLInputElement>('#skip-confirm')?.checked ?? false;
     state.ask = null;
-    if (!confirmed) return render();
+    if (!confirmed || ask.kind === 'recap') return render();
     if (skip) state.skipConfirm = true;
     if (ask.kind === 'fire') doFire(ask.label);
     else doProbe(ask.cell);
@@ -1146,6 +1185,7 @@ export function startApp(root: HTMLElement, version: string): App {
         .querySelectorAll('.gem-g.is-selected')
         .forEach((element) => element.classList.remove('is-selected'));
     }
+    if (target.closest('[data-recap]')) return closeAsk(false);
     if (target.hasAttribute('data-modal-backdrop')) return closeAsk(false);
     if (target.hasAttribute('data-options-backdrop')) {
       if (state.session || state.pending) closeOptions(false);

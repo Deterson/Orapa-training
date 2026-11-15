@@ -3,7 +3,6 @@
  * tirer des lasers (repères du bord), sonder des cases, déplacer les gemmes et dessiner. La réserve
  * de gemmes est à droite de la grille pour que le tout tienne dans la hauteur de l'écran.
  */
-import { GRID_COLS } from '../game/constants';
 import type { GemId } from '../game/gems';
 import type { Ink, Notes } from '../game/notes';
 import type { ProbeRecord, ShotRecord } from '../game/session';
@@ -30,11 +29,13 @@ export interface ImmersiveView {
 }
 
 /** Largeur ajoutée à droite de la grille pour la réserve. */
-const SIDE_WIDTH = 6.3;
-const TRAY_X = 11.5;
+const SIDE_WIDTH = 6.7;
+const TRAY_X = 11.4;
+/** Bord droit de la réserve : assez loin pour contenir la gemme la plus à droite (jaune, corps noir). */
+const TRAY_RIGHT = 16.8;
 
 export function immersiveBoardSvg(view: ImmersiveView): string {
-  const tray = `<rect class="tray" x="${TRAY_X}" y="-0.3" width="${GRID_COLS + SIDE_WIDTH - TRAY_X - 0.5 + 0.2}" height="9.3" rx="0.3"/>`;
+  const tray = `<rect class="tray" x="${TRAY_X}" y="-0.3" width="${TRAY_RIGHT - TRAY_X}" height="9.3" rx="0.3"/>`;
   const gems = gemsOf(view.solution)
     .map((gem) => gemGroupSvg(view, gem, 'side'))
     .join('');

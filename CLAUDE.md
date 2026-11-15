@@ -5,11 +5,13 @@ Gameology ; édition française Miraludo). Le site génère une « mine » aléa
 gemmes cachées) et le joueur doit la reconstituer par déduction, en tirant des lasers, en
 prenant des notes et en plaçant ses propres gemmes, puis en soumettant sa solution.
 
-> Statut : **v1 livrée (v1.0.0)** ; **v2 livrée côté code (v2.0.0)** : étapes v1.1 à v1.6 terminées
-> (Supabase : connexion Google, historique, profil, suppression du compte). Reste à la mise en
-> service : créer le projet Supabase et l'identifiant Google, renseigner les variables, essayer en
-> vrai ([`docs/backend.md`](docs/backend.md)). Prochaine étape : v2.1 (éditeur de plateau, v3).
-> `CLAUDE.md` et `docs/` sont la spécification.
+> Statut : **v1 livrée (v1.0.0)** ; **v2 partiellement livrée (v2.0.1)** : connexion Google,
+> enregistrement et historique des parties terminées, profil, suppression du compte (Supabase,
+> [`docs/backend.md`](docs/backend.md)), en pages séparées `#historique`, `#profil`,
+> `#confidentialite`. **Pas encore faits** (spécification ci-dessous, « Vues du site (v2) ») : le
+> routeur à trois vues (accueil, partie, profil), les parties en cours côté serveur et la limite
+> d'**une seule partie à la fois sans compte**. Reste aussi la mise en service (projet Supabase,
+> identifiant Google, variables) puis un essai réel. `CLAUDE.md` et `docs/` sont la spécification.
 
 ## Documentation (`docs/`)
 
@@ -35,7 +37,7 @@ Permettre de s'entraîner seul·e à Orapa Mine, partie après partie :
    - **Déplacer des gemmes** sur sa propre grille de solution (glisser-déposer,
      rotation par quarts de tour, **retournement pour la gemme rouge uniquement**) ;
    - **Soumettre** sa solution et obtenir la correction.
-3. À la soumission : verdict (correct / incorrect), nombre de lasers utilisés,
+3. À la soumission : verdict (correct / incorrect), nombre de tirs (lasers et sondes),
    temps écoulé, et révélation de la vraie grille. Un bouton « nouvelle partie »
    relance une génération.
 
@@ -44,9 +46,10 @@ Périmètre par version (détail dans `docs/roadmap.md`) :
 - **v1** : toutes les règles, 100 % statique côté client, avec une **sauvegarde locale**
   de la partie en cours pour la reprendre plus tard dans le même navigateur. Pas de
   compte, pas de serveur.
-- **v2** : connexion **Google (OAuth)**, **historique** des parties, **page de profil**
-  (moyenne de lasers tirés avant de gagner, pourcentage de parties gagnées). Demande un
-  backend ; le jeu reste jouable sans compte.
+- **v2** : trois **vues** (accueil, partie, profil), connexion **Google (OAuth)**, parties en
+  cours enregistrées dans le compte, **historique** des parties, **vue de profil** (nom Google,
+  pourcentage de parties gagnées, moyenne de tirs avant de gagner). Demande un
+  backend. Sans compte, le jeu reste jouable mais limité à **une seule partie à la fois**.
 - **v3** : le joueur **crée son plateau** (cache ses gemmes) et **joue contre une IA** qui cherche le
   sien pendant qu'il cherche celui de l'IA (fini le simple entraînement).
 - **v4** : **duel en direct** contre un autre joueur (arbitre serveur qui répond aux lasers sans
@@ -60,7 +63,7 @@ Résumé ; le détail et les tableaux sont dans `docs/regles.md`.
   (« E4 »). 36 points d'entrée : **1–10** en haut, **11–18** à droite, **I–R** en bas,
   **A–H** à gauche.
 - Partie de base : **5 gemmes** (1 rouge, 1 jaune, 1 bleue, 2 blanches) parmi un jeu de 7 ;
-  Diamant et Corps noir (« diamant noir ») en extensions, au choix au début de chaque partie
+  Diamant et Corps noir en extensions, au choix au début de chaque partie
   (`?ext=d|n|dn`) ; le Corps noir absorbe le rayon : affichage rouge « signal perdu » (wifi barré).
 - **La gemme rouge peut être retournée** (quadrillage foncé sur ses deux faces, seule pièce
   dans ce cas) ; les autres gemmes ne se retournent jamais. À signaler dans la page
@@ -84,27 +87,32 @@ Résumé ; le détail et les tableaux sont dans `docs/regles.md`.
   atteignable par au moins un laser envoyé depuis un bord**, c'est-à-dire qu'il existe un
   point d'entrée dont le rayon, allant tout droit sans aucun rebond préalable, touche cette
   gemme comme **première** gemme rencontrée. Une mine qui viole cette règle est rejetée.
-- **Contrainte d'unicité** : la mine doit être la **seule** configuration possible
-  (avec l'ensemble de gemmes donné, rouge retournée ou non) qui produit les résultats de
-  l'ensemble des tirs possibles. Après génération :
-  1. calculer la « signature » de la mine = résultat du tir depuis **chaque** entrée ;
-  2. chercher par backtracking, avec élagage sur la signature, toutes les configurations
-     valides qui reproduisent exactement cette signature ;
-  3. n'accepter la mine que si la seule solution trouvée est elle-même ; sinon, rejeter
-     et retirer.
-  La visibilité est une condition nécessaire de l'unicité (une gemme invisible rendrait la
-  solution ambiguë) : elle sert de filtre rapide avant le solveur, plus coûteux.
-- Le solveur d'unicité vit dans `game/` (ex. `solve.ts`) et doit rester assez rapide pour
-  une génération interactive (viser < 1 s ; sinon, Web Worker, puis banque de mines
-  précalculées).
 - Option de difficulté (plus tard) : nombre de gemmes, extensions Diamant et Corps noir,
   limite de lasers.
 - Vérifier par un test, sur de nombreuses graines, que toute mine générée est valide,
-  visible et unique.
+  et visible.
+
+## Vues du site (v2)
+
+Détail dans la section « Vues et compte » de [`docs/roadmap.md`](docs/roadmap.md). Jusqu'en v1,
+le site n'a que la vue de jeu et la page Règles ; la v2 en fait trois vues :
+
+1. **Partie** (`#/partie`) : la vue décrite dans « Interface » ci-dessous (grille, notes, gemmes,
+   résultat, plein écran).
+2. **Accueil** (`#/`, vue par défaut) : la partie en cours, la liste des parties non terminées
+   (connecté seulement) et le bouton « Nouvelle partie ». Le **titre du site**, en haut à gauche,
+   y ramène depuis toutes les vues.
+3. **Profil** (`#/profil`, connecté) : nom Google, pourcentage de parties gagnées, moyenne de
+   lasers avant victoire, historique des parties jouées.
+
+En haut à droite : un bouton **« Connexion »** ou **« Déconnexion »** (OAuth Google), à côté de la
+version du build. **Sans compte, une seule partie à la fois** (la sauvegarde locale) ; avec un
+compte, plusieurs parties en cours, enregistrées côté serveur. Sur l'accueil, « Nouvelle partie »
+ouvre la fenêtre des extensions (Diamant, Corps noir), la même qu'en début de partie.
 
 ## Interface
 
-Page unique, adaptée desktop **et** mobile/tactile (glisser-déposer au pointeur,
+Vue de jeu (`#/partie`), adaptée desktop **et** mobile/tactile (glisser-déposer au pointeur,
 pas seulement à la souris).
 
 **Texte minimal.** Le joueur ne doit lire presque rien : libellés courts (« Soumettre », « Retirer »),
@@ -119,7 +127,7 @@ La **version du build** (`vX.Y.Z`, issue de `package.json`) s'affiche en petit e
 
 Zones :
 
-1. **Grille de tir** : les repères de bord sont cliquables pour tirer un laser, et **toucher une case la sonde**. Chaque tir ou sonde demande une confirmation en modale (« Laser en E ? », « Sonder E4 ? »), désactivable pour la partie ; redemander ce qui est déjà connu est gratuit. Le numéro du tir figure sur le repère d'entrée (en haut à droite) et, dans une pastille de la couleur obtenue (en bas à droite), sur le repère de sortie ; ces pastilles restent visibles en mode notes. **Le chemin du rayon n'est jamais tracé**
+1. **Grille de tir** : les repères de bord sont cliquables pour tirer un laser, et **toucher une case la sonde**. Chaque tir ou sonde demande une confirmation en modale (« Laser en E ? », « Sonder E4 ? »), désactivable pour la partie ; redemander un laser déjà tiré est gratuit et ouvre à la place une **modale de résumé** (« E → F » + pastilles de la couleur, fermée d'un clic n'importe où), redemander une case sondée est gratuit. Le numéro du tir figure sur le repère d'entrée (en haut à droite) et, dans une pastille de la couleur obtenue (en bas à droite), sur le repère de sortie ; ces pastilles restent visibles en mode notes. **Le chemin du rayon n'est jamais tracé**
    (il trahirait les gemmes) ; il ne l'est que sur la grille de solution du joueur. Historique des tirs (numéroté) consultable et effaçable à
    l'affichage (mais le **compteur de tirs** ne baisse jamais). Les **gemmes posées** par le joueur et ses **notes** s'y affichent en **transparence** sous les repères ; une case à cocher « Notes » masque ou affiche les notes (les gemmes restent affichées).
 2. **Grille de notes / dessin** : les gemmes posées y sont affichées en transparence comme sur l'onglet Tirs ; calque libre pour annoter les cases (couleur,
@@ -132,7 +140,9 @@ Zones :
 4. **Résultat** (fin de partie) : la vraie mine et la proposition ; les 36 repères restent cliquables pour tirer des lasers libres dans la mine révélée (trajet tracé, hors compteur).
 5. **Plein écran (téléphone, paysage)** : un seul plateau (`ui/immersiveBoard.ts`) avec réserve de gemmes à droite et colonne d'outils ; l'outil « Jouer » tire (repères), sonde (cases) et déplace les gemmes, les autres outils dessinent (les repères restent cliquables).
 6. **Barre d'actions** : Nouvelle partie, Soumettre, Abandonner/Révéler, compteur
-   de lasers, chronomètre.
+   de **tirs** (lasers et sondes de cases comptent pareil), chronomètre. Les **extensions** de la
+   partie (« Sans extension », « Diamant », « Corps noir » ou les deux) s'affichent à côté de la
+   graine, en haut de la vue de jeu.
 
 Il est acceptable que ces zones soient des calques d'une même grille ou des
 onglets/panneaux côte à côte ; le choix est à faire à l'implémentation, mais la
@@ -147,13 +157,10 @@ compris la particularité de la gemme rouge retournable.
 
 - Comparaison exacte des gemmes (type, couleur, position, orientation, face de la rouge)
   entre la grille joueur et la mine cachée.
-- **Une seule réponse valable.** Le générateur garantit que la mine est la seule
-  configuration compatible avec l'ensemble des tirs possibles. La correction est donc une
-  **égalité stricte** : il n'y a ni équivalence par tirs ni tolérance. Si le joueur se
-  trompe, c'est qu'il n'a pas tiré assez de lasers pour lever l'ambiguïté : c'est le cœur
-  de l'entraînement.
-- Pas besoin de comparer des signatures à la soumission ; le simulateur sert seulement au
-  tir et à l'outil de vérification d'hypothèse du joueur.
+- **Égalité stricte** : il n'y a ni équivalence par tirs ni tolérance. Les ambiguïtés se lèvent
+  avec des lasers et des sondes de cases ; si le joueur se trompe, c'est qu'il n'a pas assez
+  cherché : c'est le cœur de l'entraînement.
+- Le simulateur sert seulement au tir et à l'outil de vérification d'hypothèse du joueur.
 - Fin de partie officielle : à deux joueurs, une proposition fausse fait perdre
   immédiatement. En entraînement, **une seule proposition** (`MAX_ATTEMPTS = 1` dans
   `game/session.ts`) ; la constante permet un mode plus indulgent.
@@ -189,7 +196,6 @@ src/
     examples.ts    # ✔ disposition du schéma du livret (tests et banc d'essai)
     rng.ts         # ✔ PRNG à graine
     generate.ts    # ✔ génération aléatoire à graine, version du générateur
-    solve.ts       # ✔ solveur d'unicité guidé par les rayons
     session.ts     # ✔ partie en cours : mine privée, tirs, sondes, soumission ; seule porte d'entrée de l'UI
     verify.ts      # ✔ correction par égalité stricte, détail gemme par gemme
     probe.ts       # ✔ « Qu'y a-t-il en E4 ? »
@@ -205,11 +211,13 @@ src/
     resultBoard.ts # ✔ écran de résultat : vraie mine et proposition
     storage.ts     # ✔ accès protégé au localStorage
     rules.ts       # ✔ page « Règles » (schémas tirés des données du jeu)
+    router.ts      # (à faire, v1.2) routeur par adresse : accueil, partie, profil, règles
+    home.ts        # (à faire, v1.2) vue Accueil : partie en cours, parties non terminées, nouvelle partie
     strings.ts     # ✔ table de chaînes de l'interface
     palette.ts     # ✔ couleurs d'affichage des gemmes et des rayons
     html.ts        # ✔ échappement du texte venant de l'extérieur (graine, nom du compte) : à utiliser partout
     history.ts     # ✔ page « Historique »
-    profile.ts     # ✔ page « Profil »
+    profile.ts     # ✔ page « Profil » (nom, statistiques ; à intégrer à la vue Profil avec l'historique)
     privacy.ts     # ✔ page « Confidentialité », suppression du compte
     format.ts      # ✔ durées, dates
   backend/     # v2 : Supabase (chargé à la demande, absent sans configuration)
@@ -277,7 +285,7 @@ v3.1 à v3.7 la **v4**.
 - v0.2 Modèle de données et géométrie, règles de placement a à d : **fait**.
 - v0.3 Simulateur de laser (tests : exemples du livret) : **fait**.
 - v0.4 Visibilité des gemmes (règle e) : **fait**.
-- v0.5 Générateur à graine + solveur d'unicité : **fait** (123 ms en moyenne par mine).
+- v0.5 Générateur à graine : **fait**.
 - v0.6 UI : grille et tirs : **fait**.
 - v0.7 UI : grille de solution (glisser-déposer, rotation, retournement de la rouge) : **fait**.
 - v0.8 UI : notes et dessin : **fait**.
@@ -287,9 +295,12 @@ v3.1 à v3.7 la **v4**.
 
 **Vers la v2 : comptes, historique, profil**
 
-- v1.1 Choix du backend (**fait**, Supabase). v1.2 Connexion Google (**fait**). v1.3 Modèle de données et sécurité par
-  utilisateur (**fait**). v1.4 Enregistrement et page Historique (**fait**). v1.5 Page de profil (moyenne de lasers
-  avant victoire, % de victoires) (**fait**). v1.6 Vie privée et exploitation (**fait**).
+- v1.1 Choix du backend (**fait**, Supabase). v1.2 Vues (accueil, partie, profil), navigation et
+  connexion Google (**connexion faite** ; vues et routeur **à faire**). v1.3 Modèle de données et
+  sécurité par utilisateur (**faite** pour les parties terminées ; parties en cours côté serveur
+  **à faire**). v1.4 Parties enregistrées et historique (**fait** pour les parties terminées).
+  v1.5 Vue Profil (nom, % de victoires, moyenne de tirs avant victoire) (**fait**, en page séparée).
+  v1.6 Vie privée et exploitation (**fait**).
 
 **Vers la v3 : plateau personnalisé et duel contre une IA**
 
@@ -309,16 +320,14 @@ v3.1 à v3.7 la **v4**.
 - **Dimensions des gemmes** : lues sur les schémas, à confirmer sur les pièces (surtout le
   grand triangle, supposé identique en bleu et en blanc, et le losange blanc). Formes des
   extensions données par le propriétaire : Diamant = demi-losange 2×1 (triangle de base 2,
-  hauteur 1) ; Corps noir (« diamant noir ») = base rectangulaire 2×1.
-- Contact entre gemmes (règle d) : le livret dit « par un coin ou une ligne ». Confirmer
-  qu'un sommet posé contre le milieu d'un côté est permis et qu'un segment partagé ne
-  l'est pas.
+  hauteur 1) ; Corps noir = base rectangulaire 2×1.
+- ~~Contact entre gemmes (règle d)~~ : confirmé par le propriétaire, deux gemmes ne se touchent
+  que par un **point** (jamais un segment) ; voir `docs/regles.md`.
 - ~~Soumission en entraînement~~ : décidé en v0.9, une seule tentative (`MAX_ATTEMPTS`).
 - ~~« Sonder une case »~~ : décidé en v0.9, proposée et comptée à part des lasers.
 - ~~Une partie abandonnée compte-t-elle comme perdue dans le pourcentage de victoires (v2) ?~~
   Décidé en v1.1 : oui.
-- Limite de lasers imposée, ou simple compteur indicatif ?
+- Limite de tirs imposée, ou simple compteur indicatif ?
 - ~~Supabase ou Firebase pour la v2 ?~~ Décidé en v1.1 : Supabase.
-- Duel (v3) : plateau ambigu permis ? « en même temps » ou tour par tour ? règle de fin (livret ou indulgente) ? Voir `docs/roadmap.md`.
-- Coût du solveur d'unicité à la génération : à mesurer une fois le simulateur écrit.
+- Duel (v3) : « en même temps » ou tour par tour ? règle de fin (livret ou indulgente) ? Voir `docs/roadmap.md`.
 - Faut-il un mode « tutoriel » expliquant les effets de chaque gemme ?

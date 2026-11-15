@@ -51,12 +51,13 @@ export const fr = {
     probe: (cell: string) => `Sonder ${cell} ?`,
     confirm: 'Confirmer',
     cancel: 'Annuler',
+    close: 'Fermer',
     dontAsk: 'Ne plus demander',
   },
   options: {
     title: 'Extensions',
     diamond: 'Diamant',
-    blackBody: 'Diamant noir',
+    blackBody: 'Corps noir',
     play: 'Jouer',
   },
   account: {
@@ -70,7 +71,7 @@ export const fr = {
     link: 'Historique',
     title: 'Historique',
     filters: { all: 'Toutes', won: 'Victoires', lost: 'Défaites' },
-    sorts: { recent: 'Récentes', oldest: 'Anciennes', lasers: 'Moins de lasers' },
+    sorts: { recent: 'Récentes', oldest: 'Anciennes', shots: 'Moins de tirs' },
     sortLabel: 'Tri',
     empty: 'Aucune partie',
     loading: 'Chargement…',
@@ -89,7 +90,7 @@ export const fr = {
     games: 'Parties',
     wins: 'Victoires',
     winRate: 'Victoires (%)',
-    avgLasers: 'Lasers par victoire',
+    avgShots: 'Tirs par victoire',
     none: 'Aucune partie jouée',
     noWin: '—',
     noWinLabel: 'Pas encore de victoire',
@@ -107,6 +108,12 @@ export const fr = {
     deleting: 'Suppression…',
     deleteFailed: 'Suppression impossible.',
     deleted: 'Compte supprimé',
+  },
+  /** Extensions de la partie en cours, affichées à côté de la graine. */
+  extensions: {
+    none: 'Sans extension',
+    diamond: 'Diamant',
+    blackBody: 'Corps noir',
   },
   hints: {
     storageOff: 'Sauvegarde indisponible.',

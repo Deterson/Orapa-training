@@ -45,7 +45,7 @@ describe('instantané de partie', () => {
     const restored = GameSession.fromSnapshot(original.toSnapshot() as never);
     expect(restored.shots).toEqual(original.shots);
     expect(restored.probes).toEqual(original.probes);
-    expect(restored.laserCount).toBe(2);
+    expect(restored.shotCount).toBe(3);
     expect(restored.seed).toBe(original.seed);
   });
 

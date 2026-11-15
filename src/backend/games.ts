@@ -12,7 +12,7 @@ import {
 } from '../game/record';
 
 export type HistoryFilter = 'all' | 'won' | 'lost';
-export type HistorySort = 'recent' | 'oldest' | 'lasers';
+export type HistorySort = 'recent' | 'oldest' | 'shots';
 
 export interface HistoryQuery {
   /** `lost` regroupe les parties perdues et abandonnées (une partie abandonnée compte comme perdue). */
@@ -116,8 +116,8 @@ export function createGamesService(client: GamesClientLike): GamesService {
       let request = client.from('games').select('*', { count: 'exact' });
       const statuses = statusesFor(query.filter);
       if (statuses) request = request.in('status', statuses);
-      if (query.sort === 'lasers') {
-        request = request.order('lasers_count', { ascending: true });
+      if (query.sort === 'shots') {
+        request = request.order('shots_count', { ascending: true });
         request = request.order('ended_at', { ascending: false });
       } else {
         request = request.order('ended_at', { ascending: query.sort === 'oldest' });
