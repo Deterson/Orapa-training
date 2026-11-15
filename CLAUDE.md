@@ -5,9 +5,11 @@ Gameology ; édition française Miraludo). Le site génère une « mine » aléa
 gemmes cachées) et le joueur doit la reconstituer par déduction, en tirant des lasers, en
 prenant des notes et en plaçant ses propres gemmes, puis en soumettant sa solution.
 
-> Statut : **v1 livrée (v1.0.0)**, **v2 en cours** (étapes v1.1 à v1.6, un commit par étape).
-> Backend retenu : Supabase (voir [`docs/backend.md`](docs/backend.md)). `CLAUDE.md` et `docs/` sont
-> la spécification.
+> Statut : **v1 livrée (v1.0.0)** ; **v2 livrée côté code (v2.0.0)** : étapes v1.1 à v1.6 terminées
+> (Supabase : connexion Google, historique, profil, suppression du compte). Reste à la mise en
+> service : créer le projet Supabase et l'identifiant Google, renseigner les variables, essayer en
+> vrai ([`docs/backend.md`](docs/backend.md)). Prochaine étape : v2.1 (éditeur de plateau, v3).
+> `CLAUDE.md` et `docs/` sont la spécification.
 
 ## Documentation (`docs/`)
 
@@ -208,6 +210,7 @@ src/
     html.ts        # ✔ échappement du texte venant de l'extérieur (graine, nom du compte) : à utiliser partout
     history.ts     # ✔ page « Historique »
     profile.ts     # ✔ page « Profil »
+    privacy.ts     # ✔ page « Confidentialité », suppression du compte
     format.ts      # ✔ durées, dates
   backend/     # v2 : Supabase (chargé à la demande, absent sans configuration)
     config.ts      # ✔ variables VITE_SUPABASE_*
@@ -286,7 +289,7 @@ v3.1 à v3.7 la **v4**.
 
 - v1.1 Choix du backend (**fait**, Supabase). v1.2 Connexion Google (**fait**). v1.3 Modèle de données et sécurité par
   utilisateur (**fait**). v1.4 Enregistrement et page Historique (**fait**). v1.5 Page de profil (moyenne de lasers
-  avant victoire, % de victoires) (**fait**). v1.6 Vie privée et exploitation.
+  avant victoire, % de victoires) (**fait**). v1.6 Vie privée et exploitation (**fait**).
 
 **Vers la v3 : plateau personnalisé et duel contre une IA**
 

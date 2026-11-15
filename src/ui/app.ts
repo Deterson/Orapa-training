@@ -64,6 +64,7 @@ import {
 import { browserOutbox } from '../backend/outbox';
 import { formatTime, plural } from './format';
 import { escapeHtml } from './html';
+import { privacyPage } from './privacy';
 import { profilePage } from './profile';
 import { historyPage, isHistoryFilter, isHistorySort, pageCount } from './history';
 import { rulesPage } from './rules';
@@ -74,7 +75,7 @@ import { gemOrigin, gemSize, solutionBoardSvg } from './solutionBoard';
 
 type Phase = 'loading' | 'options' | 'resume' | 'ready' | 'error';
 type Tab = 'shots' | 'solution' | 'notes' | 'result';
-type View = 'game' | 'rules' | 'history' | 'profile';
+type View = 'game' | 'rules' | 'history' | 'profile' | 'privacy';
 type Ask = { kind: 'fire'; label: string } | { kind: 'probe'; cell: string };
 
 interface State {
@@ -134,6 +135,8 @@ interface State {
     total: number;
   };
   profile: { status: 'loading' | 'ready' | 'error'; stats: ProfileStats | null };
+  /** Suppression du compte (page Confidentialité). */
+  deletion: 'idle' | 'confirm' | 'busy' | 'error';
 }
 
 const HISTORY_PAGE_SIZE = 20;
@@ -186,6 +189,7 @@ function viewFromHash(): View {
     const hash = window.location.hash;
     if (hash === '#regles') return 'rules';
     if (hash === '#historique') return 'history';
+    if (hash === '#confidentialite') return 'privacy';
     return hash === '#profil' ? 'profile' : 'game';
   } catch {
     return 'game';
@@ -268,6 +272,7 @@ export function startApp(root: HTMLElement, version: string): App {
     recorded: null,
     history: { filter: 'all', sort: 'recent', page: 0, status: 'loading', games: [], total: 0 },
     profile: { status: 'loading', stats: null },
+    deletion: 'idle',
   };
   const store = browserSaveStore();
   const outbox = browserOutbox();
@@ -497,6 +502,17 @@ export function startApp(root: HTMLElement, version: string): App {
       root.innerHTML = `<main class="app"><span class="version">v${version}</span>${rulesPage(version)}</main>`;
       return;
     }
+    if (state.view === 'privacy') {
+      root.innerHTML = `<main class="app"><span class="version">v${version}</span>${privacyPage(
+        {
+          backend: state.backend !== null,
+          signedIn: state.account !== null,
+          deletion: state.deletion,
+        },
+        version,
+      )}</main>`;
+      return;
+    }
     if ((state.view === 'history' || state.view === 'profile') && state.backend) {
       let page: string;
       if (!state.authReady) {
@@ -611,6 +627,7 @@ export function startApp(root: HTMLElement, version: string): App {
             ${probeHistory}
           </aside>
         </div>
+        ${state.backend ? `<footer class="foot"><a class="nav-link" href="#confidentialite">${t.privacy.link}</a></footer>` : ''}
         <p class="sr-only" aria-live="polite">${state.notice}</p>
         ${toastHtml()}
         ${modal()}
@@ -843,6 +860,29 @@ export function startApp(root: HTMLElement, version: string): App {
         if (token !== profileToken) return;
         profile.status = 'error';
         if (state.view === 'profile') render();
+      },
+    );
+  };
+
+  /** Supprime le compte et ses parties, puis revient au jeu (sans compte). */
+  const deleteAccount = (): void => {
+    const { backend, account } = state;
+    if (!backend || !account) return;
+    state.deletion = 'busy';
+    render();
+    backend.auth.deleteAccount().then(
+      () => {
+        outbox.discard(account.id);
+        state.deletion = 'idle';
+        state.recorded = null;
+        state.notice = t.privacy.deleted;
+        window.location.hash = '#jeu';
+        state.view = 'game';
+        render();
+      },
+      () => {
+        state.deletion = 'error';
+        render();
       },
     );
   };
@@ -1173,6 +1213,14 @@ export function startApp(root: HTMLElement, version: string): App {
           render();
         });
         return;
+      case 'ask-delete-account':
+        state.deletion = 'confirm';
+        return render();
+      case 'cancel-delete-account':
+        state.deletion = 'idle';
+        return render();
+      case 'confirm-delete-account':
+        return deleteAccount();
       case 'retry-profile':
         return loadProfile();
       case 'sign-out':

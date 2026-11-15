@@ -97,6 +97,17 @@ export const fr = {
     error: 'Chargement impossible.',
     retry: 'Réessayer',
   },
+  privacy: {
+    link: 'Confidentialité',
+    title: 'Confidentialité',
+    delete: 'Supprimer mon compte',
+    deleteConfirm: 'Supprimer définitivement',
+    confirm: 'Supprimer le compte et toutes ses parties ?',
+    confirmLabel: 'Confirmer la suppression',
+    deleting: 'Suppression…',
+    deleteFailed: 'Suppression impossible.',
+    deleted: 'Compte supprimé',
+  },
   hints: {
     storageOff: 'Sauvegarde indisponible.',
   },

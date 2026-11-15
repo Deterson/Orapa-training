@@ -67,7 +67,7 @@ export function profilePage(model: ProfileModel, version: string): string {
     <h2>${t.profile.title}</h2>
     ${who}
     <div aria-busy="${model.status === 'loading'}">${body}</div>
-    <p><a class="nav-link" href="#historique">${t.history.link}</a></p>
+    <p><a class="nav-link" href="#historique">${t.history.link}</a> <a class="nav-link" href="#confidentialite">${t.privacy.link}</a></p>
     ${back}${foot}
   </article>`;
 }

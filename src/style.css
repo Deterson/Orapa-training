@@ -1359,3 +1359,34 @@ html.is-immersive body {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+
+/* Confidentialité (v2) */
+.privacy {
+  max-width: 44rem;
+}
+
+button.danger {
+  border-color: #d33a2c;
+  color: #d33a2c;
+}
+
+.confirm button.danger {
+  background: #d33a2c;
+  color: #fff;
+}
+
+.foot {
+  margin-top: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  button.danger {
+    border-color: #ff8a7f;
+    color: #ff8a7f;
+  }
+
+  .confirm button.danger {
+    background: #c0392b;
+    color: #fff;
+  }
+}

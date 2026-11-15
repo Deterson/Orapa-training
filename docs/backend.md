@@ -44,7 +44,39 @@ aucun appel réseau. Le jeu reste jouable sans compte.
 ## Ce que le site demande à Google et conserve
 
 Identifiant, nom, avatar et adresse e-mail du compte (tels que Supabase les stocke dans
-`auth.users`). Rien d'autre. Détail et suppression du compte : voir l'étape v1.6 de la roadmap.
+`auth.users` ; le site n'utilise que le nom et l'avatar). Par partie terminée : graine, version du
+générateur, extensions, repères tirés, proposition, résultat, durée, dates ; jamais la mine, les
+notes ni les dessins. Le joueur peut supprimer son compte et toutes ses parties depuis la page
+Confidentialité (fonction SQL `delete_my_account()`). Texte destiné aux joueurs : `src/ui/privacy.ts`.
+
+## Ce que fait la base
+
+| Migration | Contenu |
+|---|---|
+| `…000001_games.sql` | table `games`, sécurité par ligne : chacun lit, écrit et supprime ses parties, aucune mise à jour |
+| `…000002_profile_stats.sql` | `profile_stats()` : parties, victoires, % de victoires, lasers par victoire (les abandons comptent comme des défaites) |
+| `…000003_delete_account.sql` | `delete_my_account()` : supprime le compte de l'appelant, ses parties partent en cascade |
+
+Les nouvelles migrations s'ajoutent à la suite (jamais de modification d'une migration déjà
+appliquée en production) et viennent avec leurs tests dans `supabase/tests/`.
+
+## Mise en production : liste de contrôle
+
+1. Projet Supabase de **production** créé, migrations appliquées, Google activé (étapes ci-dessus).
+2. Variables `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` créées dans les *variables* du dépôt
+   GitHub (pas dans les secrets : ce sont des valeurs publiques).
+3. *Site URL* et *Redirect URLs* de Supabase = adresse GitHub Pages (avec le sous-dossier du dépôt).
+4. Pousser sur `main` : `deploy.yml` construit le site avec ces valeurs.
+5. Essayer : connexion Google, une partie jusqu'au bout (« ✓ Enregistrée »), page Historique, page
+   Profil, déconnexion, puis suppression d'un compte de test.
+6. Vérifier dans Supabase (Table editor, Authentication) que la partie existe, puis que la
+   suppression du compte a bien tout effacé.
+
+## Politique de sécurité du contenu
+
+Le build ajoute une balise `Content-Security-Policy` (voir `vite.config.ts`) : scripts du site
+seulement, requêtes sortantes limitées à `VITE_SUPABASE_URL`, avatars Google en https. Si le projet
+Supabase change d'adresse, il faut reconstruire le site (la politique est calculée au build).
 
 ## Tests de la sécurité par ligne
 

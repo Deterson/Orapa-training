@@ -20,6 +20,11 @@ export interface AuthService {
   /** Ouvre la page de connexion Google (la page est quittée puis rechargée au retour). */
   signIn(): Promise<void>;
   signOut(): Promise<void>;
+  /**
+   * Supprime le compte et toutes ses parties (définitif), puis termine la session. Échoue sans
+   * rien supprimer si la base refuse.
+   */
+  deleteAccount(): Promise<void>;
 }
 
 /** La partie du client Supabase utilisée ici (permet de la remplacer dans les tests). */
@@ -35,8 +40,11 @@ export interface AuthClientLike {
       provider: 'google';
       options?: { redirectTo?: string };
     }): Promise<{ error: { message: string } | null }>;
-    signOut(): Promise<{ error: { message: string } | null }>;
+    signOut(options?: {
+      scope: 'local' | 'global';
+    }): Promise<{ error: { message: string } | null }>;
   };
+  rpc(fn: 'delete_my_account'): PromiseLike<{ error: { message: string } | null }>;
 }
 
 export interface SupabaseUserLike {
@@ -106,6 +114,13 @@ export function createAuthService(client: AuthClientLike, redirectTo: () => stri
     signOut: async () => {
       const { error } = await client.auth.signOut();
       if (error) throw new Error(error.message);
+      update(null);
+    },
+    deleteAccount: async () => {
+      const { error } = await client.rpc('delete_my_account');
+      if (error) throw new Error(error.message);
+      // Le compte n'existe plus : on ne prévient pas le serveur, on oublie seulement la session locale.
+      await client.auth.signOut({ scope: 'local' }).catch(() => undefined);
       update(null);
     },
   };

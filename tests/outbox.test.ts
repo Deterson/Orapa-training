@@ -167,4 +167,18 @@ describe("file d'envoi", () => {
       expect((await box.flush('A', service)).sent).toBe(1);
     }
   });
+
+  it("oublie les parties d'un utilisateur (suppression du compte), pas celles des autres", () => {
+    const store = memoryStorage();
+    const box = createOutbox(store);
+    box.add('A', record(1));
+    box.add('A', record(2));
+    box.add('B', record(3));
+    box.discard('A');
+    expect(box.pending('A')).toEqual([]);
+    expect(createOutbox(store).pending('A')).toEqual([]);
+    expect(createOutbox(store).pending('B')).toEqual([record(3)]);
+    box.discard('B');
+    expect(store.data.has(OUTBOX_KEY)).toBe(false);
+  });
 });

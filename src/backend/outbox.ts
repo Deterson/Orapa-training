@@ -32,6 +32,8 @@ export interface Outbox {
   /** Parties en attente pour cet utilisateur. */
   pending(userId: string): GameRecord[];
   has(userId: string, id: string): boolean;
+  /** Oublie toutes les parties en attente de cet utilisateur (suppression du compte). */
+  discard(userId: string): void;
   flush(userId: string, games: GamesService): Promise<FlushResult>;
 }
 
@@ -95,6 +97,11 @@ export function createOutbox(backend: Backend | null): Outbox {
     },
     pending,
     has: (userId, id) => pending(userId).some((record) => record.id === id),
+    discard: (userId) => {
+      const list = read();
+      for (let i = list.length - 1; i >= 0; i--) if (list[i]?.userId === userId) list.splice(i, 1);
+      write();
+    },
     flush: (userId, games) => {
       // Un seul envoi à la fois : deux déclencheurs rapprochés ne doublent pas les requêtes.
       const running = flushing.get(userId);

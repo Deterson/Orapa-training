@@ -426,19 +426,48 @@ Règles de calcul (figées, testées) :
 - **Fini quand :** les valeurs affichées correspondent à un calcul à la main sur un jeu de parties
   de test, cas limites compris. ✔
 
-### v1.6 Vie privée et exploitation (S)
+### v1.6 Vie privée et exploitation (S) : fait
 
-- Ne conserver que le nécessaire de Google (identifiant, nom, avatar).
-- Page de confidentialité ; suppression du compte avec **effacement de ses parties**.
-- Séparation des environnements (développement / production) et gestion des secrets hors du
-  dépôt.
+- **Données minimales** : le site n'utilise du compte Google que le **nom** et l'**avatar**
+  (l'identifiant sert de clé) ; Supabase garde aussi l'adresse e-mail pour la connexion (on ne peut
+  pas la refuser), le site ne la lit jamais. Chaque partie ne contient ni la mine, ni les notes, ni
+  les dessins.
+- **Page Confidentialité** (`#confidentialite`, lien en bas du jeu une fois le backend branché et
+  sur la page Profil) : ce qui est gardé et où (Supabase ; navigateur), ce qui ne l'est jamais, les
+  droits (consulter, se déconnecter, supprimer). Sans backend, la page dit que rien ne quitte le
+  navigateur.
+- **Suppression du compte** : bouton avec confirmation ; la fonction SQL `delete_my_account()`
+  (`security definer`, sans paramètre : elle ne vise que `auth.uid()`) supprime le compte, et ses
+  parties partent avec (clé étrangère en cascade) ; la session locale et la file d'envoi de cet
+  utilisateur sont effacées, retour au jeu sans compte. En cas d'échec, rien n'est supprimé et on
+  reste connecté. Tests SQL (`account.test.sql`) : refusé sans connexion, n'efface que l'appelant et
+  ses parties, un compte déjà supprimé ne provoque pas d'erreur.
+- **Environnements et secrets** : un projet Supabase par environnement ; la configuration passe par
+  `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` (publiques) : `.env.local` en développement,
+  *variables* du dépôt GitHub en production (`deploy.yml` les transmet au build ; absentes, le site
+  est publié sans connexion). Les fichiers `.env*` sont ignorés par git (sauf `.env.example`). Le
+  secret client Google reste dans Supabase. Un test échoue si `service_role`, `sb_secret_` ou un
+  jeton JWT apparaît dans le code du site, ou si une autre variable `VITE_*` est lue.
+- **Politique de sécurité du contenu** (build seulement) : `script-src 'self'`, requêtes sortantes
+  limitées au projet Supabase configuré, avatars Google en https. Vérifiée dans un navigateur sur le
+  build : aucune violation en jeu normal, un script injecté ne s'exécute pas. Elle double la
+  correction d'échappement de la v1.4.
+- **Fini quand :** un utilisateur peut effacer son compte et ses parties, et aucun secret n'est dans
+  le dépôt. ✔
 
-### Critères de sortie : livraison de la v2
+### Critères de sortie : livraison de la v2 (v2.0.0)
 
-- Connexion Google fonctionnelle en production.
-- L'historique et le profil reflètent exactement les parties terminées.
-- Aucun accès possible aux données d'un autre utilisateur.
-- La v1 sans compte continue de fonctionner à l'identique.
+- **Code et tests : atteints.** Historique et profil reflètent exactement les parties terminées
+  (tests SQL et Vitest) ; aucun accès possible aux données d'un autre utilisateur (tests SQL, en CI) ;
+  la v1 sans compte fonctionne à l'identique (sans variables, aucun bouton, aucun appel réseau, la
+  bibliothèque n'est pas chargée).
+- **Reste à faire par le propriétaire, pour la mise en service** : créer le projet Supabase, appliquer
+  les migrations, créer l'identifiant OAuth Google, renseigner les variables du dépôt (guide pas à
+  pas : [`backend.md`](backend.md)), puis **essayer la connexion Google réelle** et une partie
+  complète de bout en bout. Tout ce qui précède a été vérifié contre une API Supabase simulée, pas
+  contre un vrai projet.
+- Ajouter, si la loi l'exige pour ce site, un contact et les mentions légales sur la page
+  Confidentialité (le texte actuel n'en contient pas).
 
 ### Notes de conception pour la v2
 
@@ -665,6 +694,9 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
   absorbés affichent un **signal wifi rouge barré « Signal perdu »** (message, historique, repère
   d'entrée, case sondée). Génération avec extensions : environ 0,4 à 1,3 s en moyenne, jusqu'à
   quelques secondes dans le pire cas (écran « Génération… », pas de Web Worker pour l'instant).
+
+- **v2.0.0** : livraison de la v2 (étapes v1.1 à v1.6 : Supabase, connexion Google, historique, profil,
+  confidentialité). Détail dans les étapes ci-dessus.
 
 ## Questions ouvertes
 

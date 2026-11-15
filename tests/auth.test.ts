@@ -97,7 +97,8 @@ describe('utilisateur du compte', () => {
 function fakeClient(initial: SupabaseUserLike | null) {
   type Callback = (event: string, session: { user: SupabaseUserLike } | null) => void;
   let callback: Callback = () => undefined;
-  const calls = { signIn: [] as unknown[], signOut: 0 };
+  const calls = { signIn: [] as unknown[], signOut: [] as unknown[], rpc: [] as string[] };
+  let rpcError: { message: string } | null = null;
   let session = initial ? { user: initial } : null;
   const client: AuthClientLike = {
     auth: {
@@ -110,14 +111,21 @@ function fakeClient(initial: SupabaseUserLike | null) {
         calls.signIn.push(options);
         return Promise.resolve({ error: null });
       },
-      signOut: () => {
-        calls.signOut++;
+      signOut: (options) => {
+        calls.signOut.push(options);
         session = null;
         return Promise.resolve({ error: null });
       },
     },
+    rpc: (fn) => {
+      calls.rpc.push(fn);
+      return Promise.resolve({ error: rpcError });
+    },
   };
   return {
+    failRpc: (message: string) => {
+      rpcError = { message };
+    },
     client,
     calls,
     emit: (event: string, user: SupabaseUserLike | null) => callback(event, user && { user }),
@@ -179,7 +187,7 @@ describe('service de connexion', () => {
     const auth = createAuthService(client, () => 'x');
     await auth.ready();
     await auth.signOut();
-    expect(calls.signOut).toBe(1);
+    expect(calls.signOut).toEqual([undefined]);
     expect(auth.current()).toBeNull();
   });
 
@@ -195,5 +203,29 @@ describe('service de connexion', () => {
     client.auth.getSession = () => Promise.reject(new Error('réseau'));
     const auth = createAuthService(client, () => 'x');
     expect(await auth.ready()).toBeNull();
+  });
+
+  it('supprime le compte puis oublie la session locale', async () => {
+    const { client, calls } = fakeClient(ada);
+    const auth = createAuthService(client, () => 'x');
+    await auth.ready();
+    const listener = vi.fn();
+    auth.onChange(listener);
+    await auth.deleteAccount();
+    expect(calls.rpc).toEqual(['delete_my_account']);
+    // Session locale seulement : le compte n'existe plus côté serveur.
+    expect(calls.signOut).toEqual([{ scope: 'local' }]);
+    expect(auth.current()).toBeNull();
+    expect(listener).toHaveBeenCalledWith(null);
+  });
+
+  it('si la base refuse la suppression, on reste connecté', async () => {
+    const { client, calls, failRpc } = fakeClient(ada);
+    failRpc('refusé');
+    const auth = createAuthService(client, () => 'x');
+    await auth.ready();
+    await expect(auth.deleteAccount()).rejects.toThrow('refusé');
+    expect(calls.signOut).toEqual([]);
+    expect(auth.current()?.id).toBe('u1');
   });
 });
