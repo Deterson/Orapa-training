@@ -42,9 +42,10 @@ Périmètre par version (détail dans `docs/roadmap.md`) :
 - **v1** : toutes les règles, 100 % statique côté client, avec une **sauvegarde locale**
   de la partie en cours pour la reprendre plus tard dans le même navigateur. Pas de
   compte, pas de serveur.
-- **v2** : connexion **Google (OAuth)**, **historique** des parties, **page de profil**
-  (moyenne de lasers tirés avant de gagner, pourcentage de parties gagnées). Demande un
-  backend ; le jeu reste jouable sans compte.
+- **v2** : trois **vues** (accueil, partie, profil), connexion **Google (OAuth)**, parties en
+  cours enregistrées dans le compte, **historique** des parties, **vue de profil** (nom Google,
+  pourcentage de parties gagnées, moyenne de lasers tirés avant de gagner). Demande un
+  backend. Sans compte, le jeu reste jouable mais limité à **une seule partie**.
 - **v3** : le joueur **crée son plateau** (cache ses gemmes) et **joue contre une IA** qui cherche le
   sien pendant qu'il cherche celui de l'IA (fini le simple entraînement).
 - **v4** : **duel en direct** contre un autre joueur (arbitre serveur qui répond aux lasers sans
@@ -100,9 +101,26 @@ Résumé ; le détail et les tableaux sont dans `docs/regles.md`.
 - Vérifier par un test, sur de nombreuses graines, que toute mine générée est valide,
   visible et unique.
 
+## Vues du site (v2)
+
+Détail dans la section « Vues et compte » de [`docs/roadmap.md`](docs/roadmap.md). Jusqu'en v1,
+le site n'a que la vue de jeu et la page Règles ; la v2 en fait trois vues :
+
+1. **Partie** (`#/partie`) : la vue décrite dans « Interface » ci-dessous (grille, notes, gemmes,
+   résultat, plein écran).
+2. **Accueil** (`#/`, vue par défaut) : la partie en cours, la liste des parties non terminées
+   (connecté seulement) et le bouton « Nouvelle partie ». Le **titre du site**, en haut à gauche,
+   y ramène depuis toutes les vues.
+3. **Profil** (`#/profil`, connecté) : nom Google, pourcentage de parties gagnées, moyenne de
+   lasers avant victoire, historique des parties jouées.
+
+En haut à droite : un bouton **« Connexion »** ou **« Déconnexion »** (OAuth Google), à côté de la
+version du build. **Sans compte, une seule partie est possible** (la sauvegarde locale) ; avec un
+compte, plusieurs parties en cours, enregistrées côté serveur.
+
 ## Interface
 
-Page unique, adaptée desktop **et** mobile/tactile (glisser-déposer au pointeur,
+Vue de jeu (`#/partie`), adaptée desktop **et** mobile/tactile (glisser-déposer au pointeur,
 pas seulement à la souris).
 
 **Texte minimal.** Le joueur ne doit lire presque rien : libellés courts (« Soumettre », « Retirer »),
@@ -201,6 +219,9 @@ src/
     resultBoard.ts # ✔ écran de résultat : vraie mine et proposition
     storage.ts     # ✔ accès protégé au localStorage
     rules.ts       # ✔ page « Règles » (schémas tirés des données du jeu)
+    router.ts      # (v1.2) routeur par adresse : accueil, partie, profil, règles
+    home.ts        # (v1.2) vue Accueil : partie en cours, parties non terminées, nouvelle partie
+    profile.ts     # (v1.2 puis v1.5) vue Profil : nom, statistiques, historique
     strings.ts     # ✔ table de chaînes de l'interface
     palette.ts     # ✔ couleurs d'affichage des gemmes et des rayons
   main.ts
@@ -270,9 +291,10 @@ v3.1 à v3.7 la **v4**.
 
 **Vers la v2 : comptes, historique, profil**
 
-- v1.1 Choix du backend. v1.2 Connexion Google. v1.3 Modèle de données et sécurité par
-  utilisateur. v1.4 Enregistrement et page Historique. v1.5 Page de profil (moyenne de lasers
-  avant victoire, % de victoires). v1.6 Vie privée et exploitation.
+- v1.1 Choix du backend. v1.2 Vues (accueil, partie, profil), navigation et connexion Google.
+  v1.3 Modèle de données (parties en cours et terminées) et sécurité par utilisateur. v1.4 Parties
+  enregistrées et historique. v1.5 Vue Profil (nom, % de victoires, moyenne de lasers avant
+  victoire). v1.6 Vie privée et exploitation.
 
 **Vers la v3 : plateau personnalisé et duel contre une IA**
 
@@ -302,6 +324,8 @@ v3.1 à v3.7 la **v4**.
   Proposition : oui.
 - Limite de lasers imposée, ou simple compteur indicatif ?
 - Supabase ou Firebase pour la v2 ?
+- Sans compte, « une seule partie » : à vie (il faut se connecter une fois la partie finie, lecture
+  retenue) ou une seule à la fois ?
 - Duel (v3) : plateau ambigu permis ? « en même temps » ou tour par tour ? règle de fin (livret ou indulgente) ? Voir `docs/roadmap.md`.
 - Coût du solveur d'unicité à la génération : à mesurer une fois le simulateur écrit.
 - Faut-il un mode « tutoriel » expliquant les effets de chaque gemme ?

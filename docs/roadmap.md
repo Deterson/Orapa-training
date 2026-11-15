@@ -278,8 +278,33 @@ utilisent des événements émulés) et confirmer les dimensions des gemmes sur 
 **Objectif :** connexion Google, historique des parties et page de profil avec deux
 statistiques.
 
-Cela impose un **backend**, ce que la v1 évite. Le jeu reste jouable **sans compte** : se
-connecter ajoute l'historique, rien de plus.
+Cela impose un **backend**, ce que la v1 évite. Le jeu reste jouable **sans compte**, mais
+limité à **une seule partie** (voir « Vues et compte » ci-dessous) : se connecter débloque
+plusieurs parties, la liste des parties en cours, l'historique et le profil.
+
+### Vues et compte (valable pour toute la v2)
+
+Le site passe d'une page de jeu à **trois vues** (plus la page Règles, inchangée). Navigation par
+l'adresse (`#/`, `#/partie`, `#/profil`, `#regles`), sans rechargement ; un lien `?seed=…` ouvre
+directement la vue partie.
+
+| Vue | Adresse | Contenu |
+|---|---|---|
+| **Accueil** (vue par défaut) | `#/` | la **partie en cours** (bouton « Reprendre »), la **liste des parties non terminées** (connecté seulement), le bouton **« Nouvelle partie »** |
+| **Partie** | `#/partie` | la vue actuelle : grille de tir, notes, gemmes à placer, résultat, plein écran |
+| **Profil** | `#/profil` (connecté) | nom Google, **pourcentage de parties gagnées**, moyenne de lasers avant victoire, **historique** des parties jouées |
+
+- **En-tête** : le **titre du site**, en haut à gauche, ramène à l'accueil ; en haut à droite, un
+  bouton **« Connexion »** (non connecté) ou **« Déconnexion »** (connecté) qui lance l'OAuth Google ;
+  la version du build reste en petit à côté. Le nom du joueur, cliquable, mène au profil.
+- **Sans compte** : **une seule partie**, celle de la sauvegarde locale. L'accueil la propose
+  (« Reprendre »). Une fois terminée, « Nouvelle partie » invite à se connecter au lieu de lancer
+  une partie. Pas de liste, pas d'historique, pas de profil.
+- **Avec compte** : plusieurs parties en cours en même temps, chacune reprise depuis l'accueil.
+  Les parties en cours sont donc **stockées côté serveur** (voir v1.3), pas seulement les parties
+  terminées.
+- Une partie « en cours » n'entre pas dans les statistiques ; une partie terminée ou abandonnée y
+  entre.
 
 ### v1.1 Choix du backend (S)
 
@@ -296,23 +321,31 @@ Un service géré évite d'écrire un serveur. Deux options réalistes :
 agrégats naturels en SQL et que la sécurité par ligne est simple à écrire. Décision à
 confirmer avant de commencer.
 
-### v1.2 Authentification Google (M)
+### v1.2 Vues, navigation et authentification Google (M)
 
-- Connexion et déconnexion OAuth Google ; session persistante.
-- Jouer sans être connecté reste possible (sauvegarde locale de la v1 inchangée).
-- Écran d'état : connecté / non connecté, avatar et nom affichés.
+- **Vues** : routeur par adresse (`ui/router.ts`), vue **Accueil** (`ui/home.ts`) par défaut, vue
+  **Partie** (l'existant, déplacé derrière `#/partie`), vue **Profil** (`ui/profile.ts`, squelette).
+  Le titre du site mène à l'accueil. Cette partie ne dépend pas du backend : elle peut être
+  livrée avant le choix de la v1.1, avec l'accueil limité à la partie locale.
+- **Une seule partie sans compte** : « Nouvelle partie » est bloquée une fois la partie locale
+  terminée, et invite à se connecter.
+- Bouton **Connexion / Déconnexion** en haut à droite ; connexion et déconnexion OAuth Google ;
+  session persistante. Nom et avatar affichés une fois connecté.
 - Configuration OAuth (écran de consentement, URI de redirection par environnement).
-- **Fini quand :** on peut se connecter, se déconnecter, recharger la page et rester connecté.
+- **Fini quand :** on navigue entre les trois vues, on peut se connecter, se déconnecter, recharger
+  la page et rester connecté.
 
 ### v1.3 Modèle de données et sécurité (M)
 
-Table `games` (une ligne par partie terminée), au minimum :
+Table `games` (une ligne par partie, **en cours ou terminée**), au minimum :
 
 | Champ | Rôle |
 |---|---|
 | `id`, `user_id` | clés ; `user_id` = utilisateur connecté |
 | `seed`, `generator_version` | pour rejouer la mine |
-| `status` | `won`, `lost` ou `abandoned` |
+| `status` | `playing`, `won`, `lost` ou `abandoned` |
+| `snapshot` | JSON : la sauvegarde de `game/save.ts` (mine, tirs, solution, notes), renseignée tant que la partie est en cours, effacée à la fin |
+| `updated_at` | dernière modification (tri de la liste des parties en cours) |
 | `lasers_count` | lasers tirés pendant la partie |
 | `probes_count` | cases sondées (si l'action est retenue) |
 | `started_at`, `ended_at`, `duration_s` | temps |
@@ -323,20 +356,25 @@ Table `games` (une ligne par partie terminée), au minimum :
 - **Fini quand :** un utilisateur A ne peut jamais lire ni modifier les parties de B
   (test d'accès automatisé).
 
-### v1.4 Enregistrement et historique (M)
+### v1.4 Parties enregistrées et historique (M)
 
-- À la fin d'une partie, si connecté : enregistrer la ligne `games`. Gérer l'échec réseau
-  (file locale, nouvel essai).
-- Page **Historique** : liste paginée (date, résultat, lasers, durée), tri et filtre
-  victoire/défaite.
+- Si connecté : la partie est créée en base au lancement (`playing`) et sa sauvegarde est
+  **synchronisée** au même rythme que la sauvegarde locale ; à la fin, `status` passe à
+  `won`, `lost` ou `abandoned`. Gérer l'échec réseau (file locale, nouvel essai).
+- **Accueil** : la liste des parties non terminées vient de la base (`status = 'playing'`),
+  triée par `updated_at` ; « Reprendre » charge le `snapshot` dans la vue partie.
+- **Historique** (dans la vue Profil) : liste paginée des parties terminées (date, résultat,
+  lasers, durée), tri et filtre victoire/défaite.
 - Option : revoir une partie passée à partir de sa graine et de ses tirs.
-- Option : proposer d'importer au premier login les parties terminées stockées en local.
-- **Fini quand :** les parties terminées apparaissent dans l'historique, sur n'importe quel
+- À la première connexion : la partie locale en cours (et, en option, les parties locales
+  terminées) est proposée à l'import dans le compte.
+- **Fini quand :** les parties en cours et terminées suivent le compte sur n'importe quel
   navigateur où l'on se connecte.
 
-### v1.5 Page de profil (S à M)
+### v1.5 Vue Profil (S à M)
 
-Deux statistiques, **calculées à partir de `games`** :
+La vue affiche le **nom Google**, les statistiques ci-dessous et l'**historique** de la v1.4.
+Deux statistiques, **calculées à partir de `games`** (parties terminées seulement) :
 
 - **Moyenne de lasers tirés avant de gagner** = moyenne de `lasers_count` sur les parties
   **gagnées** uniquement.
@@ -363,9 +401,11 @@ Règles de calcul à figer (voir questions ouvertes) :
 ### Critères de sortie : livraison de la v2
 
 - Connexion Google fonctionnelle en production.
-- L'historique et le profil reflètent exactement les parties terminées.
+- Les trois vues (accueil, partie, profil) sont navigables, le titre ramène à l'accueil.
+- L'historique et le profil reflètent exactement les parties terminées ; l'accueil liste les
+  parties en cours.
 - Aucun accès possible aux données d'un autre utilisateur.
-- La v1 sans compte continue de fonctionner à l'identique.
+- Sans compte : une seule partie, jouable comme en v1 (sauvegarde locale inchangée).
 
 ### Notes de conception pour la v2
 
@@ -615,3 +655,7 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
 - Limite de lasers imposée ou simple compteur ?
 - Dimensions des gemmes et règle d de contact : voir [`regles.md`](regles.md).
 - Supabase ou Firebase pour la v2 ?
+- **Sans compte (v2) : « une seule partie »** s'entend-elle comme **une seule partie à vie** (une
+  fois terminée, il faut se connecter) ou **une seule partie à la fois** (on peut en relancer une
+  après la fin) ? Lecture retenue pour l'instant : la première.
+- Nombre maximal de parties en cours par compte (par exemple 10) ?
