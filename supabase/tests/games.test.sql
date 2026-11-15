@@ -5,62 +5,7 @@
 -- Tout dans une seule transaction : `set local` (rôle, identifiant) ne vit que le temps d'une transaction.
 begin;
 
--- Fonctions d'aide dans un schéma de test (base jetable).
-create schema tt;
-
-create function tt.as_user(uid uuid) returns void language plpgsql as $$
-begin
-  perform set_config('request.jwt.claim.sub', coalesce(uid::text, ''), true);
-  execute case when uid is null then 'set local role anon' else 'set local role authenticated' end;
-end $$;
-
-create function tt.back_to_admin() returns void language plpgsql as $$
-begin
-  execute 'reset role';
-  perform set_config('request.jwt.claim.sub', '', true);
-end $$;
-
--- Une partie valide ; chaque test en modifie un champ pour viser une contrainte.
-create function tt.game(
-  p_id uuid default gen_random_uuid(),
-  p_user uuid default null,
-  p_status text default 'won',
-  p_lasers integer default 2,
-  p_shots jsonb default '["1","15"]',
-  p_submission jsonb default '[{"gem":"red"}]',
-  p_ext text default ''
-) returns void language plpgsql as $$
-begin
-  insert into public.games (id, user_id, seed, generator_version, extensions, status, lasers_count,
-    probes_count, started_at, ended_at, duration_s, shots, submission)
-  values (p_id, coalesce(p_user, auth.uid()), 'graine', 1, p_ext, p_status, p_lasers, 0,
-    '2026-01-01 10:00+00', '2026-01-01 10:05+00', 300, p_shots, p_submission);
-end $$;
-
--- Vérifie qu'une instruction échoue avec le code SQLSTATE attendu.
-create function tt.must_fail(p_sql text, p_code text, p_label text) returns void
-language plpgsql as $$
-begin
-  begin
-    execute p_sql;
-  exception when others then
-    if sqlstate = p_code then return; end if;
-    raise exception '% : échec avec le code %, attendu % (%)', p_label, sqlstate, p_code, sqlerrm;
-  end;
-  raise exception '% : aurait dû échouer', p_label;
-end $$;
-
-create function tt.expect(p_actual bigint, p_expected bigint, p_label text) returns void
-language plpgsql as $$
-begin
-  if p_actual is distinct from p_expected then
-    raise exception '% : obtenu %, attendu %', p_label, p_actual, p_expected;
-  end if;
-end $$;
-
--- Les fonctions d'aide doivent être appelables par les rôles de test.
-grant usage on schema tt to anon, authenticated;
-grant execute on all functions in schema tt to anon, authenticated;
+-- Les fonctions d'aide (schéma tt) viennent de 01_helpers.sql.
 
 insert into auth.users (id) values
   ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),

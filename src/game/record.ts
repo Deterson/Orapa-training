@@ -206,3 +206,42 @@ export function parseRow(value: unknown): GameRecord | null {
     submission,
   };
 }
+
+/** Statistiques du profil, calculées par la base (fonction `profile_stats`) sur les parties terminées. */
+export interface ProfileStats {
+  /** Parties terminées : gagnées, perdues et abandonnées (un abandon compte comme une défaite). */
+  total: number;
+  wins: number;
+  losses: number;
+  abandoned: number;
+  /** Part de victoires entre 0 et 1 ; null sans aucune partie. */
+  winRate: number | null;
+  /** Moyenne de lasers tirés sur les parties gagnées ; null sans victoire (jamais 0 par défaut). */
+  avgLasersToWin: number | null;
+}
+
+const count = (value: unknown): number | null => (isInt(value, 0, 1e9) ? value : null);
+const nullableNumber = (value: unknown, max: number): number | null | undefined => {
+  if (value === null || value === undefined) return null;
+  const n = typeof value === 'string' ? Number(value) : value;
+  return typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= max ? n : undefined;
+};
+
+/** Lit la ligne renvoyée par `profile_stats` (les nombres décimaux peuvent arriver en texte). */
+export function parseStats(value: unknown): ProfileStats | null {
+  const row = Array.isArray(value) ? value[0] : value;
+  if (!isRecord(row)) return null;
+  const total = count(row['total_games']);
+  const wins = count(row['wins']);
+  const losses = count(row['losses']);
+  const abandoned = count(row['abandoned']);
+  const winRate = nullableNumber(row['win_rate'], 1);
+  const avgLasersToWin = nullableNumber(row['avg_lasers_to_win'], 36);
+  if (total === null || wins === null || losses === null || abandoned === null) return null;
+  if (winRate === undefined || avgLasersToWin === undefined) return null;
+  // Cohérence : les trois issues font le total, et sans partie ou sans victoire pas de chiffre.
+  if (wins + losses + abandoned !== total) return null;
+  if ((total === 0) !== (winRate === null)) return null;
+  if ((wins === 0) !== (avgLasersToWin === null)) return null;
+  return { total, wins, losses, abandoned, winRate, avgLasersToWin };
+}

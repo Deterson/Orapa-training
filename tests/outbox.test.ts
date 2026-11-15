@@ -43,6 +43,7 @@ function fakeGames(failWith: (r: GameRecord) => Error | null = () => null) {
       return Promise.resolve();
     },
     list: () => Promise.resolve({ games: [], total: 0 }),
+    stats: () => Promise.reject(new Error('inutilisé')),
   };
   return { sent, service };
 }
@@ -124,6 +125,7 @@ describe("file d'envoi", () => {
         await Promise.resolve();
       },
       list: () => Promise.resolve({ games: [], total: 0 }),
+      stats: () => Promise.reject(new Error('inutilisé')),
     };
     const [first, second] = await Promise.all([box.flush('A', service), box.flush('A', service)]);
     expect(calls).toBe(1);

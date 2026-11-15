@@ -20,6 +20,7 @@ for migration in supabase/migrations/*.sql; do
   echo "migration : $migration"
   run "$migration"
 done
+run supabase/tests/01_helpers.sql
 status=0
 for test in supabase/tests/*.test.sql; do
   echo "test : $test"

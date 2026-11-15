@@ -1319,3 +1319,43 @@ html.is-immersive body {
     grid-column: 1 / -1;
   }
 }
+
+/* Profil (v2) */
+.profile-page {
+  display: grid;
+  gap: 12px;
+  max-width: 44rem;
+}
+
+.p-who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.1rem;
+}
+
+.p-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.p-card {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.p-card dt {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.p-card dd {
+  margin: 4px 0 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

@@ -207,6 +207,7 @@ src/
     palette.ts     # ✔ couleurs d'affichage des gemmes et des rayons
     html.ts        # ✔ échappement du texte venant de l'extérieur (graine, nom du compte) : à utiliser partout
     history.ts     # ✔ page « Historique »
+    profile.ts     # ✔ page « Profil »
     format.ts      # ✔ durées, dates
   backend/     # v2 : Supabase (chargé à la demande, absent sans configuration)
     config.ts      # ✔ variables VITE_SUPABASE_*
@@ -285,7 +286,7 @@ v3.1 à v3.7 la **v4**.
 
 - v1.1 Choix du backend (**fait**, Supabase). v1.2 Connexion Google (**fait**). v1.3 Modèle de données et sécurité par
   utilisateur (**fait**). v1.4 Enregistrement et page Historique (**fait**). v1.5 Page de profil (moyenne de lasers
-  avant victoire, % de victoires). v1.6 Vie privée et exploitation.
+  avant victoire, % de victoires) (**fait**). v1.6 Vie privée et exploitation.
 
 **Vers la v3 : plateau personnalisé et duel contre une IA**
 

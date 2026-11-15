@@ -54,10 +54,17 @@ import { diffLine, resultBoardSvg } from './resultBoard';
 import type { AccountUser } from '../backend/auth';
 import type { Backend } from '../backend';
 import type { HistoryFilter, HistorySort } from '../backend/games';
-import { type GameRecord, buildRecord, parseRow, recordToRow } from '../game/record';
+import {
+  type GameRecord,
+  type ProfileStats,
+  buildRecord,
+  parseRow,
+  recordToRow,
+} from '../game/record';
 import { browserOutbox } from '../backend/outbox';
 import { formatTime, plural } from './format';
 import { escapeHtml } from './html';
+import { profilePage } from './profile';
 import { historyPage, isHistoryFilter, isHistorySort, pageCount } from './history';
 import { rulesPage } from './rules';
 import { browserSaveStore } from './storage';
@@ -67,7 +74,7 @@ import { gemOrigin, gemSize, solutionBoardSvg } from './solutionBoard';
 
 type Phase = 'loading' | 'options' | 'resume' | 'ready' | 'error';
 type Tab = 'shots' | 'solution' | 'notes' | 'result';
-type View = 'game' | 'rules' | 'history';
+type View = 'game' | 'rules' | 'history' | 'profile';
 type Ask = { kind: 'fire'; label: string } | { kind: 'probe'; cell: string };
 
 interface State {
@@ -126,6 +133,7 @@ interface State {
     games: GameRecord[];
     total: number;
   };
+  profile: { status: 'loading' | 'ready' | 'error'; stats: ProfileStats | null };
 }
 
 const HISTORY_PAGE_SIZE = 20;
@@ -176,7 +184,9 @@ function writeSeedToUrl(seed: string, extensions: Readonly<Extensions> = NO_EXTE
 function viewFromHash(): View {
   try {
     const hash = window.location.hash;
-    return hash === '#regles' ? 'rules' : hash === '#historique' ? 'history' : 'game';
+    if (hash === '#regles') return 'rules';
+    if (hash === '#historique') return 'history';
+    return hash === '#profil' ? 'profile' : 'game';
   } catch {
     return 'game';
   }
@@ -257,6 +267,7 @@ export function startApp(root: HTMLElement, version: string): App {
     game: null,
     recorded: null,
     history: { filter: 'all', sort: 'recent', page: 0, status: 'loading', games: [], total: 0 },
+    profile: { status: 'loading', stats: null },
   };
   const store = browserSaveStore();
   const outbox = browserOutbox();
@@ -462,7 +473,7 @@ export function startApp(root: HTMLElement, version: string): App {
     const avatar = user.avatarUrl
       ? `<img class="avatar" src="${escapeHtml(user.avatarUrl)}" alt="" referrerpolicy="no-referrer" width="28" height="28">`
       : '';
-    return `<span class="account" aria-label="${t.account.label}"><a class="nav-link" href="#historique">${t.history.link}</a>${avatar}<span class="account-name">${escapeHtml(user.name)}</span><button type="button" class="ghost" data-action="sign-out">${t.account.signOut}</button></span>`;
+    return `<span class="account" aria-label="${t.account.label}"><a class="nav-link" href="#historique">${t.history.link}</a><a class="nav-link" href="#profil">${t.profile.link}</a>${avatar}<span class="account-name">${escapeHtml(user.name)}</span><button type="button" class="ghost" data-action="sign-out">${t.account.signOut}</button></span>`;
   };
 
   const render = (): void => {
@@ -486,13 +497,18 @@ export function startApp(root: HTMLElement, version: string): App {
       root.innerHTML = `<main class="app"><span class="version">v${version}</span>${rulesPage(version)}</main>`;
       return;
     }
-    if (state.view === 'history' && state.backend) {
-      const page = state.authReady
-        ? historyPage(
-            { signedIn: state.account !== null, ...state.history, pageSize: HISTORY_PAGE_SIZE },
-            version,
-          )
-        : `<article class="history-page"><p class="placeholder" role="status">${t.history.loading}</p></article>`;
+    if ((state.view === 'history' || state.view === 'profile') && state.backend) {
+      let page: string;
+      if (!state.authReady) {
+        page = `<article class="history-page"><p class="placeholder" role="status">${t.history.loading}</p></article>`;
+      } else if (state.view === 'history') {
+        page = historyPage(
+          { signedIn: state.account !== null, ...state.history, pageSize: HISTORY_PAGE_SIZE },
+          version,
+        );
+      } else {
+        page = profilePage({ user: state.account, ...state.profile }, version);
+      }
       root.innerHTML = `<main class="app"><span class="version">v${version}</span>${page}</main>`;
       return;
     }
@@ -740,6 +756,7 @@ export function startApp(root: HTMLElement, version: string): App {
       retryDelay = 15_000;
     }
     if (result.sent > 0 && state.view === 'history') loadHistory();
+    if (result.sent > 0 && state.view === 'profile') loadProfile();
     if (state.recorded === 'pending' && state.game && !outbox.has(account.id, state.game.id)) {
       state.recorded = 'saved';
       render();
@@ -804,6 +821,30 @@ export function startApp(root: HTMLElement, version: string): App {
           if (state.view === 'history') render();
         },
       );
+  };
+
+  let profileToken = 0;
+
+  /** Charge les statistiques du profil ; une réponse tardive d'une demande dépassée est ignorée. */
+  const loadProfile = (): void => {
+    const { backend, account, profile } = state;
+    if (!backend || !account) return;
+    const token = ++profileToken;
+    profile.status = 'loading';
+    if (state.view === 'profile') render();
+    backend.games.stats().then(
+      (stats) => {
+        if (token !== profileToken) return;
+        profile.stats = stats;
+        profile.status = 'ready';
+        if (state.view === 'profile') render();
+      },
+      () => {
+        if (token !== profileToken) return;
+        profile.status = 'error';
+        if (state.view === 'profile') render();
+      },
+    );
   };
 
   /** Termine la partie et affiche le résultat. */
@@ -1132,6 +1173,8 @@ export function startApp(root: HTMLElement, version: string): App {
           render();
         });
         return;
+      case 'retry-profile':
+        return loadProfile();
       case 'sign-out':
         void state.backend?.auth.signOut().catch(() => {
           state.notice = t.account.signOutFailed;
@@ -1379,6 +1422,7 @@ export function startApp(root: HTMLElement, version: string): App {
   window.addEventListener('hashchange', () => {
     state.view = viewFromHash();
     if (state.view === 'history') loadHistory();
+    if (state.view === 'profile') loadProfile();
     render();
     if (state.view !== 'game') window.scrollTo(0, 0);
   });
@@ -1409,15 +1453,19 @@ export function startApp(root: HTMLElement, version: string): App {
     attachBackend: (backend) => {
       state.backend = backend;
       const onAccount = (user: AccountUser | null): void => {
-        // Autre compte ou déconnexion : l'historique affiché n'est plus le bon, on l'oublie.
-        if (user?.id !== state.account?.id) {
+        const changed = user?.id !== state.account?.id;
+        if (changed) {
+          // Autre compte ou déconnexion : l'historique et le profil affichés ne sont plus les bons.
           state.history = { ...state.history, page: 0, status: 'loading', games: [], total: 0 };
+          state.profile = { status: 'loading', stats: null };
           historyToken++;
+          profileToken++;
         }
         state.account = user;
-        if (user) {
+        if (changed && user) {
           void flushOutbox();
           if (state.view === 'history') loadHistory();
+          if (state.view === 'profile') loadProfile();
         }
         render();
       };

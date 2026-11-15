@@ -60,6 +60,10 @@ function fakeClient(result: Result, throws = false) {
         select: (columns, options) => (calls.push(['select', columns, options]), query),
       };
     },
+    rpc: (fn) => {
+      calls.push(['rpc', fn]);
+      return throws ? Promise.reject(new TypeError('Failed to fetch')) : Promise.resolve(result);
+    },
   };
   return { client, calls };
 }
@@ -170,5 +174,38 @@ describe('service des parties', () => {
     expect(isPermanentCode('23505')).toBe(true);
     expect(isPermanentCode('08006')).toBe(false);
     expect(isPermanentCode(undefined)).toBe(false);
+  });
+
+  describe('statistiques', () => {
+    const row = {
+      total_games: 6,
+      wins: 3,
+      losses: 1,
+      abandoned: 2,
+      win_rate: 0.5,
+      avg_lasers_to_win: 7.67,
+    };
+
+    it('appelle la fonction du profil et lit la ligne', async () => {
+      const { client, calls } = fakeClient({ data: [row], error: null });
+      expect(await createGamesService(client).stats()).toEqual({
+        total: 6,
+        wins: 3,
+        losses: 1,
+        abandoned: 2,
+        winRate: 0.5,
+        avgLasersToWin: 7.67,
+      });
+      expect(calls).toEqual([['rpc', 'profile_stats']]);
+    });
+
+    it('échoue proprement sur une erreur, une coupure ou une réponse illisible', async () => {
+      const failing = fakeClient({ data: null, error: { message: 'JWT expired' } }).client;
+      await expect(createGamesService(failing).stats()).rejects.toThrow('JWT expired');
+      const offline = fakeClient({ data: null, error: null }, true).client;
+      await expect(createGamesService(offline).stats()).rejects.toBeInstanceOf(GamesError);
+      const odd = fakeClient({ data: [{ total_games: 'x' }], error: null }).client;
+      await expect(createGamesService(odd).stats()).rejects.toThrow('illisibles');
+    });
   });
 });

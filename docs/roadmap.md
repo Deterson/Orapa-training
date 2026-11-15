@@ -395,24 +395,36 @@ Table `games` (une ligne par partie terminée), migration
 - **Fini quand :** les parties terminées apparaissent dans l'historique, sur n'importe quel
   navigateur où l'on se connecte. (Code et tests ✔ ; essai réel en attente du projet Supabase.)
 
-### v1.5 Page de profil (S à M)
+### v1.5 Page de profil (S à M) : fait
 
-Deux statistiques, **calculées à partir de `games`** :
+Deux statistiques, **calculées par la base à partir de `games`** (fonction `profile_stats()`,
+migration `20261115000002_profile_stats.sql`, droit d'exécution réservé aux utilisateurs connectés,
+filtre explicite sur l'utilisateur en plus de la sécurité par ligne) :
 
 - **Moyenne de lasers tirés avant de gagner** = moyenne de `lasers_count` sur les parties
-  **gagnées** uniquement.
-- **Pourcentage de parties gagnées** = parties gagnées ÷ parties totales terminées.
+  **gagnées** uniquement (arrondie à 2 décimales en base, 1 à l'écran).
+- **Pourcentage de parties gagnées** = parties gagnées ÷ parties totales terminées (1 décimale au
+  plus à l'écran : « 66,7 % »).
 
-Règles de calcul à figer (voir questions ouvertes) :
+Règles de calcul (figées, testées) :
 
-- Une partie compte dans le total dès qu'elle est terminée : gagnée, perdue ou abandonnée.
-  Par défaut, **une partie abandonnée compte comme perdue**.
-- Pas de victoire : la moyenne s'affiche « — », jamais 0.
-- Pas de partie : « Aucune partie jouée ».
-- Affichage : nombre total de parties, victoires, les deux statistiques ; pas de
-  classement ni de comparaison entre joueurs.
-- **Fini quand :** les valeurs affichées correspondent à un calcul à la main sur un jeu de
-  parties de test, cas limites compris.
+- Une partie compte dans le total dès qu'elle est terminée : gagnée, perdue ou abandonnée ;
+  **une partie abandonnée compte comme perdue**.
+- Pas de victoire : la moyenne vaut `null` et s'affiche « — », jamais 0 (une vraie moyenne de 0
+  laser, possible, s'affiche « 0 »). Le pourcentage vaut alors 0 %.
+- Pas de partie : « Aucune partie jouée » (taux et moyenne `null`).
+- Affichage (`#profil`, `ui/profile.ts`) : avatar et nom, nombre de parties, victoires, % de
+  victoires, lasers par victoire ; pas de classement ni de comparaison entre joueurs. Chargement,
+  erreur avec « Réessayer » ; les chiffres sont rechargés quand une partie en file est envoyée.
+- Tests SQL (`supabase/tests/profile.test.sql`) sur des jeux de parties dont les résultats sont
+  calculés à la main : mélange de victoires, défaites et abandons (3 victoires sur 6 parties,
+  moyenne 5 + 10 + 8 = 7,67 ; les lasers des parties perdues ou abandonnées ne comptent pas),
+  aucun joueur, aucune victoire, une seule victoire, victoires à 0 laser, isolation entre
+  utilisateurs, accès refusé sans connexion. Les tests échouent si l'on change la règle (moyenne sur
+  toutes les parties, abandons exclus du total, moyenne ramenée à 0). Tests Vitest : lecture et
+  cohérence de la ligne reçue, mise en forme, états de la page.
+- **Fini quand :** les valeurs affichées correspondent à un calcul à la main sur un jeu de parties
+  de test, cas limites compris. ✔
 
 ### v1.6 Vie privée et exploitation (S)
 
