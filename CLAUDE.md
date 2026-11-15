@@ -45,7 +45,7 @@ Périmètre par version (détail dans `docs/roadmap.md`) :
 - **v2** : trois **vues** (accueil, partie, profil), connexion **Google (OAuth)**, parties en
   cours enregistrées dans le compte, **historique** des parties, **vue de profil** (nom Google,
   pourcentage de parties gagnées, moyenne de lasers tirés avant de gagner). Demande un
-  backend. Sans compte, le jeu reste jouable mais limité à **une seule partie**.
+  backend. Sans compte, le jeu reste jouable mais limité à **une seule partie à la fois**.
 - **v3** : le joueur **crée son plateau** (cache ses gemmes) et **joue contre une IA** qui cherche le
   sien pendant qu'il cherche celui de l'IA (fini le simple entraînement).
 - **v4** : **duel en direct** contre un autre joueur (arbitre serveur qui répond aux lasers sans
@@ -115,8 +115,9 @@ le site n'a que la vue de jeu et la page Règles ; la v2 en fait trois vues :
    lasers avant victoire, historique des parties jouées.
 
 En haut à droite : un bouton **« Connexion »** ou **« Déconnexion »** (OAuth Google), à côté de la
-version du build. **Sans compte, une seule partie est possible** (la sauvegarde locale) ; avec un
-compte, plusieurs parties en cours, enregistrées côté serveur.
+version du build. **Sans compte, une seule partie à la fois** (la sauvegarde locale) ; avec un
+compte, plusieurs parties en cours, enregistrées côté serveur. Sur l'accueil, « Nouvelle partie »
+ouvre la fenêtre des extensions (Diamant, Diamant noir), la même qu'en début de partie.
 
 ## Interface
 
@@ -315,17 +316,14 @@ v3.1 à v3.7 la **v4**.
   grand triangle, supposé identique en bleu et en blanc, et le losange blanc). Formes des
   extensions données par le propriétaire : Diamant = demi-losange 2×1 (triangle de base 2,
   hauteur 1) ; Corps noir (« diamant noir ») = base rectangulaire 2×1.
-- Contact entre gemmes (règle d) : le livret dit « par un coin ou une ligne ». Confirmer
-  qu'un sommet posé contre le milieu d'un côté est permis et qu'un segment partagé ne
-  l'est pas.
+- ~~Contact entre gemmes (règle d)~~ : confirmé par le propriétaire, deux gemmes ne se touchent
+  que par un **point** (jamais un segment) ; voir `docs/regles.md`.
 - ~~Soumission en entraînement~~ : décidé en v0.9, une seule tentative (`MAX_ATTEMPTS`).
 - ~~« Sonder une case »~~ : décidé en v0.9, proposée et comptée à part des lasers.
 - Une partie abandonnée compte-t-elle comme perdue dans le pourcentage de victoires (v2) ?
   Proposition : oui.
 - Limite de lasers imposée, ou simple compteur indicatif ?
 - Supabase ou Firebase pour la v2 ?
-- Sans compte, « une seule partie » : à vie (il faut se connecter une fois la partie finie, lecture
-  retenue) ou une seule à la fois ?
 - Duel (v3) : plateau ambigu permis ? « en même temps » ou tour par tour ? règle de fin (livret ou indulgente) ? Voir `docs/roadmap.md`.
 - Coût du solveur d'unicité à la génération : à mesurer une fois le simulateur écrit.
 - Faut-il un mode « tutoriel » expliquant les effets de chaque gemme ?

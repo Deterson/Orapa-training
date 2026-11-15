@@ -85,13 +85,14 @@ grille de solution du joueur :
 - ✅ **b.** Chaque coin de gemme correspond à un coin de la grille, et les lignes
   visibles s'alignent sur cette grille : pas de pose « de travers ».
 - ✅ **c.** Une gemme peut toucher le bord du plateau, pas le dépasser.
-- ⚠️ **d.** « Deux gemmes ne peuvent pas être placées côte à côte. Elles ne peuvent se
-  toucher que par un coin ou une ligne. » **Lecture retenue :** l'intersection de deux
+- ✅ **d.** « Deux gemmes ne peuvent pas être placées côte à côte. Elles ne peuvent se
+  toucher que par un coin ou une ligne. » **Lecture confirmée par le propriétaire :** l'intersection de deux
   gemmes est **vide ou réduite à un point** (sommet contre sommet, ou sommet contre le
   milieu d'un côté) ; **jamais de segment partagé**, et pas de chevauchement. C'est ce que
   montre le schéma d du livret : le losange blanc collé au parallélogramme rouge le long
   d'un côté porte une croix, le contact par un coin entre le parallélogramme et le grand
-  triangle blanc porte un rond.
+  triangle blanc porte un rond. Les gemmes peuvent se toucher autant qu'elles veulent, mais
+  **uniquement en des points** : plusieurs gemmes peuvent partager un même point.
 - ✅ **e.** Chaque gemme doit être accessible depuis au moins un bord (« il doit être
   possible de tracer une ligne pour l'atteindre »). **Lecture retenue (précision
   propriétaire) :** il existe un laser qui, parti d'un bord et allant tout droit, sans
@@ -188,6 +189,5 @@ site joue ce rôle).
 
 - Dimensions exactes des gemmes (surtout : grand triangle identique en bleu et en blanc ?
   losange blanc 2×2 ?). 
-- Règle d (contact entre gemmes), lecture ci-dessus.
 - Couleur « orange clair » (rouge + jaune + blanc), seulement vue dans la table BGA.
 - Nombre d'essais de soumission en entraînement.

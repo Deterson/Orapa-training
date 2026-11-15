@@ -372,6 +372,14 @@ h2 {
   stroke-linejoin: round;
 }
 
+/* Diamant : bordure bleue franche autour d'un centre translucide (fill-opacity posé par gemPolygons). */
+polygon.gem-clear,
+.gem-g polygon.gem-clear {
+  stroke: #2b6fa8;
+  stroke-opacity: 1;
+  stroke-width: 0.1;
+}
+
 .gem-g:focus-visible polygon,
 .gem-g.is-selected polygon {
   stroke: var(--accent);

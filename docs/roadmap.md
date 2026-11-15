@@ -279,7 +279,7 @@ utilisent des événements émulés) et confirmer les dimensions des gemmes sur 
 statistiques.
 
 Cela impose un **backend**, ce que la v1 évite. Le jeu reste jouable **sans compte**, mais
-limité à **une seule partie** (voir « Vues et compte » ci-dessous) : se connecter débloque
+limité à **une seule partie à la fois** (voir « Vues et compte » ci-dessous) : se connecter débloque
 plusieurs parties, la liste des parties en cours, l'historique et le profil.
 
 ### Vues et compte (valable pour toute la v2)
@@ -297,9 +297,12 @@ directement la vue partie.
 - **En-tête** : le **titre du site**, en haut à gauche, ramène à l'accueil ; en haut à droite, un
   bouton **« Connexion »** (non connecté) ou **« Déconnexion »** (connecté) qui lance l'OAuth Google ;
   la version du build reste en petit à côté. Le nom du joueur, cliquable, mène au profil.
-- **Sans compte** : **une seule partie**, celle de la sauvegarde locale. L'accueil la propose
-  (« Reprendre »). Une fois terminée, « Nouvelle partie » invite à se connecter au lieu de lancer
-  une partie. Pas de liste, pas d'historique, pas de profil.
+- **Sans compte** : **une seule partie à la fois**, celle de la sauvegarde locale. L'accueil la
+  propose (« Reprendre »). Tant qu'elle n'est ni terminée ni abandonnée, « Nouvelle partie » n'est
+  pas disponible (reprendre, abandonner ou se connecter) ; une fois terminée, on peut en lancer une
+  autre. Pas de liste, pas d'historique, pas de profil.
+- **« Nouvelle partie »** (accueil) ouvre la fenêtre des **extensions** (Diamant, Diamant noir),
+  la même qu'au début d'une partie, puis lance la génération et ouvre la vue Partie.
 - **Avec compte** : plusieurs parties en cours en même temps, chacune reprise depuis l'accueil.
   Les parties en cours sont donc **stockées côté serveur** (voir v1.3), pas seulement les parties
   terminées.
@@ -327,8 +330,8 @@ confirmer avant de commencer.
   **Partie** (l'existant, déplacé derrière `#/partie`), vue **Profil** (`ui/profile.ts`, squelette).
   Le titre du site mène à l'accueil. Cette partie ne dépend pas du backend : elle peut être
   livrée avant le choix de la v1.1, avec l'accueil limité à la partie locale.
-- **Une seule partie sans compte** : « Nouvelle partie » est bloquée une fois la partie locale
-  terminée, et invite à se connecter.
+- **Une seule partie à la fois sans compte** : « Nouvelle partie » est bloquée tant que la partie
+  locale n'est pas terminée ou abandonnée ; elle ouvre la fenêtre des extensions.
 - Bouton **Connexion / Déconnexion** en haut à droite ; connexion et déconnexion OAuth Google ;
   session persistante. Nom et avatar affichés une fois connecté.
 - Configuration OAuth (écran de consentement, URI de redirection par environnement).
@@ -405,7 +408,7 @@ Règles de calcul à figer (voir questions ouvertes) :
 - L'historique et le profil reflètent exactement les parties terminées ; l'accueil liste les
   parties en cours.
 - Aucun accès possible aux données d'un autre utilisateur.
-- Sans compte : une seule partie, jouable comme en v1 (sauvegarde locale inchangée).
+- Sans compte : une seule partie à la fois, jouable comme en v1 (sauvegarde locale inchangée).
 
 ### Notes de conception pour la v2
 
@@ -637,6 +640,9 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
   **modale de résumé** (« E → F » et les pastilles de la couleur obtenue ; « transparent » écrit en
   toutes lettres, « Signal perdu » avec son pictogramme) qui se ferme par sa croix ou d'un clic
   n'importe où. C'est gratuit et sans confirmation, même si « Ne plus demander » est coché.
+- **v1.0.15** : le **Diamant** s'affiche **creux** : bordure bleue franche et centre de la même teinte à
+  30 % d'opacité (grille visible au travers), dans la réserve, la grille, le résultat, les règles et
+  les sondes.
 
 ## Questions ouvertes
 
@@ -658,9 +664,6 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
 - Une partie abandonnée compte-t-elle comme perdue dans le pourcentage de victoires ?
   Proposition : oui.
 - Limite de lasers imposée ou simple compteur ?
-- Dimensions des gemmes et règle d de contact : voir [`regles.md`](regles.md).
+- Dimensions des gemmes : voir [`regles.md`](regles.md). (Règle d de contact : tranchée, voir `regles.md`.)
 - Supabase ou Firebase pour la v2 ?
-- **Sans compte (v2) : « une seule partie »** s'entend-elle comme **une seule partie à vie** (une
-  fois terminée, il faut se connecter) ou **une seule partie à la fois** (on peut en relancer une
-  après la fin) ? Lecture retenue pour l'instant : la première.
 - Nombre maximal de parties en cours par compte (par exemple 10) ?
