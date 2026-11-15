@@ -229,7 +229,7 @@ src/
     palette.ts     # ✔ couleurs d'affichage des gemmes et des rayons
     html.ts        # ✔ échappement du texte venant de l'extérieur (graine, nom du compte) : à utiliser partout
     history.ts     # ✔ page « Historique »
-    profile.ts     # ✔ page « Profil » (nom, statistiques ; à intégrer à la vue Profil avec l'historique)
+    profile.ts     # ✔ page « Profil » (nom, statistiques)
     privacy.ts     # ✔ page « Confidentialité », suppression du compte
     format.ts      # ✔ durées, dates
   backend/     # v2 : Supabase (chargé à la demande, absent sans configuration)
@@ -309,11 +309,10 @@ v3.1 à v3.7 la **v4**.
 **Vers la v2 : comptes, historique, profil**
 
 - v1.1 Choix du backend (**fait**, Supabase). v1.2 Vues (accueil, partie, profil), navigation et
-  connexion Google (**connexion faite** ; vues et routeur **à faire**). v1.3 Modèle de données et
-  sécurité par utilisateur (**faite** pour les parties terminées ; parties en cours côté serveur
-  **à faire**). v1.4 Parties enregistrées et historique (**fait** pour les parties terminées).
-  v1.5 Vue Profil (nom, % de victoires, moyenne de tirs avant victoire) (**fait**, en page séparée).
-  v1.6 Vie privée et exploitation (**fait**).
+  connexion Google (**fait**). v1.3 Modèle de données et sécurité par utilisateur, parties en cours
+  et terminées (**fait**). v1.4 Parties enregistrées et historique (**fait**). v1.5 Vue Profil (nom,
+  % de victoires, moyenne de tirs avant victoire) (**fait**, historique en page séparée). v1.6 Vie
+  privée et exploitation (**fait**). Reste la mise en service (voir `docs/backend.md`).
 
 **Vers la v3 : plateau personnalisé et duel contre une IA**
 
