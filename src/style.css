@@ -222,6 +222,17 @@ h2 {
   gap: 4px 10px;
 }
 
+/* Les deux cases à cocher, l'une au-dessus de l'autre. */
+.board-toggles {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.board-toggles .check {
+  min-height: 30px;
+}
+
 .board-undo button {
   min-height: 38px;
   min-width: 44px;
