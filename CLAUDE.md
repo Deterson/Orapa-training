@@ -204,6 +204,11 @@ src/
     rules.ts       # ✔ page « Règles » (schémas tirés des données du jeu)
     strings.ts     # ✔ table de chaînes de l'interface
     palette.ts     # ✔ couleurs d'affichage des gemmes et des rayons
+    html.ts        # ✔ échappement du texte venant de l'extérieur
+  backend/     # v2 : Supabase (chargé à la demande, absent sans configuration)
+    config.ts      # ✔ variables VITE_SUPABASE_*
+    auth.ts        # ✔ connexion Google
+    index.ts       # ✔ crée le client
   main.ts
 tests/         # Vitest ; helpers.ts fournit `place`, un PRNG et des dispositions aléatoires valides
 docs/          # règles du jeu et roadmap
@@ -271,7 +276,7 @@ v3.1 à v3.7 la **v4**.
 
 **Vers la v2 : comptes, historique, profil**
 
-- v1.1 Choix du backend (**fait**, Supabase). v1.2 Connexion Google. v1.3 Modèle de données et sécurité par
+- v1.1 Choix du backend (**fait**, Supabase). v1.2 Connexion Google (**fait**). v1.3 Modèle de données et sécurité par
   utilisateur. v1.4 Enregistrement et page Historique. v1.5 Page de profil (moyenne de lasers
   avant victoire, % de victoires). v1.6 Vie privée et exploitation.
 

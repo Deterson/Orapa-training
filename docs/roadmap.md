@@ -309,13 +309,26 @@ Autres décisions prises avec le propriétaire :
   effacée à la fin de la partie).
 - **Fini quand :** le choix est écrit et le guide de mise en place existe. ✔
 
-### v1.2 Authentification Google (M)
+### v1.2 Authentification Google (M) : fait
 
-- Connexion et déconnexion OAuth Google ; session persistante.
-- Jouer sans être connecté reste possible (sauvegarde locale de la v1 inchangée).
-- Écran d'état : connecté / non connecté, avatar et nom affichés.
-- Configuration OAuth (écran de consentement, URI de redirection par environnement).
-- **Fini quand :** on peut se connecter, se déconnecter, recharger la page et rester connecté.
+- `src/backend/` : `config.ts` (lit `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` ; absentes ou
+  invalides : `null`), `auth.ts` (service de connexion au-dessus d'un client Supabase, testé avec un
+  faux client), `index.ts` (crée le client **à la demande** : sans configuration, la bibliothèque
+  n'est même pas téléchargée).
+- Connexion et déconnexion OAuth Google (flux PKCE), session persistante (gérée par Supabase),
+  retour sur la page sans paramètres : la partie en cours est sauvegardée en local avant de partir
+  et reprise au retour.
+- Le service ne retient que l'identifiant, le nom et l'avatar (https uniquement) ; le nom est échappé
+  avant d'être affiché. Les renouvellements de jeton ne redessinent pas la page.
+- En-tête : bouton « Se connecter » ; connecté : avatar, nom, « Déconnexion ». Aucun changement sans
+  configuration. Jouer sans compte fonctionne comme avant.
+- Configuration OAuth, écran de consentement et adresses de redirection : [`backend.md`](backend.md)
+  (étapes à faire par le propriétaire). `.env.example` donne les deux variables.
+- Vérifié dans un navigateur avec une configuration factice : bouton absent sans variables, présent
+  avec ; session simulée : avatar et nom affichés, balise dans le nom neutralisée. La connexion
+  Google réelle reste à essayer une fois le projet Supabase créé.
+- **Fini quand :** on peut se connecter, se déconnecter, recharger la page et rester connecté. (Code
+  et tests ✔ ; essai réel en attente du projet Supabase.)
 
 ### v1.3 Modèle de données et sécurité (M)
 

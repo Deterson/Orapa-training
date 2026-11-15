@@ -51,6 +51,9 @@ import { type Tool, notesBoardSvg, notesToolbar } from './notesBoard';
 import { notesLayerSvg } from './notesLayer';
 import { INK_COLOR, INK_LABEL, RAY_COLOR, lostSignalHtml } from './palette';
 import { diffLine, resultBoardSvg } from './resultBoard';
+import type { AccountUser } from '../backend/auth';
+import type { Backend } from '../backend';
+import { escapeHtml } from './html';
 import { rulesPage } from './rules';
 import { browserSaveStore } from './storage';
 import { t } from './strings';
@@ -100,6 +103,10 @@ interface State {
   /** Message « signal perdu » affiché un instant. */
   toast: boolean;
   notice: string;
+  /** Backend branché (v2) ; null tant qu'il n'est pas chargé ou si le site n'est pas configuré. */
+  backend: Backend | null;
+  /** Compte Google connecté, ou null. */
+  account: AccountUser | null;
 }
 
 function seedFromUrl(): string | null {
@@ -192,7 +199,12 @@ function formatTime(ms: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-export function startApp(root: HTMLElement, version: string): void {
+export interface App {
+  /** Branche le backend (connexion Google) une fois chargé ; sans lui le site reste en mode v1. */
+  attachBackend(backend: Backend): void;
+}
+
+export function startApp(root: HTMLElement, version: string): App {
   const state: State = {
     phase: 'loading',
     view: viewFromHash(),
@@ -217,6 +229,8 @@ export function startApp(root: HTMLElement, version: string): void {
     choose: null,
     toast: false,
     notice: '',
+    backend: null,
+    account: null,
   };
   const store = browserSaveStore();
 
@@ -409,6 +423,19 @@ export function startApp(root: HTMLElement, version: string): void {
       </div>`;
   };
 
+  /** Connexion ou compte : rien tant que le backend n'est pas branché (mode v1). */
+  const accountHtml = (): string => {
+    if (!state.backend) return '';
+    const user = state.account;
+    if (!user) {
+      return `<button type="button" class="ghost" data-action="sign-in">${t.account.signIn}</button>`;
+    }
+    const avatar = user.avatarUrl
+      ? `<img class="avatar" src="${escapeHtml(user.avatarUrl)}" alt="" referrerpolicy="no-referrer" width="28" height="28">`
+      : '';
+    return `<span class="account" aria-label="${t.account.label}">${avatar}<span class="account-name">${escapeHtml(user.name)}</span><button type="button" class="ghost" data-action="sign-out">${t.account.signOut}</button></span>`;
+  };
+
   const render = (): void => {
     syncClock();
     document.documentElement.classList.toggle(
@@ -500,6 +527,7 @@ export function startApp(root: HTMLElement, version: string): void {
           </div>
           <div class="seed-box">
             <code class="seed" title="Graine">${session?.seed ?? '…'}</code>
+            ${accountHtml()}
             <button type="button" class="ghost" data-action="copy-link"${session ? '' : ' disabled'}>${t.actions.copyLink}</button>
             <a class="nav-link" href="#regles">${t.nav.rules}</a>
             <button type="button" class="ghost" data-action="enter-immersive"${session && !session.finished ? '' : ' disabled'}>${t.actions.fullscreen}</button>
@@ -951,6 +979,20 @@ export function startApp(root: HTMLElement, version: string): void {
     }
     const action = target.closest<HTMLElement>('[data-action]')?.dataset['action'];
     switch (action) {
+      case 'sign-in':
+        // La page est quittée pour Google : on sauvegarde d'abord la partie en cours.
+        persist();
+        void state.backend?.auth.signIn().catch(() => {
+          state.notice = t.account.signInFailed;
+          render();
+        });
+        return;
+      case 'sign-out':
+        void state.backend?.auth.signOut().catch(() => {
+          state.notice = t.account.signOutFailed;
+          render();
+        });
+        return;
       case 'enter-immersive':
         return enterImmersive();
       case 'exit-immersive':
@@ -1202,4 +1244,18 @@ export function startApp(root: HTMLElement, version: string): void {
   } else {
     startFresh();
   }
+
+  return {
+    attachBackend: (backend) => {
+      state.backend = backend;
+      backend.auth.onChange((user) => {
+        state.account = user;
+        render();
+      });
+      void backend.auth.ready().then((user) => {
+        state.account = user;
+        render();
+      });
+    },
+  };
 }

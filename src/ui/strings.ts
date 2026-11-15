@@ -59,6 +59,13 @@ export const fr = {
     blackBody: 'Diamant noir',
     play: 'Jouer',
   },
+  account: {
+    signIn: 'Se connecter',
+    signOut: 'Déconnexion',
+    signInFailed: 'Connexion impossible.',
+    signOutFailed: 'Déconnexion impossible.',
+    label: 'Compte',
+  },
   hints: {
     storageOff: 'Sauvegarde indisponible.',
   },
