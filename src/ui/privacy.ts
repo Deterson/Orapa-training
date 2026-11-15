@@ -2,6 +2,7 @@
  * Page « Confidentialité » : ce que le site garde, où, et comment l'effacer. Les textes sont courts
  * mais exacts : ils décrivent ce que fait le code (voir docs/backend.md).
  */
+import { routeHash } from './router';
 import { t } from './strings';
 
 export interface PrivacyModel {
@@ -29,8 +30,7 @@ function deletion(model: PrivacyModel): string {
   }
 }
 
-export function privacyPage(model: PrivacyModel, version: string): string {
-  const back = `<p><a class="back" href="#jeu">← ${t.nav.backToGame}</a></p>`;
+export function privacyPage(model: PrivacyModel): string {
   const stored = `<h2>Dans votre navigateur</h2>
     <ul class="rule-list">
       <li>La partie en cours, pour la reprendre.</li>
@@ -51,7 +51,7 @@ export function privacyPage(model: PrivacyModel, version: string): string {
     </ul>
     <h2>Vos droits</h2>
     <ul class="rule-list">
-      <li>Consulter : <a href="#historique">${t.history.link}</a> et <a href="#profil">${t.profile.link}</a>.</li>
+      <li>Consulter : <a href="${routeHash('history')}">${t.history.link}</a> et <a href="${routeHash('profile')}">${t.profile.link}</a>.</li>
       <li>Se déconnecter : la session locale est effacée.</li>
       <li>Supprimer : le compte et <b>toutes ses parties</b> sont effacés, tout de suite et sans retour.</li>
     </ul>
@@ -63,7 +63,5 @@ export function privacyPage(model: PrivacyModel, version: string): string {
     ${remote}
     ${stored}
     <p class="hint">Le site est hébergé par GitHub Pages.</p>
-    ${back}
-    <p class="hint">v${version}</p>
   </article>`;
 }

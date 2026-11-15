@@ -99,7 +99,7 @@ describe('affichage des statistiques', () => {
   });
 
   it('montre les quatre chiffres', () => {
-    const html = profilePage(model(), '1.5.0');
+    const html = profilePage(model());
     expect(html).toContain('Parties');
     expect(html).toMatch(/Victoires<\/dt><dd>3</);
     expect(html).toMatch(/Victoires \(%\)<\/dt><dd>50\s%</);
@@ -118,7 +118,6 @@ describe('affichage des statistiques', () => {
           avgShotsToWin: null,
         }),
       }),
-      'v',
     );
     expect(none).toContain('Aucune partie jouée');
     expect(none).not.toContain('p-stats');
@@ -126,22 +125,20 @@ describe('affichage des statistiques', () => {
       model({
         stats: stats({ wins: 0, losses: 3, abandoned: 3, winRate: 0, avgShotsToWin: null }),
       }),
-      'v',
     );
     expect(noWin).toMatch(/Tirs par victoire<\/dt><dd aria-label="Pas encore de victoire">—</);
   });
 
   it('gère chargement, erreur et absence de compte', () => {
-    expect(profilePage(model({ status: 'loading', stats: null }), 'v')).toContain('Chargement');
-    const failed = profilePage(model({ status: 'error', stats: null }), 'v');
+    expect(profilePage(model({ status: 'loading', stats: null }))).toContain('Chargement');
+    const failed = profilePage(model({ status: 'error', stats: null }));
     expect(failed).toContain('data-action="retry-profile"');
-    expect(profilePage(model({ user: null }), 'v')).toContain('data-action="sign-in"');
+    expect(profilePage(model({ user: null }))).toContain('data-action="sign-in"');
   });
 
   it('échappe le nom du compte', () => {
     const html = profilePage(
       model({ user: { id: 'u', name: '<script>x</script>', avatarUrl: null } }),
-      'v',
     );
     expect(html).not.toContain('<script>');
   });

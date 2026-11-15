@@ -39,10 +39,7 @@ body {
     Roboto,
     sans-serif;
   line-height: 1.6;
-  padding-block: max(32px, env(safe-area-inset-top, 0px))
-    max(32px, env(safe-area-inset-bottom, 0px));
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding: 0 0 max(32px, env(safe-area-inset-bottom, 0px));
 }
 
 .sr-only {
@@ -112,24 +109,11 @@ h2 {
   position: relative;
   max-width: 62rem;
   margin-inline: auto;
+  padding: 24px max(16px, env(safe-area-inset-right, 0px)) 0
+    max(16px, env(safe-area-inset-left, 0px));
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-.top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px 24px;
-}
-
-.seed-box {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
 }
 
 .seed-label {
@@ -1055,13 +1039,9 @@ polygon.gem-clear,
 }
 
 .version {
-  position: absolute;
-  top: -1.5rem;
-  right: 0;
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
-  pointer-events: none;
 }
 
 /* Mode plein écran (téléphone en paysage) : une seule grille, outils à droite. */
@@ -1244,11 +1224,6 @@ html.is-immersive body {
 }
 
 /* Compte Google (v2) */
-.account {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
 
 .avatar {
   border-radius: 50%;
@@ -1449,4 +1424,110 @@ button.danger {
     background: #c0392b;
     color: #fff;
   }
+}
+
+/* Barre du haut (toutes les pages) */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px 16px;
+  padding: max(6px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 6px
+    max(16px, env(safe-area-inset-left, 0px));
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.tb-left,
+.tb-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 12px;
+}
+
+.brand {
+  color: var(--fg);
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.tb-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tb-link:hover,
+.tb-link.is-current {
+  text-decoration: underline;
+}
+
+.tb-new {
+  padding: 6px 14px;
+}
+
+.avatar-icon {
+  fill: currentColor;
+}
+
+/* Barre de la vue Partie : graine, extensions, lien, plein écran */
+.gamebar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Le plein écran n'a de sens que sur écran tactile (téléphone, tablette). */
+.fs-btn {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .fs-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    padding: 0;
+  }
+}
+
+/* Accueil */
+.home {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+}
+
+.home-card {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 32rem);
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.home-card h2,
+.home-card p {
+  margin: 0;
+}
+
+button.big {
+  padding: 12px 28px;
+  font-size: 1.1rem;
 }

@@ -6,6 +6,7 @@
 import type { AccountUser } from '../backend/auth';
 import type { ProfileStats } from '../game/record';
 import { escapeHtml } from './html';
+import { routeHash } from './router';
 import { t } from './strings';
 
 export interface ProfileModel {
@@ -36,12 +37,10 @@ function card(label: string, value: string, hint = ''): string {
   return `<div class="p-card"><dt>${label}</dt><dd${hint ? ` aria-label="${hint}"` : ''}>${value}</dd></div>`;
 }
 
-export function profilePage(model: ProfileModel, version: string): string {
-  const back = `<p><a class="back" href="#jeu">← ${t.nav.backToGame}</a></p>`;
-  const foot = `<p class="hint">v${version}</p>`;
+export function profilePage(model: ProfileModel): string {
   if (!model.user) {
     return `<article class="profile-page"><h2>${t.profile.title}</h2>
-      <p><button type="button" data-action="sign-in">${t.history.signInNeeded}</button></p>${back}${foot}</article>`;
+      <p><button type="button" data-action="sign-in">${t.history.signInNeeded}</button></p></article>`;
   }
   const { user, stats } = model;
   const avatar = user.avatarUrl
@@ -67,7 +66,6 @@ export function profilePage(model: ProfileModel, version: string): string {
     <h2>${t.profile.title}</h2>
     ${who}
     <div aria-busy="${model.status === 'loading'}">${body}</div>
-    <p><a class="nav-link" href="#historique">${t.history.link}</a> <a class="nav-link" href="#confidentialite">${t.privacy.link}</a></p>
-    ${back}${foot}
+    <p><a class="nav-link" href="${routeHash('history')}">${t.history.link}</a> <a class="nav-link" href="${routeHash('privacy')}">${t.privacy.link}</a></p>
   </article>`;
 }

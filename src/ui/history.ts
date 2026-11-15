@@ -55,12 +55,10 @@ function row(game: GameRecord): string {
   </li>`;
 }
 
-export function historyPage(model: HistoryModel, version: string): string {
-  const back = `<p><a class="back" href="#jeu">← ${t.nav.backToGame}</a></p>`;
-  const foot = `<p class="hint">v${version}</p>`;
+export function historyPage(model: HistoryModel): string {
   if (!model.signedIn) {
     return `<article class="history-page"><h2>${t.history.title}</h2>
-      <p><button type="button" data-action="sign-in">${t.history.signInNeeded}</button></p>${back}${foot}</article>`;
+      <p><button type="button" data-action="sign-in">${t.history.signInNeeded}</button></p></article>`;
   }
   const filters = FILTERS.map(
     (filter) =>
@@ -99,6 +97,5 @@ export function historyPage(model: HistoryModel, version: string): string {
     </div>
     <div aria-busy="${model.status === 'loading'}">${body}</div>
     ${pager}
-    ${back}${foot}
   </article>`;
 }

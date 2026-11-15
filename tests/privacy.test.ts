@@ -5,38 +5,38 @@ import { privacyPage } from '../src/ui/privacy';
 
 describe('page de confidentialité', () => {
   it('sans backend : rien ne quitte le navigateur, aucune suppression proposée', () => {
-    const html = privacyPage({ backend: false, signedIn: false, deletion: 'idle' }, '2.0.0');
+    const html = privacyPage({ backend: false, signedIn: false, deletion: 'idle' });
     expect(html).toContain('rien ne quitte votre navigateur');
     expect(html).not.toContain('data-action');
     expect(html).not.toContain('Supabase');
   });
 
   it("avec un compte : dit ce qui est gardé et ce qui ne l'est jamais", () => {
-    const html = privacyPage({ backend: true, signedIn: true, deletion: 'idle' }, '2.0.0');
+    const html = privacyPage({ backend: true, signedIn: true, deletion: 'idle' });
     expect(html).toContain('Supabase');
     expect(html).toContain('Jamais : la mine cachée');
     expect(html).toContain('data-action="ask-delete-account"');
   });
 
   it('demande une confirmation avant de supprimer', () => {
-    const idle = privacyPage({ backend: true, signedIn: true, deletion: 'idle' }, 'v');
+    const idle = privacyPage({ backend: true, signedIn: true, deletion: 'idle' });
     expect(idle).not.toContain('confirm-delete-account');
-    const confirm = privacyPage({ backend: true, signedIn: true, deletion: 'confirm' }, 'v');
+    const confirm = privacyPage({ backend: true, signedIn: true, deletion: 'confirm' });
     expect(confirm).toContain('data-action="confirm-delete-account"');
     expect(confirm).toContain('data-action="cancel-delete-account"');
   });
 
   it('gère la suppression en cours et son échec', () => {
-    expect(privacyPage({ backend: true, signedIn: true, deletion: 'busy' }, 'v')).toContain(
+    expect(privacyPage({ backend: true, signedIn: true, deletion: 'busy' })).toContain(
       'Suppression…',
     );
-    const failed = privacyPage({ backend: true, signedIn: true, deletion: 'error' }, 'v');
+    const failed = privacyPage({ backend: true, signedIn: true, deletion: 'error' });
     expect(failed).toContain('Suppression impossible');
     expect(failed).toContain('data-action="ask-delete-account"');
   });
 
   it('ne propose pas la suppression à un visiteur non connecté', () => {
-    const html = privacyPage({ backend: true, signedIn: false, deletion: 'idle' }, 'v');
+    const html = privacyPage({ backend: true, signedIn: false, deletion: 'idle' });
     expect(html).not.toContain('delete-account');
   });
 });

@@ -5,13 +5,12 @@ Gameology ; édition française Miraludo). Le site génère une « mine » aléa
 gemmes cachées) et le joueur doit la reconstituer par déduction, en tirant des lasers, en
 prenant des notes et en plaçant ses propres gemmes, puis en soumettant sa solution.
 
-> Statut : **v1 livrée (v1.0.0)** ; **v2 partiellement livrée (v2.0.1)** : connexion Google,
+> Statut : **v1 livrée (v1.0.0)** ; **v2 en cours de livraison (v2.1.0)** : connexion Google,
 > enregistrement et historique des parties terminées, profil, suppression du compte (Supabase,
-> [`docs/backend.md`](docs/backend.md)), en pages séparées `#historique`, `#profil`,
-> `#confidentialite`. **Pas encore faits** (spécification ci-dessous, « Vues du site (v2) ») : le
-> routeur à trois vues (accueil, partie, profil), les parties en cours côté serveur et la limite
-> d'**une seule partie à la fois sans compte**. Reste aussi la mise en service (projet Supabase,
-> identifiant Google, variables) puis un essai réel. `CLAUDE.md` et `docs/` sont la spécification.
+> [`docs/backend.md`](docs/backend.md)), barre du haut, routeur et accueil, une seule partie à la
+> fois sans compte. **Pas encore faits** : les parties en cours côté serveur (liste sur l'accueil,
+> import à la première connexion). Reste aussi la mise en service (projet Supabase, identifiant
+> Google, variables) puis un essai réel. `CLAUDE.md` et `docs/` sont la spécification.
 
 ## Documentation (`docs/`)
 
@@ -94,21 +93,34 @@ Résumé ; le détail et les tableaux sont dans `docs/regles.md`.
 
 ## Vues du site (v2)
 
-Détail dans la section « Vues et compte » de [`docs/roadmap.md`](docs/roadmap.md). Jusqu'en v1,
-le site n'a que la vue de jeu et la page Règles ; la v2 en fait trois vues :
+Détail dans la section « Vues et compte » de [`docs/roadmap.md`](docs/roadmap.md). Navigation par
+l'adresse (`ui/router.ts`) : `#/` accueil (par défaut), `#/partie`, `#/regles`, `#/historique`,
+`#/profil`, `#/confidentialite` ; les anciennes adresses (`#regles`, `#historique`…) restent
+comprises. Un lien `?seed=…` (avec `ext=`) lance cette mine directement.
 
-1. **Partie** (`#/partie`) : la vue décrite dans « Interface » ci-dessous (grille, notes, gemmes,
-   résultat, plein écran).
-2. **Accueil** (`#/`, vue par défaut) : la partie en cours, la liste des parties non terminées
-   (connecté seulement) et le bouton « Nouvelle partie ». Le **titre du site**, en haut à gauche,
-   y ramène depuis toutes les vues.
-3. **Profil** (`#/profil`, connecté) : nom Google, pourcentage de parties gagnées, moyenne de
-   lasers avant victoire, historique des parties jouées.
+**Barre du haut** (`ui/header.ts`, toutes les pages sauf le plein écran) :
 
-En haut à droite : un bouton **« Connexion »** ou **« Déconnexion »** (OAuth Google), à côté de la
-version du build. **Sans compte, une seule partie à la fois** (la sauvegarde locale) ; avec un
-compte, plusieurs parties en cours, enregistrées côté serveur. Sur l'accueil, « Nouvelle partie »
-ouvre la fenêtre des extensions (Diamant, Corps noir), la même qu'en début de partie.
+- à gauche : **« Orapa Training »** (ramène à l'accueil) suivi de la **version du build**, le bouton
+  **« Nouvelle partie »** et **« Règles »** ;
+- à droite : **« Historique »**, **« Profil »** (avec l'**avatar** du compte sur le bouton, jamais le
+  nom) et **« Déconnexion »** ; déconnecté : seulement **« Connexion »** (OAuth Google). Sans
+  backend configuré, aucun bouton de compte.
+
+Pages :
+
+1. **Accueil** (`ui/home.ts`) : la partie en cours (Reprendre, Abandonner), la liste des parties non
+   terminées (connecté seulement) et « Nouvelle partie » (fenêtre des extensions : Diamant, Corps
+   noir).
+2. **Partie** : la vue décrite dans « Interface » ci-dessous. Sans partie, l'adresse retombe sur
+   l'accueil.
+3. **Profil** (connecté) : nom Google, pourcentage de parties gagnées, moyenne de tirs avant victoire.
+4. **Historique** (connecté) : les parties terminées, filtre victoires / défaites, tri, « Rejouer ».
+   (Page à part, à la demande du propriétaire, et non dans la vue Profil.)
+
+**Sans compte, une seule partie à la fois** (la sauvegarde locale) : tant qu'elle n'est ni terminée ni
+abandonnée, « Nouvelle partie » est désactivée (reprendre, abandonner ou se connecter) et un lien
+vers une autre mine est ignoré. Avec un compte, plusieurs parties en cours, enregistrées côté
+serveur.
 
 ## Interface
 
@@ -123,7 +135,7 @@ Les étiquettes d'accessibilité (`aria-label`, texte pour lecteurs d'écran) re
 
 **Gemmes.** Elles portent le **quadrillage des vraies pièces** : les lignes de la grille qui les traversent, un peu plus foncées que la gemme, pour aider à les aligner (`gridSegments` dans `game/geometry.ts`, `gemPolygons` dans `ui/palette.ts`).
 
-La **version du build** (`vX.Y.Z`, issue de `package.json`) s'affiche en petit en haut à droite : l'incrémenter à chaque livraison.
+La **version du build** (`vX.Y.Z`, issue de `package.json`) s'affiche en petit à droite du titre, dans la barre du haut : l'incrémenter à chaque livraison.
 
 Zones :
 
@@ -138,8 +150,8 @@ Zones :
    haut-droit, et la rouge un bouton **⇋ (retourner)** ; pas de barre de boutons en bas. Les notes s'y affichent en transparence (même case « Notes »). Les placements invalides (chevauchement, hors grille, contact
    par un segment) sont refusés ou signalés avec la règle enfreinte.
 4. **Résultat** (fin de partie) : la vraie mine et la proposition ; les 36 repères restent cliquables pour tirer des lasers libres dans la mine révélée (trajet tracé, hors compteur).
-5. **Plein écran (téléphone, paysage)** : un seul plateau (`ui/immersiveBoard.ts`) avec réserve de gemmes à droite et colonne d'outils ; l'outil « Jouer » tire (repères), sonde (cases) et déplace les gemmes, les autres outils dessinent (les repères restent cliquables).
-6. **Barre d'actions** : Nouvelle partie, Soumettre, Abandonner/Révéler, compteur
+5. **Plein écran (téléphone, paysage)** : bouton à **pictogramme** (quatre coins) dans la barre de la partie, **affiché seulement sur écran tactile** (`pointer: coarse`) ; un seul plateau (`ui/immersiveBoard.ts`) avec réserve de gemmes à droite et colonne d'outils ; l'outil « Jouer » tire (repères), sonde (cases) et déplace les gemmes, les autres outils dessinent (les repères restent cliquables).
+6. **Barre de la partie** : graine, extensions, bouton **« Lien »** (copie l'adresse qui relance la même mine : graine et extensions, à partager ou à rouvrir plus tard). **Barre d'actions** : Soumettre, Abandonner/Révéler, compteur
    de **tirs** (lasers et sondes de cases comptent pareil), chronomètre. Les **extensions** de la
    partie (« Sans extension », « Diamant », « Corps noir » ou les deux) s'affichent à côté de la
    graine, en haut de la vue de jeu.
@@ -211,8 +223,9 @@ src/
     resultBoard.ts # ✔ écran de résultat : vraie mine et proposition
     storage.ts     # ✔ accès protégé au localStorage
     rules.ts       # ✔ page « Règles » (schémas tirés des données du jeu)
-    router.ts      # (à faire, v1.2) routeur par adresse : accueil, partie, profil, règles
-    home.ts        # (à faire, v1.2) vue Accueil : partie en cours, parties non terminées, nouvelle partie
+    router.ts      # ✔ routeur par adresse : accueil, partie, règles, historique, profil, confidentialité
+    header.ts      # ✔ barre du haut (titre + version, Nouvelle partie, Règles ; Historique, Profil, Connexion)
+    home.ts        # ✔ vue Accueil : partie en cours, nouvelle partie
     strings.ts     # ✔ table de chaînes de l'interface
     palette.ts     # ✔ couleurs d'affichage des gemmes et des rayons
     html.ts        # ✔ échappement du texte venant de l'extérieur (graine, nom du compte) : à utiliser partout

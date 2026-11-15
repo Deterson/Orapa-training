@@ -10,7 +10,6 @@ export const fr = {
   skipToContent: 'Aller au plateau',
   nav: {
     rules: 'Règles',
-    backToGame: 'Retour',
   },
   tabs: {
     shots: 'Tirs',
@@ -21,6 +20,7 @@ export const fr = {
   actions: {
     newGame: 'Nouvelle partie',
     copyLink: 'Lien',
+    copyLinkHint: 'Copier le lien de cette mine',
     submit: 'Soumettre',
     abandon: 'Abandonner',
     replay: 'Rejouer',
@@ -61,11 +61,18 @@ export const fr = {
     play: 'Jouer',
   },
   account: {
-    signIn: 'Se connecter',
+    signIn: 'Connexion',
     signOut: 'Déconnexion',
     signInFailed: 'Connexion impossible.',
     signOutFailed: 'Déconnexion impossible.',
     label: 'Compte',
+  },
+  home: {
+    current: 'Partie en cours',
+    confirmAbandon: 'Abandonner ?',
+    blocked: 'Partie en cours',
+    blockedSignIn: 'Reprendre, abandonner ou se connecter.',
+    blockedNoAccount: 'Reprendre ou abandonner.',
   },
   history: {
     link: 'Historique',

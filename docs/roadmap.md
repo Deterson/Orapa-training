@@ -323,7 +323,7 @@ Autres décisions prises avec le propriétaire :
   effacée à la fin de la partie).
 - **Fini quand :** le choix est écrit et le guide de mise en place existe. ✔
 
-### v1.2 Vues, navigation et authentification Google (M) : authentification faite, vues à faire
+### v1.2 Vues, navigation et authentification Google (M) : fait
 
 **Fait (authentification)** :
 
@@ -346,17 +346,37 @@ Autres décisions prises avec le propriétaire :
 - **Fini quand :** on peut se connecter, se déconnecter, recharger la page et rester connecté. (Code
   et tests ✔ ; essai réel en attente du projet Supabase.)
 
-**À faire (spécification du propriétaire, ajoutée sur `main` pendant ce travail)** :
+**Fait (vues et navigation, v2.1.0)** :
 
-- **Vues** : routeur par adresse (`ui/router.ts`), vue **Accueil** (`ui/home.ts`) par défaut, vue
-  **Partie** (l'existant, déplacé derrière `#/partie`), vue **Profil** (`ui/profile.ts`). Le titre du
-  site mène à l'accueil. Aujourd'hui l'implémentation a seulement des pages séparées
-  `#historique`, `#profil` et `#confidentialite` à côté du jeu.
-- **Une seule partie à la fois sans compte** : « Nouvelle partie » bloquée tant que la partie locale
-  n'est pas terminée ou abandonnée (non fait : aujourd'hui « Nouvelle partie » est toujours
-  disponible).
-- Bouton **Connexion / Déconnexion** en haut à droite : fait (libellés « Se connecter » et
-  « Déconnexion »).
+- **Routeur** par adresse (`ui/router.ts`, testé) : `#/` accueil (par défaut), `#/partie`,
+  `#/regles`, `#/historique`, `#/profil`, `#/confidentialite` ; les anciennes adresses restent
+  comprises ; une page de compte sans compte configuré, ou `#/partie` sans partie, retombe sur
+  l'accueil (l'adresse est corrigée sans ajouter d'entrée à l'historique du navigateur). Un lien
+  `?seed=…` lance cette mine directement ; la graine est retirée de l'adresse quand la partie se
+  termine (un rechargement ne relance rien).
+- **Barre du haut** (`ui/header.ts`, sur toutes les pages sauf le plein écran, collée en haut) : à
+  gauche « Orapa Training » (ramène à l'accueil) suivi de la **version**, « Nouvelle partie »,
+  « Règles » ; à droite « Historique », « Profil » (avatar du compte, jamais le nom ; icône de
+  personne sans avatar), « Déconnexion », ou « Connexion » si déconnecté. Sans backend : aucun
+  bouton de compte ; aucun bouton avant que la session soit lue (pas de clignotement).
+- **Accueil** (`ui/home.ts`) : la partie en cours (graine, extensions, tirs, temps ; Reprendre,
+  Abandonner avec confirmation) et « Nouvelle partie » (fenêtre des extensions). Une partie
+  sauvegardée revient en mémoire au chargement ; sur `#/partie` un rechargement la reprend
+  directement (plus d'écran « Reprendre » intermédiaire).
+- **Sans compte, une seule partie à la fois** : « Nouvelle partie » est désactivée (barre et accueil)
+  tant que la partie n'est ni terminée ni abandonnée ; un lien vers une autre mine est ignoré
+  (la partie en cours est gardée). Après la fin, « Nouvelle partie » et « Rejouer » refonctionnent.
+- **Barre de la partie** : graine, extensions, « Lien » (copie l'adresse `?seed=…&ext=…` qui relance
+  la même mine, pour la partager ou la rouvrir) et **plein écran** devenu un **pictogramme**, affiché
+  seulement sur écran tactile (`pointer: coarse`).
+- Avec compte, la même règle s'applique **jusqu'à l'étape v1.3 / v1.4 ci-dessous** (parties en cours
+  côté serveur), qui la lèvera.
+- Vérifié dans un navigateur : accueil avec et sans partie, démarrage, rechargement sur la partie et
+  sur l'accueil, lien vers une autre mine, abandon depuis l'accueil, lien partagé, retour arrière,
+  `#/partie` sans partie, pages de compte sans backend, icône de plein écran masquée sur ordinateur
+  et affichée (sans débordement horizontal) sur un profil de téléphone.
+- **Fini quand :** on navigue entre les trois vues, on peut se connecter, se déconnecter, recharger
+  la page et rester connecté. ✔ (essai réel de la connexion en attente du projet Supabase)
 
 ### v1.3 Modèle de données et sécurité (M) : fait
 
