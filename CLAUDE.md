@@ -5,9 +5,9 @@ Gameology ; édition française Miraludo). Le site génère une « mine » aléa
 gemmes cachées) et le joueur doit la reconstituer par déduction, en tirant des lasers, en
 prenant des notes et en plaçant ses propres gemmes, puis en soumettant sa solution.
 
-> Statut : **v1 livrée (v1.0.0)**. Les étapes v0.1 à v0.11 sont terminées : jeu complet de la
-> partie de base, sauvegarde locale, page Règles. Prochaine étape : v1.1 (choix du backend de la
-> v2). `CLAUDE.md` et `docs/` sont la spécification.
+> Statut : **v1 livrée (v1.0.0)**, **v2 en cours** (étapes v1.1 à v1.6, un commit par étape).
+> Backend retenu : Supabase (voir [`docs/backend.md`](docs/backend.md)). `CLAUDE.md` et `docs/` sont
+> la spécification.
 
 ## Documentation (`docs/`)
 
@@ -166,7 +166,8 @@ Choix techniques :
   framework léger optionnel (Preact/Svelte) ou DOM direct.
 - Tests unitaires avec **Vitest**.
 - v1 : déploiement statique (GitHub Pages ou équivalent), aucun backend.
-- v2 : backend géré (Supabase recommandé, voir `docs/roadmap.md`) ; le front reste statique.
+- v2 : backend géré **Supabase** (voir `docs/backend.md`) ; le front reste statique. Sans les
+  variables `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY`, le site fonctionne comme en v1.
 - Interface et textes en **français** (prévoir une table de chaînes pour une
   éventuelle internationalisation).
 
@@ -270,7 +271,7 @@ v3.1 à v3.7 la **v4**.
 
 **Vers la v2 : comptes, historique, profil**
 
-- v1.1 Choix du backend. v1.2 Connexion Google. v1.3 Modèle de données et sécurité par
+- v1.1 Choix du backend (**fait**, Supabase). v1.2 Connexion Google. v1.3 Modèle de données et sécurité par
   utilisateur. v1.4 Enregistrement et page Historique. v1.5 Page de profil (moyenne de lasers
   avant victoire, % de victoires). v1.6 Vie privée et exploitation.
 
@@ -298,10 +299,10 @@ v3.1 à v3.7 la **v4**.
   l'est pas.
 - ~~Soumission en entraînement~~ : décidé en v0.9, une seule tentative (`MAX_ATTEMPTS`).
 - ~~« Sonder une case »~~ : décidé en v0.9, proposée et comptée à part des lasers.
-- Une partie abandonnée compte-t-elle comme perdue dans le pourcentage de victoires (v2) ?
-  Proposition : oui.
+- ~~Une partie abandonnée compte-t-elle comme perdue dans le pourcentage de victoires (v2) ?~~
+  Décidé en v1.1 : oui.
 - Limite de lasers imposée, ou simple compteur indicatif ?
-- Supabase ou Firebase pour la v2 ?
+- ~~Supabase ou Firebase pour la v2 ?~~ Décidé en v1.1 : Supabase.
 - Duel (v3) : plateau ambigu permis ? « en même temps » ou tour par tour ? règle de fin (livret ou indulgente) ? Voir `docs/roadmap.md`.
 - Coût du solveur d'unicité à la génération : à mesurer une fois le simulateur écrit.
 - Faut-il un mode « tutoriel » expliquant les effets de chaque gemme ?

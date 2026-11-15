@@ -281,9 +281,9 @@ statistiques.
 Cela impose un **backend**, ce que la v1 évite. Le jeu reste jouable **sans compte** : se
 connecter ajoute l'historique, rien de plus.
 
-### v1.1 Choix du backend (S)
+### v1.1 Choix du backend (S) : fait
 
-Un service géré évite d'écrire un serveur. Deux options réalistes :
+Un service géré évite d'écrire un serveur. Deux options étaient réalistes :
 
 | | Supabase | Firebase |
 |---|---|---|
@@ -292,9 +292,22 @@ Un service géré évite d'écrire un serveur. Deux options réalistes :
 | Sécurité des données | règles par ligne (RLS) | règles Firestore |
 | Statistiques | une requête SQL | calcul côté client ou fonction |
 
-**Recommandation : Supabase**, parce que les deux statistiques demandées sont des
-agrégats naturels en SQL et que la sécurité par ligne est simple à écrire. Décision à
-confirmer avant de commencer.
+**Décision : Supabase**, parce que les deux statistiques demandées sont des agrégats naturels
+en SQL et que la sécurité par ligne est simple à écrire (et à tester en SQL pur dans la CI).
+
+Autres décisions prises avec le propriétaire :
+
+- **Une partie abandonnée compte comme perdue** dans le pourcentage de victoires ; la moyenne de
+  lasers ne porte que sur les victoires.
+- **Le code est écrit sans projet Supabase** : clés dans `VITE_SUPABASE_URL` et
+  `VITE_SUPABASE_ANON_KEY` ; sans clés, le site reste en mode v1 (aucun bouton de connexion). La
+  création du projet, l'identifiant OAuth Google et les variables du déploiement sont à faire par
+  le propriétaire : guide pas à pas dans [`backend.md`](backend.md).
+- **Sécurité par ligne testée en CI** : des tests SQL sur un Postgres vide (deux utilisateurs
+  simulés), en plus des tests Vitest.
+- Pas d'import des parties locales au premier login : la v1 n'en garde aucune (la sauvegarde est
+  effacée à la fin de la partie).
+- **Fini quand :** le choix est écrit et le guide de mise en place existe. ✔
 
 ### v1.2 Authentification Google (M)
 
@@ -610,8 +623,8 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
   plusieurs essais ?
 - Un « sondage de case » compte-t-il dans le nombre de lasers ? Proposition : non, on le
   compte à part (`probes_count`), et la moyenne de la v2 ne porte que sur les lasers.
-- Une partie abandonnée compte-t-elle comme perdue dans le pourcentage de victoires ?
-  Proposition : oui.
+- ~~Une partie abandonnée compte-t-elle comme perdue dans le pourcentage de victoires ?~~ Décidé en
+  v1.1 : oui.
 - Limite de lasers imposée ou simple compteur ?
 - Dimensions des gemmes et règle d de contact : voir [`regles.md`](regles.md).
-- Supabase ou Firebase pour la v2 ?
+- ~~Supabase ou Firebase pour la v2 ?~~ Décidé en v1.1 : Supabase.
