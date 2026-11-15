@@ -53,7 +53,12 @@ import { INK_COLOR, INK_LABEL, RAY_COLOR, lostSignalHtml } from './palette';
 import { diffLine, resultBoardSvg } from './resultBoard';
 import type { AccountUser } from '../backend/auth';
 import type { Backend } from '../backend';
+import type { HistoryFilter, HistorySort } from '../backend/games';
+import { type GameRecord, buildRecord, parseRow, recordToRow } from '../game/record';
+import { browserOutbox } from '../backend/outbox';
+import { formatTime, plural } from './format';
 import { escapeHtml } from './html';
+import { historyPage, isHistoryFilter, isHistorySort, pageCount } from './history';
 import { rulesPage } from './rules';
 import { browserSaveStore } from './storage';
 import { t } from './strings';
@@ -62,12 +67,12 @@ import { gemOrigin, gemSize, solutionBoardSvg } from './solutionBoard';
 
 type Phase = 'loading' | 'options' | 'resume' | 'ready' | 'error';
 type Tab = 'shots' | 'solution' | 'notes' | 'result';
-type View = 'game' | 'rules';
+type View = 'game' | 'rules' | 'history';
 type Ask = { kind: 'fire'; label: string } | { kind: 'probe'; cell: string };
 
 interface State {
   phase: Phase;
-  /** Page affichée : la partie ou les règles (adresse « #regles »). */
+  /** Page affichée : la partie, les règles (« #regles ») ou l'historique (« #historique »). */
   view: View;
   session: GameSession | null;
   tab: Tab;
@@ -107,6 +112,33 @@ interface State {
   backend: Backend | null;
   /** Compte Google connecté, ou null. */
   account: AccountUser | null;
+  /** Vrai quand la session enregistrée a été lue (avant : on ne sait pas encore si on est connecté). */
+  authReady: boolean;
+  /** Identité de la partie en cours (historique) ; null hors partie. */
+  game: { id: string; startedAt: number } | null;
+  /** Envoi de la partie terminée à l'historique : null (rien à envoyer), en attente, enregistrée. */
+  recorded: 'pending' | 'saved' | null;
+  history: {
+    filter: HistoryFilter;
+    sort: HistorySort;
+    page: number;
+    status: 'loading' | 'ready' | 'error';
+    games: GameRecord[];
+    total: number;
+  };
+}
+
+const HISTORY_PAGE_SIZE = 20;
+
+/** Identifiant d'une partie : un UUID tiré par le navigateur. */
+function newGameId(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    const hex = (n: number): string =>
+      Array.from({ length: n }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    return `${hex(8)}-${hex(4)}-4${hex(3)}-a${hex(3)}-${hex(12)}`;
+  }
 }
 
 function seedFromUrl(): string | null {
@@ -143,7 +175,8 @@ function writeSeedToUrl(seed: string, extensions: Readonly<Extensions> = NO_EXTE
 
 function viewFromHash(): View {
   try {
-    return window.location.hash === '#regles' ? 'rules' : 'game';
+    const hash = window.location.hash;
+    return hash === '#regles' ? 'rules' : hash === '#historique' ? 'history' : 'game';
   } catch {
     return 'game';
   }
@@ -180,23 +213,12 @@ function describe(shot: ShotRecord): string {
   return `${shot.n} : ${outcomeText(shot)}`;
 }
 
-function plural(count: number, one: string, many: string): string {
-  return count > 1 ? many : one;
-}
-
 /** Point de l'écran converti en coordonnées de la grille (unité : la case). */
 function toBoardPoint(svg: SVGSVGElement, clientX: number, clientY: number): [number, number] {
   const matrix = svg.getScreenCTM();
   if (!matrix) return [0, 0];
   const point = new DOMPoint(clientX, clientY).matrixTransform(matrix.inverse());
   return [point.x, point.y];
-}
-
-function formatTime(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const minutes = Math.floor(total / 60);
-  const seconds = total % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
 export interface App {
@@ -231,8 +253,13 @@ export function startApp(root: HTMLElement, version: string): App {
     notice: '',
     backend: null,
     account: null,
+    authReady: false,
+    game: null,
+    recorded: null,
+    history: { filter: 'all', sort: 'recent', page: 0, status: 'loading', games: [], total: 0 },
   };
   const store = browserSaveStore();
+  const outbox = browserOutbox();
 
   // ---------- Affichage ----------
 
@@ -272,6 +299,7 @@ export function startApp(root: HTMLElement, version: string): App {
     return `
       <div class="result is-${summary.status}">
         <h2>${t.status[summary.status]}</h2>
+        ${recordStatusHtml()}
         ${resultBoardSvg(diffs, session.shots, state.explored)}
         ${state.explored ? `<p class="hypo">${outcomeHtml(state.explored)}</p>` : ''}
         <ul class="diff">${diffs.map((diff) => `<li class="${diff.status}">${diffLine(diff)}</li>`).join('')}</ul>
@@ -336,7 +364,7 @@ export function startApp(root: HTMLElement, version: string): App {
     return `
       <div class="resume" role="alertdialog" aria-label="Partie en cours">
         <h2>Partie en cours</h2>
-        <p><b>${session.mine.seed}</b> · ${session.shots.length} laser${plural(session.shots.length, '', 's')} · ${session.probes.length} sonde${plural(session.probes.length, '', 's')} · ${formatTime(session.elapsedMs)}</p>
+        <p><b>${escapeHtml(session.mine.seed)}</b> · ${session.shots.length} laser${plural(session.shots.length, '', 's')} · ${session.probes.length} sonde${plural(session.probes.length, '', 's')} · ${formatTime(session.elapsedMs)}</p>
         <div class="actions">
           <button type="button" data-action="resume">${t.actions.resume}</button>
           <button type="button" class="ghost" data-action="discard-save">${t.actions.newGame}</button>
@@ -355,6 +383,7 @@ export function startApp(root: HTMLElement, version: string): App {
       solution: state.solution,
       notes: state.notes.present,
       skipConfirm: state.skipConfirm,
+      ...(state.game ? { gameId: state.game.id, startedAt: state.game.startedAt } : {}),
     });
   };
 
@@ -433,7 +462,7 @@ export function startApp(root: HTMLElement, version: string): App {
     const avatar = user.avatarUrl
       ? `<img class="avatar" src="${escapeHtml(user.avatarUrl)}" alt="" referrerpolicy="no-referrer" width="28" height="28">`
       : '';
-    return `<span class="account" aria-label="${t.account.label}">${avatar}<span class="account-name">${escapeHtml(user.name)}</span><button type="button" class="ghost" data-action="sign-out">${t.account.signOut}</button></span>`;
+    return `<span class="account" aria-label="${t.account.label}"><a class="nav-link" href="#historique">${t.history.link}</a>${avatar}<span class="account-name">${escapeHtml(user.name)}</span><button type="button" class="ghost" data-action="sign-out">${t.account.signOut}</button></span>`;
   };
 
   const render = (): void => {
@@ -455,6 +484,16 @@ export function startApp(root: HTMLElement, version: string): App {
     }
     if (state.view === 'rules') {
       root.innerHTML = `<main class="app"><span class="version">v${version}</span>${rulesPage(version)}</main>`;
+      return;
+    }
+    if (state.view === 'history' && state.backend) {
+      const page = state.authReady
+        ? historyPage(
+            { signedIn: state.account !== null, ...state.history, pageSize: HISTORY_PAGE_SIZE },
+            version,
+          )
+        : `<article class="history-page"><p class="placeholder" role="status">${t.history.loading}</p></article>`;
+      root.innerHTML = `<main class="app"><span class="version">v${version}</span>${page}</main>`;
       return;
     }
     const { session } = state;
@@ -526,7 +565,7 @@ export function startApp(root: HTMLElement, version: string): App {
             <h1>${t.appName}</h1>
           </div>
           <div class="seed-box">
-            <code class="seed" title="Graine">${session?.seed ?? '…'}</code>
+            <code class="seed" title="Graine">${session ? escapeHtml(session.seed) : '…'}</code>
             ${accountHtml()}
             <button type="button" class="ghost" data-action="copy-link"${session ? '' : ' disabled'}>${t.actions.copyLink}</button>
             <a class="nav-link" href="#regles">${t.nav.rules}</a>
@@ -572,6 +611,8 @@ export function startApp(root: HTMLElement, version: string): App {
     state.toast = false;
     state.phase = 'loading';
     state.session = null;
+    state.game = null;
+    state.recorded = null;
     state.selected = null;
     state.solution = emptySolution(gemsFor(extensions));
     state.selectedGem = null;
@@ -588,6 +629,7 @@ export function startApp(root: HTMLElement, version: string): App {
     window.setTimeout(() => {
       try {
         state.session = GameSession.start(seed, extensions);
+        state.game = { id: newGameId(), startedAt: Date.now() };
         state.phase = 'ready';
         writeSeedToUrl(seed, extensions);
       } catch {
@@ -674,6 +716,96 @@ export function startApp(root: HTMLElement, version: string): App {
     }
   };
 
+  // ---------- Historique (v2) ----------
+
+  const recordStatusHtml = (): string =>
+    state.recorded === null
+      ? ''
+      : `<p class="record-status" role="status">${state.recorded === 'saved' ? `✓ ${t.history.saved}` : t.history.pending}</p>`;
+
+  let retryTimer: number | undefined;
+  let retryDelay = 15_000;
+
+  /** Envoie les parties en attente de l'utilisateur connecté ; en cas de coupure, réessaie plus tard. */
+  const flushOutbox = async (): Promise<void> => {
+    const { backend, account } = state;
+    if (!backend || !account || outbox.pending(account.id).length === 0) return;
+    const result = await outbox.flush(account.id, backend.games);
+    if (state.account?.id !== account.id) return;
+    window.clearTimeout(retryTimer);
+    if (result.retry) {
+      retryTimer = window.setTimeout(() => void flushOutbox(), retryDelay);
+      retryDelay = Math.min(retryDelay * 2, 300_000);
+    } else {
+      retryDelay = 15_000;
+    }
+    if (result.sent > 0 && state.view === 'history') loadHistory();
+    if (state.recorded === 'pending' && state.game && !outbox.has(account.id, state.game.id)) {
+      state.recorded = 'saved';
+      render();
+    }
+  };
+
+  /** Met la partie terminée en file d'envoi (connecté seulement) puis tente l'envoi. */
+  const recordGame = (): void => {
+    const { session, game, account, backend } = state;
+    if (!session?.finished || !game || !account || !backend) return;
+    try {
+      const record = buildRecord({
+        id: game.id,
+        session,
+        extensions: extensionsOf(session.gems),
+        startedAt: game.startedAt,
+        endedAt: Date.now(),
+        submission: placedGems(state.solution),
+      });
+      // Une partie que la base refuserait ne doit pas rester bloquée en file.
+      if (parseRow(recordToRow(record)) === null) return;
+      outbox.add(account.id, record);
+      state.recorded = 'pending';
+      void flushOutbox();
+    } catch {
+      // L'enregistrement échoue : la partie reste jouable, sans historique.
+    }
+  };
+
+  let historyToken = 0;
+
+  /** Charge la page d'historique demandée ; une réponse tardive d'une demande dépassée est ignorée. */
+  const loadHistory = (): void => {
+    const { backend, account, history } = state;
+    if (!backend || !account) return;
+    const token = ++historyToken;
+    history.status = 'loading';
+    if (state.view === 'history') render();
+    backend.games
+      .list({
+        filter: history.filter,
+        sort: history.sort,
+        page: history.page,
+        pageSize: HISTORY_PAGE_SIZE,
+      })
+      .then(
+        (result) => {
+          if (token !== historyToken) return;
+          const last = pageCount(result.total, HISTORY_PAGE_SIZE) - 1;
+          if (history.page > last) {
+            history.page = last;
+            return loadHistory();
+          }
+          history.games = result.games;
+          history.total = result.total;
+          history.status = 'ready';
+          if (state.view === 'history') render();
+        },
+        () => {
+          if (token !== historyToken) return;
+          history.status = 'error';
+          if (state.view === 'history') render();
+        },
+      );
+  };
+
   /** Termine la partie et affiche le résultat. */
   const showResult = (): void => {
     leaveImmersive();
@@ -682,6 +814,7 @@ export function startApp(root: HTMLElement, version: string): App {
     state.ask = null;
     state.tab = 'result';
     state.notice = state.session ? t.status[state.session.status] : '';
+    recordGame();
     render();
   };
 
@@ -977,6 +1110,18 @@ export function startApp(root: HTMLElement, version: string): App {
       state.selected = Number(shot.dataset['shot']);
       return render();
     }
+    const hfilter = target.closest<HTMLElement>('[data-hfilter]')?.dataset['hfilter'];
+    if (isHistoryFilter(hfilter)) {
+      state.history.filter = hfilter;
+      state.history.page = 0;
+      return loadHistory();
+    }
+    const hpage = target.closest<HTMLElement>('[data-hpage]')?.dataset['hpage'];
+    if (hpage) {
+      if (hpage === 'prev') state.history.page = Math.max(0, state.history.page - 1);
+      if (hpage === 'next') state.history.page++;
+      return loadHistory();
+    }
     const action = target.closest<HTMLElement>('[data-action]')?.dataset['action'];
     switch (action) {
       case 'sign-in':
@@ -1023,6 +1168,11 @@ export function startApp(root: HTMLElement, version: string): App {
           state.solution = save.solution;
           state.notes = newHistory(save.notes);
           state.skipConfirm = save.skipConfirm;
+          state.game = {
+            id: save.gameId ?? newGameId(),
+            startedAt: save.startedAt ?? Math.max(0, save.savedAt - save.session.elapsedMs),
+          };
+          state.recorded = null;
           state.pending = null;
           state.phase = 'ready';
           writeSeedToUrl(state.session.seed, extensionsOf(state.session.gems));
@@ -1078,6 +1228,15 @@ export function startApp(root: HTMLElement, version: string): App {
   });
 
   root.addEventListener('change', (event) => {
+    const select = (event.target as Element).closest<HTMLSelectElement>('select[data-hsort]');
+    if (select) {
+      if (isHistorySort(select.value)) {
+        state.history.sort = select.value;
+        state.history.page = 0;
+        loadHistory();
+      }
+      return;
+    }
     const target = event.target as HTMLInputElement;
     if (target.dataset['toggle'] !== 'notes') return;
     state.showNotes = target.checked;
@@ -1219,8 +1378,9 @@ export function startApp(root: HTMLElement, version: string): App {
   }, 1000);
   window.addEventListener('hashchange', () => {
     state.view = viewFromHash();
+    if (state.view === 'history') loadHistory();
     render();
-    if (state.view === 'rules') window.scrollTo(0, 0);
+    if (state.view !== 'game') window.scrollTo(0, 0);
   });
   document.addEventListener('fullscreenchange', () => {
     // Sortie du plein écran navigateur (Échap, geste retour) : on quitte aussi le mode plein écran.
@@ -1248,14 +1408,25 @@ export function startApp(root: HTMLElement, version: string): App {
   return {
     attachBackend: (backend) => {
       state.backend = backend;
-      backend.auth.onChange((user) => {
+      const onAccount = (user: AccountUser | null): void => {
+        // Autre compte ou déconnexion : l'historique affiché n'est plus le bon, on l'oublie.
+        if (user?.id !== state.account?.id) {
+          state.history = { ...state.history, page: 0, status: 'loading', games: [], total: 0 };
+          historyToken++;
+        }
         state.account = user;
+        if (user) {
+          void flushOutbox();
+          if (state.view === 'history') loadHistory();
+        }
         render();
-      });
+      };
+      backend.auth.onChange(onAccount);
       void backend.auth.ready().then((user) => {
-        state.account = user;
-        render();
+        state.authReady = true;
+        onAccount(user);
       });
+      window.addEventListener('online', () => void flushOutbox());
     },
   };
 }

@@ -1202,3 +1202,120 @@ html.is-immersive body {
   white-space: nowrap;
   font-weight: 600;
 }
+
+/* Historique (v2) */
+.history-page {
+  display: grid;
+  gap: 12px;
+  max-width: 44rem;
+}
+
+.h-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.h-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.h-chip.is-active {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.h-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.h-sort select {
+  min-height: 44px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+}
+
+.h-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.h-row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 1.4fr) 1fr 1fr 4rem auto;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 2px 12px;
+  border-bottom: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+
+.h-row:last-child {
+  border-bottom: 0;
+}
+
+.h-row.is-won .h-status {
+  color: #1e9e50;
+  font-weight: 600;
+}
+
+.h-row.is-lost .h-status,
+.h-row.is-abandoned .h-status {
+  color: #d33a2c;
+}
+
+.h-date,
+.h-time {
+  color: var(--muted);
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.record-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .h-row.is-won .h-status {
+    color: #5fd48c;
+  }
+
+  .h-row.is-lost .h-status,
+  .h-row.is-abandoned .h-status {
+    color: #ff8a7f;
+  }
+}
+
+@media (max-width: 520px) {
+  .h-row {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .h-replay {
+    grid-column: 1 / -1;
+  }
+}

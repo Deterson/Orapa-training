@@ -268,4 +268,32 @@ describe('stockage local', () => {
     const store = createSaveStore(broken);
     expect(store.load()).toBeNull();
   });
+
+  describe('identité de la partie (historique)', () => {
+    const id = '3f2b8c1e-9a4d-4e6b-8c1a-0123456789ab';
+
+    it("garde l'identifiant et le début de la partie", () => {
+      const data = { ...sampleSave(), gameId: id, startedAt: 1699999000000 };
+      expect(parseSave(roundTrip(data))).toEqual(data);
+    });
+
+    it("lit une ancienne sauvegarde qui n'en a pas", () => {
+      const data = parseSave(roundTrip(sampleSave()));
+      expect(data).not.toBeNull();
+      expect(data?.gameId).toBeUndefined();
+      expect(data?.startedAt).toBeUndefined();
+    });
+
+    it('refuse un identifiant ou un début invalide', () => {
+      for (const patch of [
+        { gameId: 'abc' },
+        { gameId: 42 },
+        { startedAt: 'hier' },
+        { startedAt: -1 },
+        { startedAt: 1700000000001 },
+      ]) {
+        expect(parseSave(roundTrip({ ...sampleSave(), ...patch }))).toBeNull();
+      }
+    });
+  });
 });

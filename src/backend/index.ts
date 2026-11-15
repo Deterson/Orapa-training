@@ -3,10 +3,12 @@
  * La bibliothèque est chargée à la demande, donc un site sans configuration ne la télécharge pas.
  */
 import { type AuthService, createAuthService } from './auth';
+import { type GamesClientLike, type GamesService, createGamesService } from './games';
 import { readConfig } from './config';
 
 export interface Backend {
   auth: AuthService;
+  games: GamesService;
 }
 
 /** Adresse de retour après Google : la page sans paramètres (la partie est sauvegardée en local). */
@@ -23,7 +25,10 @@ export async function connectBackend(
     const client = createClient(config.url, config.anonKey, {
       auth: { flowType: 'pkce', persistSession: true, detectSessionInUrl: true },
     });
-    return { auth: createAuthService(client, returnUrl) };
+    return {
+      auth: createAuthService(client, returnUrl),
+      games: createGamesService(client as unknown as GamesClientLike),
+    };
   } catch {
     return null;
   }

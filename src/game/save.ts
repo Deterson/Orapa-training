@@ -22,7 +22,13 @@ export interface SaveData {
   notes: Notes;
   /** Confirmations des tirs et sondes désactivées pour cette partie. */
   skipConfirm: boolean;
+  /** Identifiant et date de début de la partie (v2, historique) ; absents des anciennes sauvegardes. */
+  gameId?: string;
+  startedAt?: number;
 }
+
+/** Identifiant de partie : un UUID (voir la table `games`). */
+export const GAME_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type Json = Record<string, unknown>;
 
@@ -162,5 +168,16 @@ export function parseSave(raw: unknown): SaveData | null {
   }
   // Absent des anciennes sauvegardes : les confirmations restent alors actives.
   const skipConfirm = raw['skipConfirm'] === true;
-  return { version: SAVE_VERSION, savedAt, session, solution, notes, skipConfirm };
+  const data: SaveData = { version: SAVE_VERSION, savedAt, session, solution, notes, skipConfirm };
+  // Identifiant et début : facultatifs, mais s'ils sont là ils doivent être valides.
+  const { gameId, startedAt } = raw;
+  if (gameId !== undefined) {
+    if (typeof gameId !== 'string' || !GAME_ID.test(gameId)) return null;
+    data.gameId = gameId;
+  }
+  if (startedAt !== undefined) {
+    if (!isFiniteNumber(startedAt) || startedAt < 0 || startedAt > savedAt) return null;
+    data.startedAt = startedAt;
+  }
+  return data;
 }

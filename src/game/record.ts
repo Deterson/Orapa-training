@@ -6,6 +6,7 @@
  */
 import { parseEntryLabel } from './board';
 import { ALL_GEM_IDS, type Extensions, type GemId, type Placement } from './gems';
+import { GAME_ID } from './save';
 import type { GameSession, GameStatus } from './session';
 
 export type FinishedStatus = Exclude<GameStatus, 'playing'>;
@@ -125,7 +126,6 @@ const isRecord = (value: unknown): value is Json =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 const isInt = (value: unknown, min: number, max: number): value is number =>
   typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max;
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function parseDate(value: unknown): number | null {
   if (typeof value !== 'string') return null;
@@ -159,7 +159,7 @@ export function parseRow(value: unknown): GameRecord | null {
   const lasers = value['lasers_count'];
   const probes = value['probes_count'];
   const duration = value['duration_s'];
-  if (typeof id !== 'string' || !UUID.test(id)) return null;
+  if (typeof id !== 'string' || !GAME_ID.test(id)) return null;
   if (typeof seed !== 'string' || seed.length < 1 || seed.length > 200) return null;
   if (!isInt(generatorVersion, 1, 1_000_000)) return null;
   if (typeof extensions !== 'string' || !['', 'd', 'n', 'dn'].includes(extensions)) return null;

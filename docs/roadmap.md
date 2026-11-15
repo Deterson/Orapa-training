@@ -360,16 +360,40 @@ Table `games` (une ligne par partie terminée), migration
 - **Fini quand :** un utilisateur A ne peut jamais lire ni modifier les parties de B (test d'accès
   automatisé). ✔
 
-### v1.4 Enregistrement et historique (M)
+### v1.4 Enregistrement et historique (M) : fait
 
-- À la fin d'une partie, si connecté : enregistrer la ligne `games`. Gérer l'échec réseau
-  (file locale, nouvel essai).
-- Page **Historique** : liste paginée (date, résultat, lasers, durée), tri et filtre
-  victoire/défaite.
-- Option : revoir une partie passée à partir de sa graine et de ses tirs.
-- Option : proposer d'importer au premier login les parties terminées stockées en local.
+- **Enregistrement** : à la fin d'une partie (victoire, défaite ou abandon), si le joueur est
+  connecté, la partie est mise dans une **file d'envoi** locale (`backend/outbox.ts`) puis envoyée
+  (`backend/games.ts`, `upsert` qui ignore les doublons : renvoyer la même partie ne crée rien).
+  Chaque partie a un identifiant tiré au début (conservé par la sauvegarde locale, donc stable
+  après une reprise). La mine n'est jamais envoyée : graine, version du générateur, extensions,
+  repères tirés et proposition suffisent à la rejouer. Sans compte, rien n'est enregistré.
+- **Coupure réseau** : la partie reste en file (même après rechargement), nouvel essai à la
+  connexion, au retour du réseau (`online`) et par délais croissants (15 s à 5 min). Chaque entrée
+  porte l'utilisateur qui jouait : la partie de A ne part jamais sous le compte de B. Un refus
+  définitif de la base (contrainte violée) retire l'entrée au lieu de la rejouer sans fin ; la file
+  est bornée (50). Sur l'écran de résultat : « ✓ Enregistrée » ou « En attente ».
+- **Page Historique** (`#historique`, lien visible une fois connecté, `ui/history.ts`) : liste
+  paginée (20 par page) avec date, résultat, lasers, durée et lien **Rejouer** (même graine, mêmes
+  extensions) ; filtre Toutes / Victoires / Défaites (les abandons comptent comme des défaites,
+  comme dans les statistiques) ; tri Récentes / Anciennes / Moins de lasers (départage stable par
+  identifiant) ; états chargement, vide et erreur avec « Réessayer ». Déconnexion ou changement de
+  compte : la liste affichée est oubliée.
+- **Correction de sécurité** : la graine (venant de l'adresse `?seed=` ou de la sauvegarde) était
+  insérée sans échappement dans l'en-tête et dans l'écran de reprise : un lien piégé pouvait
+  exécuter du script dans la page, ce qui devient grave avec une session de compte. Elle est
+  maintenant échappée partout (et vérifiée dans un navigateur).
+- Non fait, volontairement : revoir une partie passée case par case (« Rejouer » refait la même
+  mine, le déroulé des tirs est conservé en base pour plus tard) ; import des parties locales au
+  premier login (la v1 n'en garde aucune).
+- Tests : file d'envoi (coupure, rechargement, utilisateurs séparés, refus définitif, un seul envoi
+  à la fois, stockage corrompu ou plein), service (requêtes, erreurs, lignes illisibles), page
+  (échappement, états, pagination), sauvegarde (identité de la partie, anciennes sauvegardes).
+  Vérifié dans un navigateur avec une API Supabase simulée : envoi réel par `supabase-js`
+  (`on_conflict=id`, `resolution=ignore-duplicates`), historique, filtre, tri, coupure puis envoi au
+  rechargement.
 - **Fini quand :** les parties terminées apparaissent dans l'historique, sur n'importe quel
-  navigateur où l'on se connecte.
+  navigateur où l'on se connecte. (Code et tests ✔ ; essai réel en attente du projet Supabase.)
 
 ### v1.5 Page de profil (S à M)
 
