@@ -68,3 +68,14 @@ end $$;
 
 grant usage on schema tt to anon, authenticated;
 grant execute on all functions in schema tt to anon, authenticated;
+
+-- Une partie en cours (status 'playing', snapshot renseigné, pas de fin).
+create function tt.playing_of(p_user uuid, p_id uuid default gen_random_uuid(), p_snapshot jsonb default '{"mine":"secret"}')
+returns void language plpgsql as $$
+begin
+  insert into public.games (id, user_id, seed, generator_version, status, lasers_count, probes_count,
+    started_at, ended_at, duration_s, shots, submission, snapshot)
+  values (p_id, p_user, 'graine', 1, 'playing', 0, 0, '2026-01-01 10:00+00', null, 0, '[]', null, p_snapshot);
+end $$;
+
+grant execute on all functions in schema tt to anon, authenticated;

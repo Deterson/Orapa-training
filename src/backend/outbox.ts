@@ -111,7 +111,7 @@ export function createOutbox(backend: Backend | null): Outbox {
         let retry = false;
         for (const record of pending(userId)) {
           try {
-            await games.insert(record);
+            await games.finish(record);
             sent++;
           } catch (error) {
             // Refus définitif de la base : la partie ne passera jamais, on la retire de la file.

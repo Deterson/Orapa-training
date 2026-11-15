@@ -369,8 +369,8 @@ Autres décisions prises avec le propriétaire :
 - **Barre de la partie** : graine, extensions, « Lien » (copie l'adresse `?seed=…&ext=…` qui relance
   la même mine, pour la partager ou la rouvrir) et **plein écran** devenu un **pictogramme**, affiché
   seulement sur écran tactile (`pointer: coarse`).
-- Avec compte, la même règle s'applique **jusqu'à l'étape v1.3 / v1.4 ci-dessous** (parties en cours
-  côté serveur), qui la lèvera.
+- Avec compte, cette règle est levée (v2.2.0) : plusieurs parties en cours, enregistrées sur le compte
+  (voir v1.3 et v1.4).
 - Vérifié dans un navigateur : accueil avec et sans partie, démarrage, rechargement sur la partie et
   sur l'accueil, lien vers une autre mine, abandon depuis l'accueil, lien partagé, retour arrière,
   `#/partie` sans partie, pages de compte sans backend, icône de plein écran masquée sur ordinateur
@@ -408,11 +408,20 @@ Table `games` (une ligne par partie terminée), migration
   peut pas bloquer la file d'envoi de la v1.4). Aucune mine dans l'enregistrement.
 - **Fini quand :** un utilisateur A ne peut jamais lire ni modifier les parties de B (test d'accès
   automatisé). ✔
-- **À faire (spécification du propriétaire)** : la table ne contient que des parties **terminées**.
-  Pour les **parties en cours côté serveur** il faudra `status = 'playing'`, une colonne `snapshot`
-  (la sauvegarde de `game/save.ts`, effacée à la fin), `updated_at`, et des politiques qui autorisent
-  la mise à jour de ces lignes tant qu'elles sont en cours (aujourd'hui aucune mise à jour n'est
-  permise), avec leurs tests SQL.
+- **Parties en cours côté serveur (v2.2.0)**, migration `20261115000005_playing_games.sql` : la table
+  contient aussi des parties **en cours** (`status = 'playing'`, colonne `snapshot` = la sauvegarde
+  du site, mine comprise, `ended_at` vide) en plus des terminées (`snapshot` effacé). `updated_at`
+  suit chaque modification. Règles : un propriétaire ne **modifie** que ses parties **en cours** et
+  seulement les colonnes qui évoluent (jamais le propriétaire, la graine, l'identifiant) ; une partie
+  terminée redevient **immuable** ; au plus **10 parties en cours par compte** (déclencheur, erreur
+  `23514`) ; snapshot borné à 250 000 caractères ; les parties en cours sont **hors de l'historique
+  et des statistiques**. Le snapshot (qui contient la mine) n'est lisible que par son propriétaire.
+  Tests SQL (`progress.test.sql`) : formes valides et invalides, B ne lit ni ne modifie ni ne
+  supprime les parties en cours de A, synchronisation, colonnes verrouillées, fin de partie puis
+  immuabilité, terminer deux fois, abandon, limite de dix (et place libérée à la fin d'une partie),
+  statistiques sans les parties en cours, suppression du compte. Vérifiés « à l'envers » : politique
+  de modification trop large, droit de modification trop large, limite retirée, contraintes
+  retirées, statistiques qui comptent les parties en cours.
 
 ### v1.4 Parties enregistrées et historique (M) : fait pour les parties terminées
 
@@ -448,12 +457,30 @@ Table `games` (une ligne par partie terminée), migration
   rechargement.
 - **Fini quand :** les parties terminées apparaissent dans l'historique, sur n'importe quel
   navigateur où l'on se connecte. (Code et tests ✔ ; essai réel en attente du projet Supabase.)
-- **À faire (spécification du propriétaire)** : partie créée en base **au lancement** (`playing`) et
-  sauvegarde **synchronisée** au rythme de la sauvegarde locale ; **accueil** listant les parties non
-  terminées (« Reprendre » charge le `snapshot`) ; **import à la première connexion** de la partie
-  locale en cours ; historique **dans la vue Profil**. Le comportement actuel (envoi à la fin de la
-  partie seulement) reste valable tant que ces points ne sont pas faits.
-
+- **Parties en cours (v2.2.0)** : connecté, la partie est **créée en base au lancement** et sa
+  sauvegarde est **synchronisée** (`backend/sync.ts`) : la dernière version de chaque partie, au plus
+  toutes les 8 s, seulement si elle a changé (le temps qui passe seul ne compte pas), avec délais
+  croissants après une coupure, envoi immédiat à la déconnexion, au retour du réseau et quand la page
+  se cache ; un refus définitif de la base (dix parties…) laisse la partie seulement locale. La fin
+  de partie passe la ligne à `won`, `lost` ou `abandoned` (file d'envoi existante, `finish` : mise à
+  jour de la partie en cours, sinon création terminée, sans doublon).
+- **Accueil** : la partie chargée dans la fenêtre, puis la **liste des parties en cours du compte**
+  (graine, extensions, tirs, temps, dernière modification ; Reprendre, Abandonner avec confirmation,
+  sans les charger). « Reprendre » charge le snapshot (validé comme une sauvegarde locale) ; la partie
+  chargée jusque-là est d'abord mise à l'abri sur le compte. Avec un compte, « Nouvelle partie » est
+  toujours possible, sauf à dix parties en cours (message sur l'accueil).
+- **Import** : la partie locale en cours n'est jamais envoyée sans accord : à la connexion l'accueil
+  propose **« Importer »** ; elle est aussi importée d'office avant qu'on lance ou reprenne une autre
+  partie (sinon elle serait perdue), et si elle a été lancée par un lien avant que le compte soit
+  connu. Chaque sauvegarde locale garde le compte auquel sa partie est reliée (`owner`) : la partie
+  d'un compte ne part jamais sous un autre. Déconnecté, la partie chargée redevient locale.
+- Vérifié dans un navigateur avec un faux serveur PostgREST en mémoire et deux « appareils » : création
+  au lancement, synchronisation espacée, liste et reprise sur l'autre appareil, deux parties en
+  cours, abandon à distance, fin de partie sans doublon, limite de dix, import, lien partagé avec
+  compte, coupure puis retour du réseau, déconnexion.
+- **Pas fait** : l'historique reste une **page à part** (`#/historique`) et non dans la vue Profil, à
+  la demande du propriétaire ; deux appareils qui jouent la **même** partie en même temps s'écrasent
+  (la dernière version gagne).
 ### v1.5 Vue Profil (S à M) : fait (page séparée `#profil`, historique à part)
 
 Deux statistiques, **calculées par la base à partir de `games`** (fonction `profile_stats()`,
@@ -517,14 +544,11 @@ Règles de calcul (figées, testées) :
 - **Fini quand :** un utilisateur peut effacer son compte et ses parties, et aucun secret n'est dans
   le dépôt. ✔
 
-### Critères de sortie : livraison de la v2 (v2.0.1 : partielle)
+### Critères de sortie : livraison de la v2 (v2.2.0)
 
-**Écarts avec la spécification du propriétaire** (à livrer pour sortir la v2) : les **trois vues**
-navigables avec le titre qui ramène à l'accueil, la **liste des parties en cours** sur l'accueil
-(parties en cours côté serveur), et la limite d'**une seule partie à la fois sans compte**.
-
-- **Code et tests : atteints.** Historique et profil reflètent exactement les parties terminées
-  (tests SQL et Vitest) ; aucun accès possible aux données d'un autre utilisateur (tests SQL, en CI) ;
+- **Code et tests : atteints.** Les trois vues sont navigables, le titre ramène à l'accueil, l'accueil
+  liste les parties en cours ; historique et profil reflètent exactement les parties terminées (tests
+  SQL et Vitest) ; aucun accès possible aux données d'un autre utilisateur (tests SQL, en CI) ;
   la v1 sans compte fonctionne à l'identique (sans variables, aucun bouton, aucun appel réseau, la
   bibliothèque n'est pas chargée).
 - **Reste à faire par le propriétaire, pour la mise en service** : créer le projet Supabase, appliquer
@@ -775,8 +799,13 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
 
 - **v2.0.0** : première livraison de la v2 (étapes v1.1 à v1.6 : Supabase, connexion Google, historique
   des parties terminées, profil, confidentialité), fusionnée avec la v1.0.17 en **v2.0.1** (sondes
-  comptées comme des tirs, migration 4). Les vues, les parties en cours côté serveur et la limite
-  d'une partie sans compte restent à faire (voir v1.2, v1.3, v1.4).
+  comptées comme des tirs, migration 4).
+- **v2.1.0** : barre du haut (titre + version, Nouvelle partie, Règles ; Historique, Profil avec
+  avatar, Connexion / Déconnexion), routeur (`#/`, `#/partie`…), accueil, une seule partie à la fois
+  sans compte, plein écran en pictogramme sur écran tactile seulement (voir v1.2).
+- **v2.2.0** : parties en cours côté serveur (migration 5), liste sur l'accueil, reprise sur un autre
+  appareil, import, abandon à distance, dix parties en cours au plus (voir v1.3 et v1.4). La v2 est
+  complète côté code ; reste la mise en service.
 
 ## Questions ouvertes
 
@@ -797,4 +826,4 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
 - Limite de tirs imposée ou simple compteur ?
 - Dimensions des gemmes : voir [`regles.md`](regles.md). (Règle d de contact : tranchée, voir `regles.md`.)
 - ~~Supabase ou Firebase pour la v2 ?~~ Décidé en v1.1 : Supabase.
-- Nombre maximal de parties en cours par compte (par exemple 10) ?
+- ~~Nombre maximal de parties en cours par compte~~ : décidé en v2.2.0, 10 (imposé par la base).

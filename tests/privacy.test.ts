@@ -14,7 +14,9 @@ describe('page de confidentialité', () => {
   it("avec un compte : dit ce qui est gardé et ce qui ne l'est jamais", () => {
     const html = privacyPage({ backend: true, signedIn: true, deletion: 'idle' });
     expect(html).toContain('Supabase');
-    expect(html).toContain('Jamais : la mine cachée');
+    expect(html).toContain('Ni la mine');
+    expect(html).toContain('Partie en cours');
+    expect(html).toContain('effacée dès qu');
     expect(html).toContain('data-action="ask-delete-account"');
   });
 

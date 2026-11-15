@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { generateMine } from '../src/game/generate';
 import { GameSession } from '../src/game/session';
+import { emptyNotes } from '../src/game/notes';
+import { SAVE_VERSION, type SaveData } from '../src/game/save';
+import { emptySolution } from '../src/game/solution';
 import {
+  SNAPSHOT_LIMIT,
   type GameRecord,
+  buildProgress,
   buildRecord,
+  compactSave,
+  parsePlayingSummary,
+  parseProgressSnapshot,
   extensionsCode,
   extensionsFromCode,
   parseRow,
@@ -213,5 +221,87 @@ describe("lecture d'une ligne", () => {
 
   it("refuse ce qui n'est pas un objet", () => {
     for (const value of [null, 1, 'x', [], undefined]) expect(parseRow(value)).toBeNull();
+  });
+});
+
+describe('partie en cours (serveur)', () => {
+  const session = new GameSession(generateMine('en-cours'), { now: () => 5_000 });
+  session.fire('1');
+  session.probe('E4');
+  const base: SaveData = {
+    version: SAVE_VERSION,
+    savedAt: 1_700_000_000_000,
+    session: session.toSnapshot(),
+    solution: emptySolution(),
+    notes: emptyNotes(),
+    skipConfirm: true,
+    owner: 'compte-a',
+  };
+
+  it('décrit la partie : tirs, sondes, temps, extensions', () => {
+    const p = buildProgress({ id: ID, save: base, startedAt: 1_699_999_000_000 });
+    expect(p).toMatchObject({
+      id: ID,
+      seed: 'en-cours',
+      extensions: '',
+      lasersCount: 1,
+      probesCount: 1,
+      shots: ['1'],
+      startedAt: new Date(1_699_999_000_000).toISOString(),
+    });
+    expect(p.snapshot.gameId).toBe(ID);
+    // Le snapshot garde la mine (réservé au propriétaire), mais pas le compte.
+    expect(p.snapshot.session.mine.placements.length).toBeGreaterThan(4);
+    expect('owner' in p.snapshot).toBe(false);
+  });
+
+  it('un snapshot trop gros perd ses traits au crayon, pas ses marques de cases', () => {
+    const stroke = {
+      ink: 'ink' as const,
+      points: Array.from({ length: 5000 }, (_, i): [number, number] => [i, i]),
+    };
+    const heavy: SaveData = {
+      ...base,
+      notes: { marks: { A1: 'red' }, strokes: Array.from({ length: 10 }, () => stroke) },
+    };
+    expect(JSON.stringify(heavy).length).toBeGreaterThan(SNAPSHOT_LIMIT);
+    const compact = compactSave(heavy);
+    expect(compact.notes.strokes).toEqual([]);
+    expect(compact.notes.marks).toEqual({ A1: 'red' });
+    expect(JSON.stringify(compact).length).toBeLessThanOrEqual(SNAPSHOT_LIMIT);
+    // Une sauvegarde normale n'est pas touchée.
+    expect(compactSave(base).notes).toEqual(base.notes);
+  });
+
+  it('le snapshot compacté est une sauvegarde valide', () => {
+    const p = buildProgress({ id: ID, save: base, startedAt: 1_699_999_000_000 });
+    expect(parseProgressSnapshot(JSON.parse(JSON.stringify(p.snapshot)))).toEqual(p.snapshot);
+    expect(parseProgressSnapshot({ ...p.snapshot, version: 99 })).toBeNull();
+  });
+
+  it("lit le résumé d'une partie en cours et refuse les lignes incohérentes", () => {
+    const row = {
+      id: ID,
+      seed: 'a',
+      extensions: 'n',
+      lasers_count: 3,
+      probes_count: 4,
+      duration_s: 90,
+      started_at: '2026-03-01T10:00:00Z',
+      updated_at: '2026-03-01T10:01:30Z',
+    };
+    expect(parsePlayingSummary(row)).toMatchObject({ id: ID, lasersCount: 3, probesCount: 4 });
+    for (const patch of [
+      { id: 'x' },
+      { seed: '' },
+      { extensions: 'z' },
+      { lasers_count: 37 },
+      { probes_count: -1 },
+      { duration_s: 1.5 },
+      { updated_at: 'hier' },
+    ]) {
+      expect(parsePlayingSummary({ ...row, ...patch })).toBeNull();
+    }
+    expect(parsePlayingSummary(null)).toBeNull();
   });
 });

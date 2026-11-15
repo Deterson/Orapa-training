@@ -76,12 +76,14 @@ select tt.back_to_admin();
 -- ---------- Modification et suppression ----------
 
 select tt.as_user('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
-select tt.must_fail(
-  $q$ update public.games set status = 'won' where user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' $q$,
-  '42501', 'B modifie les parties de A');
-select tt.must_fail(
-  $q$ update public.games set status = 'won' where user_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' $q$,
-  '42501', 'les parties sont immuables, même pour leur propriétaire');
+-- Modifier : B ne touche à aucune partie de A, et personne ne modifie une partie terminée
+-- (la modification n'est permise que tant qu'une partie est en cours : voir progress.test.sql).
+with changed as (
+  update public.games set status = 'won' where user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' returning 1
+) select tt.expect(count(*), 0, 'B ne modifie aucune partie de A') from changed;
+with changed as (
+  update public.games set status = 'lost' where user_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' returning 1
+) select tt.expect(count(*), 0, 'une partie terminée est immuable, même pour son propriétaire') from changed;
 with gone as (delete from public.games where user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' returning 1)
   select tt.expect(count(*), 0, 'B ne supprime aucune partie de A') from gone;
 select tt.back_to_admin();

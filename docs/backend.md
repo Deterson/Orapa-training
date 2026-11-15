@@ -46,7 +46,8 @@ aucun appel réseau. Le jeu reste jouable sans compte.
 Identifiant, nom, avatar et adresse e-mail du compte (tels que Supabase les stocke dans
 `auth.users` ; le site n'utilise que le nom et l'avatar). Par partie terminée : graine, version du
 générateur, extensions, repères tirés, proposition, résultat, durée, dates ; jamais la mine, les
-notes ni les dessins. Le joueur peut supprimer son compte et toutes ses parties depuis la page
+notes ni les dessins ; pendant une partie en cours, la partie complète (mine, tirs, notes, dessins)
+est gardée pour pouvoir la reprendre ailleurs, et effacée à la fin. Le joueur peut supprimer son compte et toutes ses parties depuis la page
 Confidentialité (fonction SQL `delete_my_account()`). Texte destiné aux joueurs : `src/ui/privacy.ts`.
 
 ## Ce que fait la base
@@ -55,6 +56,7 @@ Confidentialité (fonction SQL `delete_my_account()`). Texte destiné aux joueur
 |---|---|
 | `…000001_games.sql` | table `games`, sécurité par ligne : chacun lit, écrit et supprime ses parties, aucune mise à jour |
 | `…000002_profile_stats.sql` | `profile_stats()` : parties, victoires, % de victoires, tirs par victoire (les abandons comptent comme des défaites) ; remplacée par la migration 4 |
+| `…000005_playing_games.sql` | parties **en cours** côté serveur : colonnes `snapshot` et `updated_at`, modification permise au seul propriétaire tant que la partie est en cours, dix parties en cours au plus, statistiques sans les parties en cours |
 | `…000004_shots_count.sql` | colonne calculée `shots_count` (lasers + sondes, un seul compteur de tirs depuis la v1.0.17) ; `profile_stats()` recréée : la moyenne porte sur les tirs |
 | `…000003_delete_account.sql` | `delete_my_account()` : supprime le compte de l'appelant, ses parties partent en cascade |
 

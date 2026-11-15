@@ -54,9 +54,14 @@ import { diffLine, resultBoardSvg } from './resultBoard';
 import type { AccountUser } from '../backend/auth';
 import type { Backend } from '../backend';
 import type { HistoryFilter, HistorySort } from '../backend/games';
+import { type ProgressSync, createProgressSync } from '../backend/sync';
 import {
   type GameRecord,
+  MAX_PLAYING,
+  type PlayingSummary,
+  buildProgress,
   extensionsCode,
+  extensionsFromCode,
   type ProfileStats,
   buildRecord,
   parseRow,
@@ -128,7 +133,23 @@ interface State {
   /** Vrai quand la session enregistrée a été lue (avant : on ne sait pas encore si on est connecté). */
   authReady: boolean;
   /** Identité de la partie en cours (historique) ; null hors partie. */
-  game: { id: string; startedAt: number } | null;
+  game: {
+    id: string;
+    startedAt: number;
+    /** Compte auquel la partie était reliée au dernier enregistrement local (voir SaveData.owner). */
+    owner?: string;
+    /** La partie est synchronisée avec le compte connecté. */
+    synced: boolean;
+    /**
+     * Partie lancée avant que le compte soit connu (lien partagé, au chargement de la page) : si un
+     * compte apparaît, elle lui est reliée d'office.
+     */
+    autoImport?: boolean;
+  } | null;
+  /** Parties en cours du compte, sur le serveur. */
+  playing: { status: 'idle' | 'loading' | 'ready' | 'error'; games: PlayingSummary[] };
+  /** Partie du compte dont l'abandon attend confirmation (accueil). */
+  confirmRemote: string | null;
   /** Envoi de la partie terminée à l'historique : null (rien à envoyer), en attente, enregistrée. */
   recorded: 'pending' | 'saved' | null;
   history: {
@@ -187,6 +208,13 @@ function writeSeedToUrl(seed: string, extensions: Readonly<Extensions> = NO_EXTE
   } catch {
     // L'adresse reste telle quelle : sans conséquence pour le jeu.
   }
+}
+
+/** Extensions d'une partie du compte, d'après son code (`d`, `n`, `dn`). */
+function extensionsLabelOfCode(code: string): string {
+  const { diamond, blackBody } = extensionsFromCode(code);
+  const names = [diamond ? t.extensions.diamond : '', blackBody ? t.extensions.blackBody : ''];
+  return names.filter(Boolean).join(' · ') || t.extensions.none;
 }
 
 /** Pictogramme « plein écran » (quatre coins). */
@@ -304,6 +332,8 @@ export function startApp(
     account: null,
     authReady: false,
     game: null,
+    playing: { status: 'idle', games: [] },
+    confirmRemote: null,
     recorded: null,
     history: { filter: 'all', sort: 'recent', page: 0, status: 'loading', games: [], total: 0 },
     profile: { status: 'loading', stats: null },
@@ -424,19 +454,31 @@ export function startApp(
     return `<div class="modal-backdrop" data-modal-backdrop data-recap><div class="modal recap" role="dialog" aria-modal="true" aria-label="${outcomeText(shot)}"><button type="button" class="modal-close" data-action="modal-cancel" aria-label="${t.modal.close}">×</button><p class="modal-title">${route}</p><p class="recap-result">${result}</p></div></div>`;
   };
 
-  /** Sauvegarde automatique de la partie en cours (rien à sauvegarder une fois terminée). */
+  let sync: ProgressSync | null = null;
+
+  /**
+   * Sauvegarde automatique de la partie en cours (rien à sauvegarder une fois terminée), et, si elle
+   * est reliée au compte, signalement de sa dernière version au module de synchronisation (qui espace
+   * les envois et n'envoie que ce qui a changé).
+   */
   const persist = (): void => {
-    const { session } = state;
+    const { session, game } = state;
     if (state.phase !== 'ready' || !session || session.finished) return;
-    store.save({
+    const synced = game?.synced === true && state.account !== null;
+    const save: SaveData = {
       version: SAVE_VERSION,
       savedAt: Date.now(),
       session: session.toSnapshot(),
       solution: state.solution,
       notes: state.notes.present,
       skipConfirm: state.skipConfirm,
-      ...(state.game ? { gameId: state.game.id, startedAt: state.game.startedAt } : {}),
-    });
+      ...(game ? { gameId: game.id, startedAt: game.startedAt } : {}),
+      ...(synced && state.account ? { owner: state.account.id } : {}),
+    };
+    store.save(save);
+    if (synced && game && sync) {
+      sync.push(buildProgress({ id: game.id, save, startedAt: game.startedAt }));
+    }
   };
 
   /** Le chronomètre ne tourne que pendant qu'on joue : pas pendant la lecture des règles ni page cachée. */
@@ -508,8 +550,17 @@ export function startApp(
   const inProgress = (): boolean =>
     state.session !== null && state.phase === 'ready' && !state.session.finished;
 
+  /**
+   * Dix parties en cours sur le compte : plus de nouvelle partie tant qu'on n'en termine pas une.
+   * Une partie locale pas encore importée compte aussi (elle le sera avant d'en lancer une autre).
+   */
+  const limitReached = (): boolean =>
+    state.account !== null &&
+    state.playing.games.length + (inProgress() && state.game?.synced === false ? 1 : 0) >=
+      MAX_PLAYING;
+
   /** « Nouvelle partie » indisponible : sans compte, une seule partie à la fois. */
-  const newGameBlocked = (): boolean => inProgress();
+  const newGameBlocked = (): boolean => (state.account === null && inProgress()) || limitReached();
 
   /** La vue Partie n'a de sens que s'il y a une partie (ou qu'elle se génère). */
   const gameAvailable = (): boolean =>
@@ -602,6 +653,22 @@ export function startApp(
           confirmAbandon: state.confirm === 'abandon' && current !== null,
           newGameBlocked: newGameBlocked(),
           accounts: state.backend !== null,
+          signedIn: state.account !== null,
+          canImport: current !== null && state.account !== null && state.game?.synced === false,
+          // La partie chargée dans cette fenêtre est déjà montrée en haut : pas de doublon dans la liste.
+          others: state.playing.games
+            .filter((game) => !(current && game.id === state.game?.id))
+            .map((game) => ({
+              id: game.id,
+              seed: game.seed,
+              extensions: extensionsLabelOfCode(game.extensions),
+              shots: game.lasersCount + game.probesCount,
+              elapsedMs: game.durationS * 1000,
+              updatedAt: game.updatedAt,
+            })),
+          othersStatus: state.playing.status,
+          confirmRemote: state.confirmRemote,
+          limitReached: limitReached(),
         }),
       );
       persist();
@@ -708,6 +775,7 @@ export function startApp(
   const enterView = (view: View): void => {
     if (view === 'history') loadHistory();
     if (view === 'profile') loadProfile();
+    if (view === 'home') loadPlayingList();
     render();
     if (view !== 'game') window.scrollTo(0, 0);
   };
@@ -736,14 +804,17 @@ export function startApp(
   };
 
   /** Remet une partie sauvegardée en mémoire (chronomètre en pause tant qu'on n'est pas sur la vue Partie). */
-  const loadSave = (save: SaveData): void => {
+  const loadSave = (save: SaveData, id?: string): void => {
     state.session = GameSession.fromSnapshot(save.session);
     state.solution = save.solution;
     state.notes = newHistory(save.notes);
     state.skipConfirm = save.skipConfirm;
     state.game = {
-      id: save.gameId ?? newGameId(),
+      id: id ?? save.gameId ?? newGameId(),
       startedAt: save.startedAt ?? Math.max(0, save.savedAt - save.session.elapsedMs),
+      ...(save.owner ? { owner: save.owner } : {}),
+      // Au chargement de la page le compte n'est pas encore connu : voir `onAccount`.
+      synced: save.owner !== undefined && save.owner === state.account?.id,
     };
     state.recorded = null;
     state.selected = null;
@@ -781,7 +852,13 @@ export function startApp(
     window.setTimeout(() => {
       try {
         state.session = GameSession.start(seed, extensions);
-        state.game = { id: newGameId(), startedAt: Date.now() };
+        state.game = { id: newGameId(), startedAt: Date.now(), synced: false };
+        // Connecté : la partie est enregistrée sur le compte dès le début (reprise sur un autre appareil).
+        if (state.account && state.backend && sync) {
+          state.game.synced = true;
+          state.game.owner = state.account.id;
+        }
+        if (!state.account && (!state.authReady || accountsExpected)) state.game.autoImport = true;
         state.phase = 'ready';
         writeSeedToUrl(seed, extensions);
       } catch {
@@ -807,7 +884,10 @@ export function startApp(
     }
     const checked = (id: string): boolean =>
       root.querySelector<HTMLInputElement>(`#${id}`)?.checked ?? false;
-    startGame(randomSeed(), { diamond: checked('ext-diamond'), blackBody: checked('ext-black') });
+    void beginGame(randomSeed(), {
+      diamond: checked('ext-diamond'),
+      blackBody: checked('ext-black'),
+    });
   };
 
   const doFire = (label: string): void => {
@@ -892,6 +972,7 @@ export function startApp(
     }
     if (result.sent > 0 && state.view === 'history') loadHistory();
     if (result.sent > 0 && state.view === 'profile') loadProfile();
+    if (result.sent > 0 && state.view === 'home') loadPlayingList();
     if (state.recorded === 'pending' && state.game && !outbox.has(account.id, state.game.id)) {
       state.recorded = 'saved';
       render();
@@ -913,6 +994,7 @@ export function startApp(
       });
       // Une partie que la base refuserait ne doit pas rester bloquée en file.
       if (parseRow(recordToRow(record)) === null) return;
+      sync?.forget(game.id);
       outbox.add(account.id, record);
       state.recorded = 'pending';
       void flushOutbox();
@@ -980,6 +1062,125 @@ export function startApp(
         if (state.view === 'profile') render();
       },
     );
+  };
+
+  // ---------- Parties en cours du compte (v2) ----------
+
+  let playingToken = 0;
+
+  /** Recharge la liste des parties en cours du compte ; une réponse tardive d'une demande dépassée est ignorée. */
+  const loadPlayingList = (): void => {
+    const { backend, account } = state;
+    if (!backend || !account) return;
+    const token = ++playingToken;
+    state.playing.status = 'loading';
+    if (state.view === 'home') render();
+    backend.games.listPlaying().then(
+      (games) => {
+        if (token !== playingToken) return;
+        state.playing = { status: 'ready', games };
+        if (state.view === 'home') render();
+      },
+      () => {
+        if (token !== playingToken) return;
+        state.playing.status = 'error';
+        if (state.view === 'home') render();
+      },
+    );
+  };
+
+  /**
+   * Avant de remplacer la partie chargée par une autre : s'assurer qu'elle est sur le compte. Une partie
+   * seulement locale y est importée d'office (sinon elle serait perdue). Faux si l'envoi échoue.
+   */
+  const secureCurrent = async (): Promise<boolean> => {
+    const { game, account, backend } = state;
+    if (!account || !backend || !sync || !game || !inProgress()) return true;
+    if (!game.synced) {
+      game.synced = true;
+      game.owner = account.id;
+    }
+    persist();
+    await sync.flush();
+    return !sync.pending().includes(game.id);
+  };
+
+  let starting = false;
+
+  /** Lance une partie : celle qui est chargée est d'abord mise à l'abri sur le compte. */
+  const beginGame = async (seed: string, extensions: Readonly<Extensions>): Promise<void> => {
+    if (starting) return;
+    starting = true;
+    try {
+      if (state.account && !(await secureCurrent())) {
+        state.choose = null;
+        state.notice = t.home.syncFailed;
+        render();
+        return;
+      }
+      startGame(seed, extensions);
+    } finally {
+      starting = false;
+    }
+  };
+
+  /** Reprend une partie du compte : elle remplace celle qui est chargée (mise à l'abri avant). */
+  const resumeRemote = async (id: string): Promise<void> => {
+    const { backend, account } = state;
+    if (!backend || !account || starting) return;
+    if (state.game?.id === id && inProgress()) return navigate('game');
+    starting = true;
+    try {
+      if (!(await secureCurrent())) {
+        state.notice = t.home.syncFailed;
+        return;
+      }
+      const loaded = await backend.games.loadPlaying(id);
+      if (!loaded) {
+        state.notice = t.home.gone;
+        loadPlayingList();
+        return;
+      }
+      store.clear();
+      loadSave({ ...loaded.save, owner: account.id }, id);
+      persist();
+      navigate('game');
+    } catch {
+      state.notice = t.home.actionFailed;
+    } finally {
+      starting = false;
+      render();
+    }
+  };
+
+  /** Abandonne une partie du compte sans la charger : elle entre dans l'historique comme abandonnée. */
+  const abandonRemote = async (id: string): Promise<void> => {
+    const { backend } = state;
+    const game = state.playing.games.find((candidate) => candidate.id === id);
+    state.confirmRemote = null;
+    if (!backend || !game) return render();
+    try {
+      await backend.games.abandonPlaying(id, game.startedAt);
+    } catch {
+      state.notice = t.home.actionFailed;
+    }
+    loadPlayingList();
+  };
+
+  /** Ajoute au compte la partie locale en cours. */
+  const importCurrent = async (): Promise<void> => {
+    const { game, account } = state;
+    if (!account || !game || !inProgress() || game.synced) return;
+    if (limitReached()) {
+      state.notice = t.home.limit;
+      return render();
+    }
+    game.synced = true;
+    game.owner = account.id;
+    persist();
+    render();
+    await sync?.flush();
+    loadPlayingList();
   };
 
   /** Supprime le compte et ses parties, puis revient au jeu (sans compte). */
@@ -1328,6 +1529,24 @@ export function startApp(
           render();
         });
         return;
+      case 'import-game':
+        void importCurrent();
+        return;
+      case 'resume-remote': {
+        const id = target.closest<HTMLElement>('[data-id]')?.dataset['id'];
+        if (id) void resumeRemote(id);
+        return;
+      }
+      case 'ask-abandon-remote':
+        state.confirmRemote = target.closest<HTMLElement>('[data-id]')?.dataset['id'] ?? null;
+        return render();
+      case 'confirm-abandon-remote': {
+        const id = target.closest<HTMLElement>('[data-id]')?.dataset['id'];
+        if (id) void abandonRemote(id);
+        return;
+      }
+      case 'retry-playing':
+        return loadPlayingList();
       case 'ask-delete-account':
         state.deletion = 'confirm';
         return render();
@@ -1339,10 +1558,17 @@ export function startApp(
       case 'retry-profile':
         return loadProfile();
       case 'sign-out':
-        void state.backend?.auth.signOut().catch(() => {
-          state.notice = t.account.signOutFailed;
-          render();
-        });
+        // Les dernières modifications des parties en cours partent avant la fin de la session.
+        void (async () => {
+          try {
+            persist();
+            await sync?.flush();
+            await state.backend?.auth.signOut();
+          } catch {
+            state.notice = t.account.signOutFailed;
+            render();
+          }
+        })();
         return;
       case 'enter-immersive':
         return enterImmersive();
@@ -1386,6 +1612,7 @@ export function startApp(
         return render();
       case 'cancel-confirm':
         state.confirm = null;
+        state.confirmRemote = null;
         return render();
       case 'confirm-submit':
         if (state.session && isSubmittable(state.solution)) {
@@ -1398,7 +1625,7 @@ export function startApp(
         state.session?.abandon();
         return showResult();
       case 'replay':
-        if (state.session) startGame(state.session.seed, extensionsOf(state.session.gems));
+        if (state.session) void beginGame(state.session.seed, extensionsOf(state.session.gems));
         return;
       case 'undo':
         state.notes = undo(state.notes);
@@ -1584,10 +1811,14 @@ export function startApp(
       render();
     }
   });
-  window.addEventListener('pagehide', persist);
+  const saveAndSend = (): void => {
+    persist();
+    void sync?.flush();
+  };
+  window.addEventListener('pagehide', saveAndSend);
   document.addEventListener('visibilitychange', () => {
     syncClock();
-    if (document.visibilityState === 'hidden') persist();
+    if (document.visibilityState === 'hidden') saveAndSend();
   });
 
   // Au chargement : une partie sauvegardée revient en mémoire (l'accueil la propose) ; sinon, un lien
@@ -1641,9 +1872,32 @@ export function startApp(
     },
     attachBackend: (backend) => {
       state.backend = backend;
+      sync = createProgressSync(backend.games, {
+        // La base refuse cette partie (par exemple dix parties en cours) : elle reste seulement locale.
+        onRejected: (id) => {
+          if (state.game?.id !== id) return;
+          state.game.synced = false;
+          delete state.game.owner;
+          render();
+        },
+      });
       const onAccount = (user: AccountUser | null): void => {
         const changed = user?.id !== state.account?.id;
         if (changed) {
+          sync?.reset();
+          // La partie chargée n'est reliée qu'au compte qui l'a envoyée ; sans compte, elle est locale.
+          if (state.game) {
+            state.game.synced = user !== null && state.game.owner === user.id;
+            if (!state.game.synced) delete state.game.owner;
+            if (user && state.game.autoImport && inProgress()) {
+              state.game.synced = true;
+              state.game.owner = user.id;
+              delete state.game.autoImport;
+            }
+          }
+          state.playing = { status: 'idle', games: [] };
+          playingToken++;
+          state.confirmRemote = null;
           // Autre compte ou déconnexion : l'historique et le profil affichés ne sont plus les bons.
           state.history = { ...state.history, page: 0, status: 'loading', games: [], total: 0 };
           state.profile = { status: 'loading', stats: null };
@@ -1653,6 +1907,7 @@ export function startApp(
         state.account = user;
         if (changed && user) {
           void flushOutbox();
+          loadPlayingList();
           if (state.view === 'history') loadHistory();
           if (state.view === 'profile') loadProfile();
         }
@@ -1663,7 +1918,10 @@ export function startApp(
         state.authReady = true;
         onAccount(user);
       });
-      window.addEventListener('online', () => void flushOutbox());
+      window.addEventListener('online', () => {
+        void flushOutbox();
+        void sync?.flush();
+      });
     },
   };
 }

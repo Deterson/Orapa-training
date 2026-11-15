@@ -1531,3 +1531,41 @@ button.big {
   padding: 12px 28px;
   font-size: 1.1rem;
 }
+
+/* Parties en cours du compte (accueil) */
+.home-others {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 32rem);
+}
+
+.home-others h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.home-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-remote {
+  display: grid;
+  gap: 8px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.home-remote p {
+  margin: 0;
+}
+
+.hc-date {
+  color: var(--muted);
+  font-size: 0.85rem;
+}

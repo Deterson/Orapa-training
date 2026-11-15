@@ -20,6 +20,14 @@ const record = (n: number): GameRecord => ({
   ],
 });
 
+const unusedMethods = {
+  saveProgress: () => Promise.reject(new Error('inutilisé')),
+  listPlaying: () => Promise.reject(new Error('inutilisé')),
+  loadPlaying: () => Promise.reject(new Error('inutilisé')),
+  abandonPlaying: () => Promise.reject(new Error('inutilisé')),
+  stats: () => Promise.reject(new Error('inutilisé')),
+};
+
 /** localStorage factice. */
 function memoryStorage(initial?: string) {
   const data = new Map<string, string>();
@@ -36,14 +44,14 @@ function memoryStorage(initial?: string) {
 function fakeGames(failWith: (r: GameRecord) => Error | null = () => null) {
   const sent: string[] = [];
   const service: GamesService = {
-    insert: (r) => {
+    finish: (r) => {
       const error = failWith(r);
       if (error) return Promise.reject(error);
       sent.push(r.id);
       return Promise.resolve();
     },
     list: () => Promise.resolve({ games: [], total: 0 }),
-    stats: () => Promise.reject(new Error('inutilisé')),
+    ...unusedMethods,
   };
   return { sent, service };
 }
@@ -120,12 +128,12 @@ describe("file d'envoi", () => {
     box.add('A', record(1));
     let calls = 0;
     const service: GamesService = {
-      insert: async () => {
+      finish: async () => {
         calls++;
         await Promise.resolve();
       },
       list: () => Promise.resolve({ games: [], total: 0 }),
-      stats: () => Promise.reject(new Error('inutilisé')),
+      ...unusedMethods,
     };
     const [first, second] = await Promise.all([box.flush('A', service), box.flush('A', service)]);
     expect(calls).toBe(1);

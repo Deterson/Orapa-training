@@ -3,7 +3,7 @@
  * Sans compte, une seule partie à la fois : tant qu'elle n'est ni terminée ni abandonnée,
  * « Nouvelle partie » n'est pas disponible.
  */
-import { formatTime, plural } from './format';
+import { formatDate, formatTime, plural } from './format';
 import { escapeHtml } from './html';
 import { t } from './strings';
 
@@ -16,6 +16,13 @@ export interface HomeGame {
   elapsedMs: number;
 }
 
+/** Une partie en cours enregistrée sur le compte (autre que celle chargée dans cette fenêtre). */
+export interface HomeRemote extends HomeGame {
+  id: string;
+  /** Dernière modification, date ISO. */
+  updatedAt: string;
+}
+
 export interface HomeModel {
   current: HomeGame | null;
   /** Confirmation d'abandon ouverte sur la partie en cours. */
@@ -23,13 +30,23 @@ export interface HomeModel {
   newGameBlocked: boolean;
   /** Le site propose des comptes (sinon on n'invite pas à se connecter). */
   accounts: boolean;
+  /** Un compte est connecté : la liste des parties en cours du compte est affichée. */
+  signedIn: boolean;
+  /** La partie en cours n'est pas encore dans le compte : « Importer ». */
+  canImport: boolean;
+  others: readonly HomeRemote[];
+  othersStatus: 'idle' | 'loading' | 'ready' | 'error';
+  /** Identifiant de la partie du compte dont l'abandon attend confirmation. */
+  confirmRemote: string | null;
+  /** Dix parties en cours : plus de nouvelle partie tant qu'on n'en termine pas une. */
+  limitReached: boolean;
 }
 
-function card(game: HomeGame, confirm: boolean): string {
+function card(game: HomeGame, confirm: boolean, canImport: boolean): string {
   const shots = `${game.shots} tir${plural(game.shots, '', 's')}`;
   const actions = confirm
     ? `<div class="confirm" role="alertdialog" aria-label="Confirmer"><p>${t.home.confirmAbandon}</p><div class="actions"><button type="button" data-action="confirm-abandon">${t.actions.abandon}</button><button type="button" class="ghost" data-action="cancel-confirm">${t.modal.cancel}</button></div></div>`
-    : `<div class="actions"><button type="button" data-action="resume-game">${t.actions.resume}</button><button type="button" class="ghost" data-action="ask-abandon">${t.actions.abandon}</button></div>`;
+    : `<div class="actions"><button type="button" data-action="resume-game">${t.actions.resume}</button>${canImport ? `<button type="button" class="ghost" data-action="import-game">${t.home.import}</button>` : ''}<button type="button" class="ghost" data-action="ask-abandon">${t.actions.abandon}</button></div>`;
   return `<section class="home-card" aria-label="${t.home.current}">
     <h2>${t.home.current}</h2>
     <p class="hc-line"><code class="seed">${escapeHtml(game.seed)}</code> <span class="ext-chip">${escapeHtml(game.extensions)}</span> · ${shots} · ${formatTime(game.elapsedMs)}</p>
@@ -37,14 +54,43 @@ function card(game: HomeGame, confirm: boolean): string {
   </section>`;
 }
 
+function remote(game: HomeRemote, confirm: boolean): string {
+  const shots = `${game.shots} tir${plural(game.shots, '', 's')}`;
+  const actions = confirm
+    ? `<div class="confirm" role="alertdialog" aria-label="Confirmer"><p>${t.home.confirmAbandon}</p><div class="actions"><button type="button" data-action="confirm-abandon-remote" data-id="${escapeHtml(game.id)}">${t.actions.abandon}</button><button type="button" class="ghost" data-action="cancel-confirm">${t.modal.cancel}</button></div></div>`
+    : `<div class="actions"><button type="button" data-action="resume-remote" data-id="${escapeHtml(game.id)}">${t.actions.resume}</button><button type="button" class="ghost" data-action="ask-abandon-remote" data-id="${escapeHtml(game.id)}">${t.actions.abandon}</button></div>`;
+  return `<li class="home-remote">
+    <p class="hc-line"><code class="seed">${escapeHtml(game.seed)}</code> <span class="ext-chip">${escapeHtml(game.extensions)}</span> · ${shots} · ${formatTime(game.elapsedMs)} · <span class="hc-date">${escapeHtml(formatDate(game.updatedAt))}</span></p>
+    ${actions}
+  </li>`;
+}
+
+function others(model: HomeModel): string {
+  if (!model.signedIn) return '';
+  if (model.othersStatus === 'error') {
+    return `<section class="home-others"><p class="warning" role="alert">${t.home.loadError} <button type="button" class="ghost" data-action="retry-playing">${t.home.retry}</button></p></section>`;
+  }
+  if (model.othersStatus === 'loading' && model.others.length === 0) {
+    return `<section class="home-others" aria-busy="true"><p class="placeholder" role="status">${t.history.loading}</p></section>`;
+  }
+  if (model.others.length === 0) return '';
+  return `<section class="home-others" aria-label="${t.home.others}">
+    <h2>${t.home.others}</h2>
+    <ul class="home-list">${model.others.map((game) => remote(game, model.confirmRemote === game.id)).join('')}</ul>
+  </section>`;
+}
+
 export function homePage(model: HomeModel): string {
-  const hint = !model.newGameBlocked
-    ? ''
-    : `<p class="hint">${model.accounts ? t.home.blockedSignIn : t.home.blockedNoAccount}</p>`;
+  const hint = model.limitReached
+    ? `<p class="hint">${t.home.limit}</p>`
+    : !model.newGameBlocked
+      ? ''
+      : `<p class="hint">${model.accounts ? t.home.blockedSignIn : t.home.blockedNoAccount}</p>`;
   return `<div class="home">
     <h1 class="sr-only">${t.appName}</h1>
-    ${model.current ? card(model.current, model.confirmAbandon) : ''}
+    ${model.current ? card(model.current, model.confirmAbandon, model.canImport) : ''}
     <p class="home-new"><button type="button" class="big" data-action="new-game"${model.newGameBlocked ? ' disabled' : ''}>${t.actions.newGame}</button></p>
     ${hint}
+    ${others(model)}
   </div>`;
 }

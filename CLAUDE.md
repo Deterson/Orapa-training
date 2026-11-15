@@ -5,12 +5,11 @@ Gameology ; édition française Miraludo). Le site génère une « mine » aléa
 gemmes cachées) et le joueur doit la reconstituer par déduction, en tirant des lasers, en
 prenant des notes et en plaçant ses propres gemmes, puis en soumettant sa solution.
 
-> Statut : **v1 livrée (v1.0.0)** ; **v2 en cours de livraison (v2.1.0)** : connexion Google,
-> enregistrement et historique des parties terminées, profil, suppression du compte (Supabase,
-> [`docs/backend.md`](docs/backend.md)), barre du haut, routeur et accueil, une seule partie à la
-> fois sans compte. **Pas encore faits** : les parties en cours côté serveur (liste sur l'accueil,
-> import à la première connexion). Reste aussi la mise en service (projet Supabase, identifiant
-> Google, variables) puis un essai réel. `CLAUDE.md` et `docs/` sont la spécification.
+> Statut : **v1 livrée (v1.0.0)** ; **v2 complète côté code (v2.2.0)** : connexion Google,
+> parties en cours et terminées enregistrées sur le compte, historique, profil, suppression du
+> compte (Supabase, [`docs/backend.md`](docs/backend.md)), barre du haut, routeur et accueil, une
+> seule partie à la fois sans compte. Reste la **mise en service** : projet Supabase, identifiant
+> Google, variables, puis un essai réel. `CLAUDE.md` et `docs/` sont la spécification.
 
 ## Documentation (`docs/`)
 
@@ -108,8 +107,8 @@ comprises. Un lien `?seed=…` (avec `ext=`) lance cette mine directement.
 
 Pages :
 
-1. **Accueil** (`ui/home.ts`) : la partie en cours (Reprendre, Abandonner), la liste des parties non
-   terminées (connecté seulement) et « Nouvelle partie » (fenêtre des extensions : Diamant, Corps
+1. **Accueil** (`ui/home.ts`) : la partie en cours (Reprendre, Abandonner, Importer), la liste des
+   parties en cours du compte (connecté seulement, 10 au plus) et « Nouvelle partie » (fenêtre des extensions : Diamant, Corps
    noir).
 2. **Partie** : la vue décrite dans « Interface » ci-dessous. Sans partie, l'adresse retombe sur
    l'accueil.
@@ -119,8 +118,8 @@ Pages :
 
 **Sans compte, une seule partie à la fois** (la sauvegarde locale) : tant qu'elle n'est ni terminée ni
 abandonnée, « Nouvelle partie » est désactivée (reprendre, abandonner ou se connecter) et un lien
-vers une autre mine est ignoré. Avec un compte, plusieurs parties en cours, enregistrées côté
-serveur.
+vers une autre mine est ignoré. Avec un compte, plusieurs parties en cours (10 au plus), enregistrées côté
+serveur et synchronisées (`backend/sync.ts`) : on les reprend depuis n'importe quel appareil.
 
 ## Interface
 
@@ -238,6 +237,7 @@ src/
     auth.ts        # ✔ connexion Google
     games.ts       # ✔ enregistrement et lecture des parties (table `games`)
     outbox.ts      # ✔ file d'envoi locale, un utilisateur par entrée
+    sync.ts        # ✔ synchronisation espacée des parties en cours
     index.ts       # ✔ crée le client
   main.ts
 tests/         # Vitest ; helpers.ts fournit `place`, un PRNG et des dispositions aléatoires valides

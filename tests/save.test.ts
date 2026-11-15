@@ -291,6 +291,9 @@ describe('stockage local', () => {
         { startedAt: 'hier' },
         { startedAt: -1 },
         { startedAt: 1700000000001 },
+        { owner: 42 },
+        { owner: '' },
+        { owner: 'x'.repeat(65) },
       ]) {
         expect(parseSave(roundTrip({ ...sampleSave(), ...patch }))).toBeNull();
       }

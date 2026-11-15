@@ -35,11 +35,13 @@ Sans configuration, pas de compte ni de serveur : tout tourne dans le navigateur
 Une fois le site relié à un projet Supabase ([`docs/backend.md`](docs/backend.md)) :
 
 - **Connexion Google** (facultative : le jeu reste identique sans compte).
-- **Historique** (`#historique`) : parties terminées, filtre victoires / défaites, tri, lien pour
+- **Parties en cours sur le compte** : accueil avec la liste, reprise sur un autre appareil (dix au
+  plus).
+- **Historique** (`#/historique`) : parties terminées, filtre victoires / défaites, tri, lien pour
   rejouer la même mine ; envoi avec file locale en cas de coupure.
-- **Profil** (`#profil`) : nombre de parties, victoires, % de victoires et tirs moyens par
+- **Profil** (`#/profil`) : nombre de parties, victoires, % de victoires et tirs moyens par
   victoire (une partie abandonnée compte comme perdue).
-- **Confidentialité** (`#confidentialite`) : ce qui est gardé, suppression du compte et de ses parties.
+- **Confidentialité** (`#/confidentialite`) : ce qui est gardé, suppression du compte et de ses parties.
 - Chaque utilisateur ne voit que ses parties (sécurité par ligne, testée en CI).
 
 Ensuite : la version 3 ajoutera un plateau personnalisé et un duel contre une IA, la version 4 un duel en direct contre un autre joueur (voir [`docs/roadmap.md`](docs/roadmap.md)).

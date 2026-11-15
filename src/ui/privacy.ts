@@ -44,8 +44,10 @@ export function privacyPage(model: PrivacyModel): string {
     Le compte (identifiant, nom, avatar, adresse e-mail) et les parties sont gardés chez
     <b>Supabase</b>, qui héberge la base.</p>
     <ul class="rule-list">
-      <li>Par partie terminée : graine, repères tirés, proposition, résultat, durée, dates.</li>
-      <li>Jamais : la mine cachée, vos notes et vos dessins.</li>
+      <li>Partie terminée : graine, repères tirés, proposition, résultat, durée, dates. Ni la mine
+      cachée, ni vos notes, ni vos dessins.</li>
+      <li>Partie en cours : la partie complète (mine, tirs, notes, dessins) pour la reprendre sur un
+      autre appareil, effacée dès qu'elle se termine. Dix parties en cours au plus.</li>
       <li>Vos parties ne sont lisibles que par vous.</li>
       <li>Sans compte, rien n'est envoyé : le jeu est identique.</li>
     </ul>

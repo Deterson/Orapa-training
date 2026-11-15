@@ -25,6 +25,11 @@ export interface SaveData {
   /** Identifiant et date de début de la partie (v2, historique) ; absents des anciennes sauvegardes. */
   gameId?: string;
   startedAt?: number;
+  /**
+   * Compte auquel la partie est reliée sur le serveur (parties en cours côté serveur) ; absent : partie
+   * seulement locale. Sert à ne jamais envoyer la partie d'un compte sous un autre.
+   */
+  owner?: string;
 }
 
 /** Identifiant de partie : un UUID (voir la table `games`). */
@@ -178,6 +183,11 @@ export function parseSave(raw: unknown): SaveData | null {
   if (startedAt !== undefined) {
     if (!isFiniteNumber(startedAt) || startedAt < 0 || startedAt > savedAt) return null;
     data.startedAt = startedAt;
+  }
+  const { owner } = raw;
+  if (owner !== undefined) {
+    if (typeof owner !== 'string' || owner.length < 1 || owner.length > 64) return null;
+    data.owner = owner;
   }
   return data;
 }

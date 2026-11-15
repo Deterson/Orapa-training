@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AccountUser } from '../src/backend/auth';
 import { headerHtml } from '../src/ui/header';
-import { homePage } from '../src/ui/home';
+import { type HomeModel, homePage } from '../src/ui/home';
 import { type View, parseRoute, routeHash } from '../src/ui/router';
 
 describe('routeur', () => {
@@ -114,14 +114,22 @@ describe('barre du haut', () => {
 
 describe('accueil', () => {
   const current = { seed: 'abc<b>', extensions: 'Diamant', shots: 3, elapsedMs: 125_000 };
+  const home = (over: Partial<HomeModel> = {}): HomeModel => ({
+    current,
+    confirmAbandon: false,
+    newGameBlocked: false,
+    accounts: false,
+    signedIn: false,
+    canImport: false,
+    others: [],
+    othersStatus: 'idle',
+    confirmRemote: null,
+    limitReached: false,
+    ...over,
+  });
 
   it('montre la partie en cours avec Reprendre et Abandonner', () => {
-    const html = homePage({
-      current,
-      confirmAbandon: false,
-      newGameBlocked: true,
-      accounts: false,
-    });
+    const html = homePage(home({ confirmAbandon: false, newGameBlocked: true, accounts: false }));
     expect(html).toContain('3 tirs');
     expect(html).toContain('02:05');
     expect(html).toContain('Diamant');
@@ -131,38 +139,82 @@ describe('accueil', () => {
   });
 
   it("demande confirmation avant d'abandonner", () => {
-    const html = homePage({ current, confirmAbandon: true, newGameBlocked: true, accounts: false });
+    const html = homePage(home({ confirmAbandon: true, newGameBlocked: true, accounts: false }));
     expect(html).toContain('data-action="confirm-abandon"');
     expect(html).toContain('data-action="cancel-confirm"');
     expect(html).not.toContain('data-action="resume-game"');
   });
 
   it('bloque « Nouvelle partie » avec une partie en cours, et explique comment faire', () => {
-    const offline = homePage({
-      current,
-      confirmAbandon: false,
-      newGameBlocked: true,
-      accounts: false,
-    });
+    const offline = homePage(
+      home({ confirmAbandon: false, newGameBlocked: true, accounts: false }),
+    );
     expect(offline).toMatch(/data-action="new-game" disabled|disabled>Nouvelle/);
     expect(offline).toContain('Reprendre ou abandonner');
-    const withAccounts = homePage({
-      current,
-      confirmAbandon: false,
-      newGameBlocked: true,
-      accounts: true,
-    });
+    const withAccounts = homePage(
+      home({ confirmAbandon: false, newGameBlocked: true, accounts: true }),
+    );
     expect(withAccounts).toContain('se connecter');
   });
 
   it('sans partie : seulement « Nouvelle partie », disponible', () => {
-    const html = homePage({
-      current: null,
-      confirmAbandon: false,
-      newGameBlocked: false,
-      accounts: true,
-    });
+    const html = homePage(home({ current: null, accounts: true }));
     expect(html).not.toContain('home-card');
     expect(html).not.toMatch(/new-game"[^>]*disabled/);
+  });
+
+  describe('avec un compte', () => {
+    const remote = (over: Partial<HomeModel['others'][number]> = {}) => ({
+      id: '00000000-0000-4000-8000-000000000001',
+      seed: 'serveur<i>',
+      extensions: 'Corps noir',
+      shots: 5,
+      elapsedMs: 61_000,
+      updatedAt: '2026-03-01T10:05:00.000Z',
+      ...over,
+    });
+    const signedIn = (over: Partial<HomeModel> = {}) =>
+      home({ accounts: true, signedIn: true, othersStatus: 'ready', ...over });
+
+    it('liste les parties en cours du compte avec Reprendre et Abandonner', () => {
+      const html = homePage(signedIn({ others: [remote()] }));
+      expect(html).toContain('Parties en cours');
+      expect(html).toContain('5 tirs');
+      expect(html).toContain('Corps noir');
+      expect(html).toContain(
+        'data-action="resume-remote" data-id="00000000-0000-4000-8000-000000000001"',
+      );
+      expect(html).toContain('data-action="ask-abandon-remote"');
+      expect(html).not.toContain('<i>');
+    });
+
+    it("demande confirmation avant d'abandonner une partie du compte", () => {
+      const id = remote().id;
+      const html = homePage(signedIn({ others: [remote()], confirmRemote: id }));
+      expect(html).toContain('data-action="confirm-abandon-remote"');
+      expect(html).not.toContain('data-action="resume-remote"');
+    });
+
+    it('ne liste rien pour un visiteur sans compte', () => {
+      expect(homePage(home({ others: [remote()] }))).not.toContain('home-others');
+    });
+
+    it("propose d'importer la partie locale", () => {
+      expect(homePage(signedIn({ canImport: true }))).toContain('data-action="import-game"');
+      expect(homePage(signedIn({ canImport: false }))).not.toContain('import-game');
+    });
+
+    it('gère chargement, erreur avec « Réessayer » et liste vide', () => {
+      expect(homePage(signedIn({ othersStatus: 'loading' }))).toContain('Chargement');
+      const failed = homePage(signedIn({ othersStatus: 'error' }));
+      expect(failed).toContain('data-action="retry-playing"');
+      expect(homePage(signedIn({ others: [] }))).not.toContain('home-others');
+    });
+
+    it('dix parties en cours : plus de nouvelle partie, avec la raison', () => {
+      const html = homePage(signedIn({ limitReached: true, newGameBlocked: true, current: null }));
+      expect(html).toContain('10 parties en cours au maximum');
+      expect(html).toMatch(/new-game"[^>]*disabled/);
+    });
   });
 });

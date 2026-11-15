@@ -5,8 +5,8 @@
  * bloquer la file d'envoi.
  */
 import { parseEntryLabel } from './board';
-import { ALL_GEM_IDS, type Extensions, type GemId, type Placement } from './gems';
-import { GAME_ID } from './save';
+import { ALL_GEM_IDS, type Extensions, type GemId, type Placement, extensionsOf } from './gems';
+import { GAME_ID, type SaveData, parseSave } from './save';
 import type { GameSession, GameStatus } from './session';
 
 export type FinishedStatus = Exclude<GameStatus, 'playing'>;
@@ -244,4 +244,137 @@ export function parseStats(value: unknown): ProfileStats | null {
   if ((total === 0) !== (winRate === null)) return null;
   if ((wins === 0) !== (avgShotsToWin === null)) return null;
   return { total, wins, losses, abandoned, winRate, avgShotsToWin };
+}
+
+// ---------- Parties en cours (côté serveur) ----------
+
+/** Nombre maximal de parties en cours par compte (aussi imposé par la base). */
+export const MAX_PLAYING = 10;
+/** Taille maximale du snapshot envoyé, en caractères JSON (la base accepte jusqu'à 250 000). */
+export const SNAPSHOT_LIMIT = 200_000;
+
+/** Une partie en cours, telle qu'elle est enregistrée sur le serveur. */
+export interface ProgressRecord {
+  id: string;
+  seed: string;
+  generatorVersion: number;
+  extensions: string;
+  lasersCount: number;
+  probesCount: number;
+  /** Date ISO du début de la partie. */
+  startedAt: string;
+  /** Temps de jeu écoulé, en secondes. */
+  durationS: number;
+  /** Repères tirés, dans l'ordre. */
+  shots: string[];
+  /** La sauvegarde du site (mine comprise : réservé au propriétaire, voir la sécurité par ligne). */
+  snapshot: SaveData;
+}
+
+/**
+ * La sauvegarde à envoyer : sans le compte auquel elle est reliée, et, si elle dépasse la taille
+ * permise, sans les traits au crayon des notes (les marques de cases restent).
+ */
+export function compactSave(save: SaveData): SaveData {
+  const { owner: _owner, ...rest } = save;
+  void _owner;
+  if (JSON.stringify(rest).length <= SNAPSHOT_LIMIT) return rest;
+  return { ...rest, notes: { ...rest.notes, strokes: [] } };
+}
+
+export interface ProgressInput {
+  id: string;
+  save: SaveData;
+  /** Début de la partie, en millisecondes. */
+  startedAt: number;
+}
+
+export function buildProgress({ id, save, startedAt }: ProgressInput): ProgressRecord {
+  const { session } = save;
+  const gems = session.mine.placements.map((placement) => placement.gem);
+  return {
+    id,
+    seed: session.mine.seed,
+    generatorVersion: session.mine.generatorVersion,
+    extensions: extensionsCode(extensionsOf(gems)),
+    lasersCount: session.shots.length,
+    probesCount: session.probes.length,
+    startedAt: new Date(Math.min(startedAt, save.savedAt)).toISOString(),
+    durationS: Math.max(0, Math.round(session.elapsedMs / 1000)),
+    shots: [...session.shots],
+    snapshot: compactSave({ ...save, gameId: id }),
+  };
+}
+
+/** La ligne à créer (première synchronisation). */
+export function progressToRow(progress: ProgressRecord) {
+  return {
+    id: progress.id,
+    seed: progress.seed,
+    generator_version: progress.generatorVersion,
+    extensions: progress.extensions,
+    status: 'playing' as const,
+    lasers_count: progress.lasersCount,
+    probes_count: progress.probesCount,
+    started_at: progress.startedAt,
+    ended_at: null,
+    duration_s: progress.durationS,
+    shots: progress.shots,
+    submission: null,
+    snapshot: progress.snapshot,
+  };
+}
+
+/** Les colonnes qui changent pendant la partie (synchronisations suivantes). */
+export function progressToPatch(progress: ProgressRecord) {
+  return {
+    lasers_count: progress.lasersCount,
+    probes_count: progress.probesCount,
+    duration_s: progress.durationS,
+    shots: progress.shots,
+    snapshot: progress.snapshot,
+  };
+}
+
+/** Une partie en cours vue de l'accueil (sans son snapshot, qui est lourd). */
+export interface PlayingSummary {
+  id: string;
+  seed: string;
+  extensions: string;
+  lasersCount: number;
+  probesCount: number;
+  durationS: number;
+  startedAt: string;
+  updatedAt: string;
+}
+
+export function parsePlayingSummary(value: unknown): PlayingSummary | null {
+  if (!isRecord(value)) return null;
+  const { id, seed, extensions } = value;
+  const lasers = value['lasers_count'];
+  const probes = value['probes_count'];
+  const duration = value['duration_s'];
+  const started = parseDate(value['started_at']);
+  const updated = parseDate(value['updated_at']);
+  if (typeof id !== 'string' || !GAME_ID.test(id)) return null;
+  if (typeof seed !== 'string' || seed.length < 1 || seed.length > 200) return null;
+  if (typeof extensions !== 'string' || !['', 'd', 'n', 'dn'].includes(extensions)) return null;
+  if (!isInt(lasers, 0, 36) || !isInt(probes, 0, 80) || !isInt(duration, 0, 31_536_000))
+    return null;
+  if (started === null || updated === null) return null;
+  return {
+    id,
+    seed,
+    extensions,
+    lasersCount: lasers,
+    probesCount: probes,
+    durationS: duration,
+    startedAt: new Date(started).toISOString(),
+    updatedAt: new Date(updated).toISOString(),
+  };
+}
+
+/** Lit le snapshot d'une partie en cours : la même validation stricte que la sauvegarde locale. */
+export function parseProgressSnapshot(value: unknown): SaveData | null {
+  return parseSave(value);
 }
