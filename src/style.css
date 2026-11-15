@@ -224,7 +224,13 @@ h2 {
 
 .board-undo button {
   min-height: 38px;
+  min-width: 44px;
   padding: 4px 12px;
+}
+
+.board-undo button[data-action='undo'],
+.board-undo button[data-action='redo'] {
+  font-size: 1.15rem;
 }
 
 .board-gems .gem-g.is-placed polygon {
@@ -233,6 +239,15 @@ h2 {
 
 .board-notes {
   pointer-events: none;
+}
+
+/* Deux modes : en mode notes les gemmes sont un peu estompées, en mode gemmes les notes le sont. */
+.play-svg.mode-notes .board-gems {
+  opacity: 0.6;
+}
+
+.play-svg.mode-gems .board-notes {
+  opacity: 0.6;
 }
 
 /* Un outil de dessin actif : les gemmes posées laissent passer le pointeur jusqu'à la grille. */
@@ -404,6 +419,8 @@ button.submit-btn {
   display: flex;
   align-items: baseline;
   gap: 8px;
+  /* Les jambages du grand chiffre débordent un peu : sans cela l'historique affiche un ascenseur. */
+  padding-bottom: 8px;
 }
 
 .count {

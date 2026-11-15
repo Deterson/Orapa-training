@@ -25,7 +25,11 @@ export interface ToolsView {
   ink: Ink;
 }
 
-/** Colonne d'outils : cliquer l'outil actif le désactive (retour au jeu). */
+/**
+ * Colonne d'outils : cliquer l'outil actif le désactive (retour au jeu). Deux modes, sans interrupteur
+ * propre : **notes** quand un outil de dessin est actif, **gemmes** sinon (bouton « Gemmes », ou clic
+ * hors de la grille). Chaque mode estompe légèrement l'autre calque (voir playBoard.ts).
+ */
 export function toolsHtml({ tool, ink }: ToolsView): string {
   const pressed = (name: Tool): string => `aria-pressed="${tool === name}"`;
   const button = (name: Tool, label: string, content = label): string =>
@@ -38,7 +42,7 @@ export function toolsHtml({ tool, ink }: ToolsView): string {
     return `<button type="button" class="ink" data-ink="${name}" aria-pressed="${ink === name}" aria-label="Encre ${INK_LABEL[name]}" title="Encre ${INK_LABEL[name]}">${swatch}</button>`;
   }).join('');
   return `<div class="tools" role="toolbar" aria-label="${t.tools.label}">
-      <div class="tool-row">${button('pencil', t.tools.pencil)}${button('line', t.tools.line)}${button('eraser', t.tools.eraser)}</div>
+      <div class="tool-row"><button type="button" class="tool" data-mode="gems" aria-pressed="${tool === null}" title="${t.actions.showGems}">${t.actions.showGems}</button>${button('pencil', t.tools.pencil)}${button('line', t.tools.line)}${button('eraser', t.tools.eraser)}</div>
       <div class="tool-row ink-row" role="group" aria-label="${t.tools.inks}">${inks}</div>
       <div class="tool-row">${button('empty', t.tools.empty, `<span class="empty-swatch" aria-hidden="true"></span>${t.tools.empty}`)}${button('simulate', t.tools.simulate)}</div>
     </div>`;
@@ -50,18 +54,18 @@ export interface FooterView {
   showGems: boolean;
 }
 
-/** Sous la grille : cases à cocher à gauche ; annuler, rétablir, effacer à droite. */
+/** Sous la grille : annuler (↶), rétablir (↷), effacer à gauche ; cases « Notes » et « Gemmes » à droite. */
 export function footerHtml({ history, showNotes, showGems }: FooterView): string {
   const hasNotes = Object.keys(history.present.marks).length + history.present.strokes.length > 0;
   return `<div class="board-foot">
+      <div class="board-undo" role="toolbar" aria-label="Historique des notes">
+        <button type="button" class="ghost" data-action="undo" aria-label="${t.actions.undo}" title="${t.actions.undo}"${history.past.length ? '' : ' disabled'}>↶</button>
+        <button type="button" class="ghost" data-action="redo" aria-label="${t.actions.redo}" title="${t.actions.redo}"${history.future.length ? '' : ' disabled'}>↷</button>
+        <button type="button" class="ghost" data-action="clear-notes"${hasNotes ? '' : ' disabled'}>${t.actions.clear}</button>
+      </div>
       <div class="board-toggles">
         <label class="check"><input type="checkbox" data-toggle="notes"${showNotes ? ' checked' : ''} />${t.actions.showNotes}</label>
         <label class="check"><input type="checkbox" data-toggle="gems"${showGems ? ' checked' : ''} />${t.actions.showGems}</label>
-      </div>
-      <div class="board-undo" role="toolbar" aria-label="Historique des notes">
-        <button type="button" class="ghost" data-action="undo"${history.past.length ? '' : ' disabled'}>${t.actions.undo}</button>
-        <button type="button" class="ghost" data-action="redo"${history.future.length ? '' : ' disabled'}>${t.actions.redo}</button>
-        <button type="button" class="ghost" data-action="clear-notes"${hasNotes ? '' : ' disabled'}>${t.actions.clear}</button>
       </div>
     </div>`;
 }

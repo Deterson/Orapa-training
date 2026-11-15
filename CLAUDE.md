@@ -161,14 +161,18 @@ Zones :
    (pivoter)** à son coin haut-droit, et la rouge un bouton **⇋ (retourner)**) et ses **notes** sont dessinées
    sur cette grille. Les placements invalides (chevauchement, hors grille, contact par un segment) sont
    refusés ou signalés avec la règle enfreinte.
-3. **Sous la grille.** À gauche, deux cases à cocher **« Notes »** et **« Gemmes »** : afficher ou masquer les
-   notes et les gemmes déjà placées. À droite, **« Annuler »**, **« Rétablir »** et **« Effacer »** (les notes).
-4. **Colonne de droite, en haut : outils de notes.** **Crayon**, **Ligne droite**, **Gomme**, **Vide** (stries
+3. **Sous la grille.** À gauche, **↶** (annuler), **↷** (rétablir) et **« Effacer »** (les notes). À droite, deux cases
+   à cocher **« Notes »** et **« Gemmes »** : afficher ou masquer les notes et les gemmes déjà placées.
+4. **Colonne de droite, en haut : outils de notes.** **Gemmes** (à gauche de Crayon), **Crayon**, **Ligne droite**, **Gomme**, **Vide** (stries
    diagonales grises transparentes), **Simuler** (les repères testent un tir sur les gemmes du joueur et en
    tracent le trajet : « mon placement produirait-il bien ce résultat ? ») et le choix de l'encre : noir « auto »
    (suit le thème), **noir**, rouge, jaune, bleu. Plus de marques « R J B Bl » ni de « ? » (les anciennes notes
    restent lisibles). **Aucun outil actif = « jouer »** (tirer, sonder, déplacer les gemmes) ; recliquer
    l'outil actif le désactive ; un outil de dessin laisse passer le pointeur à travers les gemmes posées.
+   **Deux modes cachés**, sans interrupteur propre : **mode notes** dès qu'un outil de dessin est actif (clic sur
+   Crayon, Ligne droite, Gomme, Vide ou une encre), **mode gemmes** sinon (bouton « Gemmes », saisie d'une
+   gemme de la réserve, ou clic hors de la grille, des outils de notes, du pied de grille et des fenêtres
+   modales). En mode gemmes les notes sont légèrement estompées, en mode notes ce sont les gemmes.
    Les notes n'ont aucun effet sur la correction.
 5. **Colonne de droite, en bas : gemmes à placer et « Soumettre ».** La réserve (les mêmes gemmes que celles
    cachées) se glisse sur la grille ; **« Soumettre »** est **en vert**, sous les gemmes (activé quand toutes sont

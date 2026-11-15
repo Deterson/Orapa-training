@@ -1425,7 +1425,12 @@ export function startApp(
     // seules celles de la réserve se déplacent alors.
     const element = target.closest<SVGGElement>('[data-gem]');
     const gem = element?.dataset['gem'] as GemId | undefined;
-    if (element && gem) return beginDrag(event, element, gem);
+    if (element && gem) {
+      // Une gemme de la réserve se prend hors de la grille : retour au mode gemmes. Pas d'affichage
+      // ici (la gemme saisie disparaîtrait) : la fin du geste le refait.
+      if (isDrawingTool(state.tool)) state.tool = null;
+      return beginDrag(event, element, gem);
+    }
     if (isDrawingTool(state.tool) && target.closest('.notes-svg')) beginNotes(event, state.tool);
   });
 
@@ -1443,6 +1448,22 @@ export function startApp(
       root
         .querySelectorAll('.gem-g.is-selected')
         .forEach((element) => element.classList.remove('is-selected'));
+    }
+    // Un clic hors de la grille, des outils de notes, du pied de grille et des fenêtres modales met en
+    // mode gemmes (fin du dessin).
+    if (
+      isDrawingTool(state.tool) &&
+      !state.immersive &&
+      !target.closest('.play-svg, .tools, .board-foot, .modal-backdrop')
+    ) {
+      state.tool = null;
+      render();
+    }
+    const mode = target.closest<HTMLElement>('[data-mode]')?.dataset['mode'];
+    if (mode === 'gems') {
+      state.tool = null;
+      state.hypothesis = null;
+      return render();
     }
     if (target.closest('[data-recap]')) return closeAsk(false);
     if (target.hasAttribute('data-modal-backdrop')) return closeAsk(false);

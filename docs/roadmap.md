@@ -819,6 +819,10 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
   historique du compte) se lisent toujours et comptent comme des défaites. **L'horloge n'est plus
   affichée** pendant la partie (ni sur l'accueil) : le temps est compté comme avant et montré au résultat.
   Le plein écran du téléphone est inchangé. Le mode « daltonien » est ajouté à la roadmap (v3).
+- **v2.0.2** : **annuler ↶ et rétablir ↷ retrouvent leurs symboles** et passent à gauche du pied de grille
+  (avec « Effacer »), les cases « Notes » et « Gemmes » à droite. **Deux modes cachés** : *notes* dès qu'un
+  outil de dessin est actif, *gemmes* sinon (nouveau bouton « Gemmes » à gauche de « Crayon », prise d'une
+  gemme de la réserve, clic hors de la grille) ; le mode estompe légèrement l'autre calque.
 
 ## Questions ouvertes
 

@@ -33,6 +33,15 @@ describe('outils de notes', () => {
     expect(html).not.toContain('>?<');
   });
 
+  it('le bouton « Gemmes » précède « Crayon » et marque le mode gemmes', () => {
+    const none = toolsHtml({ tool: null, ink: 'ink' });
+    expect(none.indexOf('data-mode="gems"')).toBeLessThan(none.indexOf('data-tool="pencil"'));
+    expect(none).toMatch(/data-mode="gems" aria-pressed="true"/);
+    expect(toolsHtml({ tool: 'pencil', ink: 'ink' })).toMatch(
+      /data-mode="gems" aria-pressed="false"/,
+    );
+  });
+
   it('propose les encres, noir compris', () => {
     const html = toolsHtml({ tool: 'pencil', ink: 'black' });
     for (const ink of ['ink', 'black', 'red', 'yellow', 'blue']) {
@@ -53,9 +62,13 @@ describe('outils de notes', () => {
   it('le pied de grille porte les deux cases à cocher et annuler / rétablir / effacer', () => {
     const html = footerHtml({ history: newHistory(), showNotes: true, showGems: false });
     expect(html).toContain('data-toggle="notes" checked');
+    expect(html).toContain('>↶</button>');
+    expect(html).toContain('>↷</button>');
+    // Annuler / rétablir à gauche, cases à cocher à droite.
+    expect(html.indexOf('data-action="undo"')).toBeLessThan(html.indexOf('data-toggle="notes"'));
     expect(html).not.toContain('data-toggle="gems" checked');
     for (const action of ['undo', 'redo', 'clear-notes']) {
-      expect(html).toMatch(new RegExp(`data-action="${action}" disabled`));
+      expect(html).toMatch(new RegExp(`data-action="${action}"[^>]*disabled`));
     }
   });
 });
@@ -72,6 +85,12 @@ describe('grille de jeu unique', () => {
     const html = playBoardSvg({ ...baseView, tool: 'line' });
     expect(html).not.toContain('data-probe');
     expect(html).toContain('data-fire="1"');
+  });
+
+  it('un outil de dessin met en mode notes, sinon en mode gemmes', () => {
+    expect(playBoardSvg({ ...baseView, tool: 'pencil' })).toContain('mode-notes');
+    expect(playBoardSvg({ ...baseView, tool: null })).toContain('mode-gems');
+    expect(playBoardSvg({ ...baseView, tool: 'simulate' })).toContain('mode-gems');
   });
 
   it('en simulation : les repères testent sur les gemmes du joueur', () => {

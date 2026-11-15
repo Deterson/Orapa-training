@@ -11,7 +11,7 @@ import type { Ink, Notes } from '../game/notes';
 import type { ProbeRecord, ShotRecord } from '../game/session';
 import { type Solution, type SolutionIssue, gemsOf } from '../game/solution';
 import { boardFrame, cursorSvg, entryLabelsSvg, probeMarksSvg, probeTargetsSvg } from './board';
-import { type Tool } from './notesBoard';
+import { type Tool, isDrawingTool } from './notesBoard';
 import { notesLayerSvg } from './notesLayer';
 import { INK_COLOR, RAY_COLOR } from './palette';
 import { gemButtonsSvg, gemGroupSvg } from './solutionBoard';
@@ -67,6 +67,6 @@ export function playBoardSvg(view: PlayView): string {
   return boardFrame(
     'Grille de jeu : tirez depuis les repères du bord, sondez les cases, placez vos gemmes, notez',
     content,
-    `notes-svg play-svg tool-${view.tool ?? 'play'}`,
+    `notes-svg play-svg tool-${view.tool ?? 'play'} mode-${isDrawingTool(view.tool) ? 'notes' : 'gems'}`,
   );
 }
