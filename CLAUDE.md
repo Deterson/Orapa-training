@@ -5,9 +5,11 @@ Gameology ; édition française Miraludo). Le site génère une « mine » aléa
 gemmes cachées) et le joueur doit la reconstituer par déduction, en tirant des lasers, en
 prenant des notes et en plaçant ses propres gemmes, puis en soumettant sa solution.
 
-> Statut : **v1 livrée (v1.0.0)**. Les étapes v0.1 à v0.11 sont terminées : jeu complet de la
-> partie de base, sauvegarde locale, page Règles. Prochaine étape : v1.1 (choix du backend de la
-> v2). `CLAUDE.md` et `docs/` sont la spécification.
+> Statut : **v1 livrée (v1.0.0)** ; **v2 complète côté code (v2.0.0)** : connexion Google,
+> parties en cours et terminées enregistrées sur le compte, historique, profil, suppression du
+> compte (Supabase, [`docs/backend.md`](docs/backend.md)), barre du haut, routeur et accueil, une
+> seule partie à la fois sans compte. Reste la **mise en service** : projet Supabase, identifiant
+> Google, variables, puis un essai réel. `CLAUDE.md` et `docs/` sont la spécification.
 
 ## Documentation (`docs/`)
 
@@ -90,21 +92,34 @@ Résumé ; le détail et les tableaux sont dans `docs/regles.md`.
 
 ## Vues du site (v2)
 
-Détail dans la section « Vues et compte » de [`docs/roadmap.md`](docs/roadmap.md). Jusqu'en v1,
-le site n'a que la vue de jeu et la page Règles ; la v2 en fait trois vues :
+Détail dans la section « Vues et compte » de [`docs/roadmap.md`](docs/roadmap.md). Navigation par
+l'adresse (`ui/router.ts`) : `#/` accueil (par défaut), `#/partie`, `#/regles`, `#/historique`,
+`#/profil`, `#/confidentialite` ; les anciennes adresses (`#regles`, `#historique`…) restent
+comprises. Un lien `?seed=…` (avec `ext=`) lance cette mine directement.
 
-1. **Partie** (`#/partie`) : la vue décrite dans « Interface » ci-dessous (grille, notes, gemmes,
-   résultat, plein écran).
-2. **Accueil** (`#/`, vue par défaut) : la partie en cours, la liste des parties non terminées
-   (connecté seulement) et le bouton « Nouvelle partie ». Le **titre du site**, en haut à gauche,
-   y ramène depuis toutes les vues.
-3. **Profil** (`#/profil`, connecté) : nom Google, pourcentage de parties gagnées, moyenne de
-   lasers avant victoire, historique des parties jouées.
+**Barre du haut** (`ui/header.ts`, toutes les pages sauf le plein écran) :
 
-En haut à droite : un bouton **« Connexion »** ou **« Déconnexion »** (OAuth Google), à côté de la
-version du build. **Sans compte, une seule partie à la fois** (la sauvegarde locale) ; avec un
-compte, plusieurs parties en cours, enregistrées côté serveur. Sur l'accueil, « Nouvelle partie »
-ouvre la fenêtre des extensions (Diamant, Corps noir), la même qu'en début de partie.
+- à gauche : **« Orapa Training »** (ramène à l'accueil) suivi de la **version du build**, le bouton
+  **« Nouvelle partie »** et **« Règles »** ;
+- à droite : **« Historique »**, **« Profil »** (avec l'**avatar** du compte sur le bouton, jamais le
+  nom) et **« Déconnexion »** ; déconnecté : seulement **« Connexion »** (OAuth Google). Sans
+  backend configuré, aucun bouton de compte.
+
+Pages :
+
+1. **Accueil** (`ui/home.ts`) : la partie en cours (Reprendre, Abandonner, Importer), la liste des
+   parties en cours du compte (connecté seulement, 10 au plus) et « Nouvelle partie » (fenêtre des extensions : Diamant, Corps
+   noir).
+2. **Partie** : la vue décrite dans « Interface » ci-dessous. Sans partie, l'adresse retombe sur
+   l'accueil.
+3. **Profil** (connecté) : nom Google, pourcentage de parties gagnées, moyenne de tirs avant victoire.
+4. **Historique** (connecté) : les parties terminées, filtre victoires / défaites, tri, « Rejouer ».
+   (Page à part, à la demande du propriétaire, et non dans la vue Profil.)
+
+**Sans compte, une seule partie à la fois** (la sauvegarde locale) : tant qu'elle n'est ni terminée ni
+abandonnée, « Nouvelle partie » est désactivée (reprendre, abandonner ou se connecter) et un lien
+vers une autre mine est ignoré. Avec un compte, plusieurs parties en cours (10 au plus), enregistrées côté
+serveur et synchronisées (`backend/sync.ts`) : on les reprend depuis n'importe quel appareil.
 
 ## Interface
 
@@ -119,7 +134,7 @@ Les étiquettes d'accessibilité (`aria-label`, texte pour lecteurs d'écran) re
 
 **Gemmes.** Elles portent le **quadrillage des vraies pièces** : les lignes de la grille qui les traversent, un peu plus foncées que la gemme, pour aider à les aligner (`gridSegments` dans `game/geometry.ts`, `gemPolygons` dans `ui/palette.ts`).
 
-La **version du build** (`vX.Y.Z`, issue de `package.json`) s'affiche en petit en haut à droite : l'incrémenter à chaque livraison.
+La **version du build** (`vX.Y.Z`, issue de `package.json`) s'affiche en petit à droite du titre, dans la barre du haut : l'incrémenter à chaque livraison.
 
 Zones :
 
@@ -134,8 +149,8 @@ Zones :
    haut-droit, et la rouge un bouton **⇋ (retourner)** ; pas de barre de boutons en bas. Les notes s'y affichent en transparence (même case « Notes »). Les placements invalides (chevauchement, hors grille, contact
    par un segment) sont refusés ou signalés avec la règle enfreinte.
 4. **Résultat** (fin de partie) : la vraie mine et la proposition ; les 36 repères restent cliquables pour tirer des lasers libres dans la mine révélée (trajet tracé, hors compteur).
-5. **Plein écran (téléphone, paysage)** : un seul plateau (`ui/immersiveBoard.ts`) avec réserve de gemmes à droite et colonne d'outils ; l'outil « Jouer » tire (repères), sonde (cases) et déplace les gemmes, les autres outils dessinent (les repères restent cliquables).
-6. **Barre d'actions** : Nouvelle partie, Soumettre, Abandonner/Révéler, compteur
+5. **Plein écran (téléphone, paysage)** : bouton à **pictogramme** (quatre coins) dans la barre de la partie, **affiché seulement sur écran tactile** (`pointer: coarse`) ; un seul plateau (`ui/immersiveBoard.ts`) avec réserve de gemmes à droite et colonne d'outils ; l'outil « Jouer » tire (repères), sonde (cases) et déplace les gemmes, les autres outils dessinent (les repères restent cliquables).
+6. **Barre de la partie** : graine, extensions ; l'adresse du navigateur porte `?seed=…&ext=…` pendant la partie et relance la même mine. **Barre d'actions** : Soumettre, Abandonner/Révéler, compteur
    de **tirs** (lasers et sondes de cases comptent pareil), chronomètre. Les **extensions** de la
    partie (« Sans extension », « Diamant », « Corps noir » ou les deux) s'affichent à côté de la
    graine, en haut de la vue de jeu.
@@ -171,7 +186,8 @@ Choix techniques :
   framework léger optionnel (Preact/Svelte) ou DOM direct.
 - Tests unitaires avec **Vitest**.
 - v1 : déploiement statique (GitHub Pages ou équivalent), aucun backend.
-- v2 : backend géré (Supabase recommandé, voir `docs/roadmap.md`) ; le front reste statique.
+- v2 : backend géré **Supabase** (voir `docs/backend.md`) ; le front reste statique. Sans les
+  variables `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY`, le site fonctionne comme en v1.
 - Interface et textes en **français** (prévoir une table de chaînes pour une
   éventuelle internationalisation).
 
@@ -196,6 +212,7 @@ src/
     probe.ts       # ✔ « Qu'y a-t-il en E4 ? »
     save.ts        # ✔ format de la sauvegarde locale et validation stricte
     notes.ts       # ✔ notes : marques de cases, traits, gomme, annuler / rétablir
+    record.ts      # ✔ enregistrement d'une partie terminée (table `games`)
     solution.ts    # ✔ solution du joueur : poser, pivoter, retourner la rouge, règles, comparaison aux tirs
   ui/          # composants, interactions pointeur, rendu SVG
     app.ts         # ✔ état de l'application, partie, historique des tirs
@@ -205,14 +222,27 @@ src/
     resultBoard.ts # ✔ écran de résultat : vraie mine et proposition
     storage.ts     # ✔ accès protégé au localStorage
     rules.ts       # ✔ page « Règles » (schémas tirés des données du jeu)
-    router.ts      # (v1.2) routeur par adresse : accueil, partie, profil, règles
-    home.ts        # (v1.2) vue Accueil : partie en cours, parties non terminées, nouvelle partie
-    profile.ts     # (v1.2 puis v1.5) vue Profil : nom, statistiques, historique
+    router.ts      # ✔ routeur par adresse : accueil, partie, règles, historique, profil, confidentialité
+    header.ts      # ✔ barre du haut (titre + version, Nouvelle partie, Règles ; Historique, Profil, Connexion)
+    home.ts        # ✔ vue Accueil : partie en cours, nouvelle partie
     strings.ts     # ✔ table de chaînes de l'interface
     palette.ts     # ✔ couleurs d'affichage des gemmes et des rayons
+    html.ts        # ✔ échappement du texte venant de l'extérieur (graine, nom du compte) : à utiliser partout
+    history.ts     # ✔ page « Historique »
+    profile.ts     # ✔ page « Profil » (nom, statistiques)
+    privacy.ts     # ✔ page « Confidentialité », suppression du compte
+    format.ts      # ✔ durées, dates
+  backend/     # v2 : Supabase (chargé à la demande, absent sans configuration)
+    config.ts      # ✔ variables VITE_SUPABASE_*
+    auth.ts        # ✔ connexion Google
+    games.ts       # ✔ enregistrement et lecture des parties (table `games`)
+    outbox.ts      # ✔ file d'envoi locale, un utilisateur par entrée
+    sync.ts        # ✔ synchronisation espacée des parties en cours
+    index.ts       # ✔ crée le client
   main.ts
 tests/         # Vitest ; helpers.ts fournit `place`, un PRNG et des dispositions aléatoires valides
-docs/          # règles du jeu et roadmap
+supabase/      # migrations SQL (v2) et tests de sécurité par ligne (`npm run test:db`)
+docs/          # règles du jeu, roadmap, backend
 ```
 
 Règles :
@@ -237,6 +267,7 @@ npm test             # tests Vitest
 npm run lint         # ESLint
 npm run format       # Prettier (format:check pour vérifier seulement)
 npm run typecheck    # TypeScript sans émission
+npm run test:db      # tests SQL (sécurité par ligne) ; demande un Postgres, voir docs/backend.md
 npm run build        # contrôle des types + build statique dans dist/
 npm run preview      # sert dist/ comme en production
 ```
@@ -277,10 +308,11 @@ v3.1 à v3.7 la **v4**.
 
 **Vers la v2 : comptes, historique, profil**
 
-- v1.1 Choix du backend. v1.2 Vues (accueil, partie, profil), navigation et connexion Google.
-  v1.3 Modèle de données (parties en cours et terminées) et sécurité par utilisateur. v1.4 Parties
-  enregistrées et historique. v1.5 Vue Profil (nom, % de victoires, moyenne de tirs avant
-  victoire). v1.6 Vie privée et exploitation.
+- v1.1 Choix du backend (**fait**, Supabase). v1.2 Vues (accueil, partie, profil), navigation et
+  connexion Google (**fait**). v1.3 Modèle de données et sécurité par utilisateur, parties en cours
+  et terminées (**fait**). v1.4 Parties enregistrées et historique (**fait**). v1.5 Vue Profil (nom,
+  % de victoires, moyenne de tirs avant victoire) (**fait**, historique en page séparée). v1.6 Vie
+  privée et exploitation (**fait**). Reste la mise en service (voir `docs/backend.md`).
 
 **Vers la v3 : plateau personnalisé et duel contre une IA**
 
@@ -305,9 +337,9 @@ v3.1 à v3.7 la **v4**.
   que par un **point** (jamais un segment) ; voir `docs/regles.md`.
 - ~~Soumission en entraînement~~ : décidé en v0.9, une seule tentative (`MAX_ATTEMPTS`).
 - ~~« Sonder une case »~~ : décidé en v0.9, proposée et comptée à part des lasers.
-- Une partie abandonnée compte-t-elle comme perdue dans le pourcentage de victoires (v2) ?
-  Proposition : oui.
+- ~~Une partie abandonnée compte-t-elle comme perdue dans le pourcentage de victoires (v2) ?~~
+  Décidé en v1.1 : oui.
 - Limite de tirs imposée, ou simple compteur indicatif ?
-- Supabase ou Firebase pour la v2 ?
+- ~~Supabase ou Firebase pour la v2 ?~~ Décidé en v1.1 : Supabase.
 - Duel (v3) : « en même temps » ou tour par tour ? règle de fin (livret ou indulgente) ? Voir `docs/roadmap.md`.
 - Faut-il un mode « tutoriel » expliquant les effets de chaque gemme ?

@@ -51,15 +51,38 @@ import { type Tool, notesBoardSvg, notesToolbar } from './notesBoard';
 import { notesLayerSvg } from './notesLayer';
 import { INK_COLOR, INK_LABEL, RAY_COLOR, lostSignalHtml } from './palette';
 import { diffLine, resultBoardSvg } from './resultBoard';
+import type { AccountUser } from '../backend/auth';
+import type { Backend } from '../backend';
+import type { HistoryFilter, HistorySort } from '../backend/games';
+import { type ProgressSync, createProgressSync } from '../backend/sync';
+import {
+  type GameRecord,
+  MAX_PLAYING,
+  type PlayingSummary,
+  buildProgress,
+  extensionsFromCode,
+  type ProfileStats,
+  buildRecord,
+  parseRow,
+  recordToRow,
+} from '../game/record';
+import { browserOutbox } from '../backend/outbox';
+import { formatTime, plural } from './format';
+import { escapeHtml } from './html';
+import { headerHtml } from './header';
+import { homePage } from './home';
+import { type View, parseRoute, routeHash } from './router';
+import { privacyPage } from './privacy';
+import { profilePage } from './profile';
+import { historyPage, isHistoryFilter, isHistorySort, pageCount } from './history';
 import { rulesPage } from './rules';
 import { browserSaveStore } from './storage';
 import { t } from './strings';
 import { type ImmersiveTool, immersiveBoardSvg } from './immersiveBoard';
 import { gemOrigin, gemSize, solutionBoardSvg } from './solutionBoard';
 
-type Phase = 'loading' | 'options' | 'resume' | 'ready' | 'error';
+type Phase = 'idle' | 'loading' | 'options' | 'ready' | 'error';
 type Tab = 'shots' | 'solution' | 'notes' | 'result';
-type View = 'game' | 'rules';
 type Ask =
   | { kind: 'fire'; label: string }
   | { kind: 'probe'; cell: string }
@@ -68,7 +91,7 @@ type Ask =
 
 interface State {
   phase: Phase;
-  /** Page affichée : la partie ou les règles (adresse « #regles »). */
+  /** Page affichée : la partie, les règles (« #regles ») ou l'historique (« #historique »). */
   view: View;
   session: GameSession | null;
   tab: Tab;
@@ -97,13 +120,61 @@ interface State {
   itool: ImmersiveTool;
   /** Action définitive en attente de confirmation. */
   confirm: 'submit' | 'abandon' | null;
-  /** Partie sauvegardée proposée à la reprise. */
-  pending: SaveData | null;
   /** Choix des extensions en cours (fenêtre de début de partie) ; null quand elle est fermée. */
   choose: Extensions | null;
   /** Message « signal perdu » affiché un instant. */
   toast: boolean;
   notice: string;
+  /** Backend branché (v2) ; null tant qu'il n'est pas chargé ou si le site n'est pas configuré. */
+  backend: Backend | null;
+  /** Compte Google connecté, ou null. */
+  account: AccountUser | null;
+  /** Vrai quand la session enregistrée a été lue (avant : on ne sait pas encore si on est connecté). */
+  authReady: boolean;
+  /** Identité de la partie en cours (historique) ; null hors partie. */
+  game: {
+    id: string;
+    startedAt: number;
+    /** Compte auquel la partie était reliée au dernier enregistrement local (voir SaveData.owner). */
+    owner?: string;
+    /** La partie est synchronisée avec le compte connecté. */
+    synced: boolean;
+    /**
+     * Partie lancée avant que le compte soit connu (lien partagé, au chargement de la page) : si un
+     * compte apparaît, elle lui est reliée d'office.
+     */
+    autoImport?: boolean;
+  } | null;
+  /** Parties en cours du compte, sur le serveur. */
+  playing: { status: 'idle' | 'loading' | 'ready' | 'error'; games: PlayingSummary[] };
+  /** Partie du compte dont l'abandon attend confirmation (accueil). */
+  confirmRemote: string | null;
+  /** Envoi de la partie terminée à l'historique : null (rien à envoyer), en attente, enregistrée. */
+  recorded: 'pending' | 'saved' | null;
+  history: {
+    filter: HistoryFilter;
+    sort: HistorySort;
+    page: number;
+    status: 'loading' | 'ready' | 'error';
+    games: GameRecord[];
+    total: number;
+  };
+  profile: { status: 'loading' | 'ready' | 'error'; stats: ProfileStats | null };
+  /** Suppression du compte (page Confidentialité). */
+  deletion: 'idle' | 'confirm' | 'busy' | 'error';
+}
+
+const HISTORY_PAGE_SIZE = 20;
+
+/** Identifiant d'une partie : un UUID tiré par le navigateur. */
+function newGameId(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    const hex = (n: number): string =>
+      Array.from({ length: n }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    return `${hex(8)}-${hex(4)}-4${hex(3)}-a${hex(3)}-${hex(12)}`;
+  }
 }
 
 function seedFromUrl(): string | null {
@@ -138,11 +209,34 @@ function writeSeedToUrl(seed: string, extensions: Readonly<Extensions> = NO_EXTE
   }
 }
 
+/** Extensions d'une partie du compte, d'après son code (`d`, `n`, `dn`). */
+function extensionsLabelOfCode(code: string): string {
+  const { diamond, blackBody } = extensionsFromCode(code);
+  const names = [diamond ? t.extensions.diamond : '', blackBody ? t.extensions.blackBody : ''];
+  return names.filter(Boolean).join(' · ') || t.extensions.none;
+}
+
+/** Pictogramme « plein écran » (quatre coins). */
+const FULLSCREEN_ICON =
+  '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
 function viewFromHash(): View {
   try {
-    return window.location.hash === '#regles' ? 'rules' : 'game';
+    return parseRoute(window.location.hash);
   } catch {
-    return 'game';
+    return 'home';
+  }
+}
+
+/** Retire la graine de l'adresse (partie terminée ou lien ignoré) : un rechargement ne relance rien. */
+function clearSeedFromUrl(): void {
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('seed');
+    url.searchParams.delete('ext');
+    window.history.replaceState(null, '', url);
+  } catch {
+    // L'adresse reste telle quelle : sans conséquence pour le jeu.
   }
 }
 
@@ -177,10 +271,6 @@ function describe(shot: ShotRecord): string {
   return `${shot.n} : ${outcomeText(shot)}`;
 }
 
-function plural(count: number, one: string, many: string): string {
-  return count > 1 ? many : one;
-}
-
 /** Extensions en jeu, en quelques mots : « Sans extension », « Diamant », « Diamant · Corps noir »... */
 function extensionsLabel(gems: readonly GemId[]): string {
   const { diamond, blackBody } = extensionsOf(gems);
@@ -196,16 +286,26 @@ function toBoardPoint(svg: SVGSVGElement, clientX: number, clientY: number): [nu
   return [point.x, point.y];
 }
 
-function formatTime(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const minutes = Math.floor(total / 60);
-  const seconds = total % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+export interface App {
+  /** Branche le backend (connexion Google) une fois chargé ; sans lui le site reste en mode v1. */
+  attachBackend(backend: Backend): void;
+  /** Le backend, configuré, n'a pas pu se charger : le site continue sans compte. */
+  backendUnavailable(): void;
 }
 
-export function startApp(root: HTMLElement, version: string): void {
+export interface AppOptions {
+  /** Le site est configuré pour utiliser un compte (le backend va se charger) : les pages de compte attendent. */
+  accountsConfigured?: boolean;
+}
+
+export function startApp(
+  root: HTMLElement,
+  version: string,
+  { accountsConfigured = false }: AppOptions = {},
+): App {
+  let accountsExpected = accountsConfigured;
   const state: State = {
-    phase: 'loading',
+    phase: 'idle',
     view: viewFromHash(),
     session: null,
     tab: 'shots',
@@ -224,12 +324,22 @@ export function startApp(root: HTMLElement, version: string): void {
     immersive: false,
     itool: 'move',
     confirm: null,
-    pending: null,
     choose: null,
     toast: false,
     notice: '',
+    backend: null,
+    account: null,
+    authReady: false,
+    game: null,
+    playing: { status: 'idle', games: [] },
+    confirmRemote: null,
+    recorded: null,
+    history: { filter: 'all', sort: 'recent', page: 0, status: 'loading', games: [], total: 0 },
+    profile: { status: 'loading', stats: null },
+    deletion: 'idle',
   };
   const store = browserSaveStore();
+  const outbox = browserOutbox();
 
   // ---------- Affichage ----------
 
@@ -269,6 +379,7 @@ export function startApp(root: HTMLElement, version: string): void {
     return `
       <div class="result is-${summary.status}">
         <h2>${t.status[summary.status]}</h2>
+        ${recordStatusHtml()}
         ${resultBoardSvg(diffs, session.shots, state.explored)}
         ${state.explored ? `<p class="hypo">${outcomeHtml(state.explored)}</p>` : ''}
         <ul class="diff">${diffs.map((diff) => `<li class="${diff.status}">${diffLine(diff)}</li>`).join('')}</ul>
@@ -315,8 +426,7 @@ export function startApp(root: HTMLElement, version: string): void {
 
   /** Fenêtre de début de partie : quelles extensions jouer ? */
   const optionsModal = (choose: Extensions): string => {
-    const cancellable = state.session !== null || state.pending !== null;
-    return `<div class="modal-backdrop" data-options-backdrop><div class="modal" role="dialog" aria-modal="true" aria-label="${t.options.title}"><p class="modal-title">${t.options.title}</p><label class="check"><input type="checkbox" id="ext-diamond"${choose.diamond ? ' checked' : ''} />${t.options.diamond}</label><label class="check"><input type="checkbox" id="ext-black"${choose.blackBody ? ' checked' : ''} />${t.options.blackBody}</label><div class="actions"><button type="button" data-action="start-game">${t.options.play}</button>${cancellable ? `<button type="button" class="ghost" data-action="cancel-options">${t.modal.cancel}</button>` : ''}</div></div></div>`;
+    return `<div class="modal-backdrop" data-options-backdrop><div class="modal" role="dialog" aria-modal="true" aria-label="${t.options.title}"><p class="modal-title">${t.options.title}</p><label class="check"><input type="checkbox" id="ext-diamond"${choose.diamond ? ' checked' : ''} />${t.options.diamond}</label><label class="check"><input type="checkbox" id="ext-black"${choose.blackBody ? ' checked' : ''} />${t.options.blackBody}</label><div class="actions"><button type="button" data-action="start-game">${t.options.play}</button><button type="button" class="ghost" data-action="cancel-options">${t.modal.cancel}</button></div></div></div>`;
   };
 
   /** Fenêtre modale de confirmation d'un tir ou d'une sonde. */
@@ -343,31 +453,31 @@ export function startApp(root: HTMLElement, version: string): void {
     return `<div class="modal-backdrop" data-modal-backdrop data-recap><div class="modal recap" role="dialog" aria-modal="true" aria-label="${outcomeText(shot)}"><button type="button" class="modal-close" data-action="modal-cancel" aria-label="${t.modal.close}">×</button><p class="modal-title">${route}</p><p class="recap-result">${result}</p></div></div>`;
   };
 
-  const resumePanel = (save: SaveData): string => {
-    const { session } = save;
-    return `
-      <div class="resume" role="alertdialog" aria-label="Partie en cours">
-        <h2>Partie en cours</h2>
-        <p><b>${session.mine.seed}</b> · ${session.shots.length + session.probes.length} tir${plural(session.shots.length + session.probes.length, '', 's')} · ${formatTime(session.elapsedMs)}</p>
-        <div class="actions">
-          <button type="button" data-action="resume">${t.actions.resume}</button>
-          <button type="button" class="ghost" data-action="discard-save">${t.actions.newGame}</button>
-        </div>
-      </div>`;
-  };
+  let sync: ProgressSync | null = null;
 
-  /** Sauvegarde automatique de la partie en cours (rien à sauvegarder une fois terminée). */
+  /**
+   * Sauvegarde automatique de la partie en cours (rien à sauvegarder une fois terminée), et, si elle
+   * est reliée au compte, signalement de sa dernière version au module de synchronisation (qui espace
+   * les envois et n'envoie que ce qui a changé).
+   */
   const persist = (): void => {
-    const { session } = state;
+    const { session, game } = state;
     if (state.phase !== 'ready' || !session || session.finished) return;
-    store.save({
+    const synced = game?.synced === true && state.account !== null;
+    const save: SaveData = {
       version: SAVE_VERSION,
       savedAt: Date.now(),
       session: session.toSnapshot(),
       solution: state.solution,
       notes: state.notes.present,
       skipConfirm: state.skipConfirm,
-    });
+      ...(game ? { gameId: game.id, startedAt: game.startedAt } : {}),
+      ...(synced && state.account ? { owner: state.account.id } : {}),
+    };
+    store.save(save);
+    if (synced && game && sync) {
+      sync.push(buildProgress({ id: game.id, save, startedAt: game.startedAt }));
+    }
   };
 
   /** Le chronomètre ne tourne que pendant qu'on joue : pas pendant la lecture des règles ni page cachée. */
@@ -435,6 +545,46 @@ export function startApp(root: HTMLElement, version: string): void {
       </div>`;
   };
 
+  /** Une partie est en cours dans cette fenêtre (chargée ou sauvegardée) : pas terminée, pas abandonnée. */
+  const inProgress = (): boolean =>
+    state.session !== null && state.phase === 'ready' && !state.session.finished;
+
+  /**
+   * Dix parties en cours sur le compte : plus de nouvelle partie tant qu'on n'en termine pas une.
+   * Une partie locale pas encore importée compte aussi (elle le sera avant d'en lancer une autre).
+   */
+  const limitReached = (): boolean =>
+    state.account !== null &&
+    state.playing.games.length + (inProgress() && state.game?.synced === false ? 1 : 0) >=
+      MAX_PLAYING;
+
+  /** « Nouvelle partie » indisponible : sans compte, une seule partie à la fois. */
+  const newGameBlocked = (): boolean => (state.account === null && inProgress()) || limitReached();
+
+  /** La vue Partie n'a de sens que s'il y a une partie (ou qu'elle se génère). */
+  const gameAvailable = (): boolean =>
+    state.session !== null || state.phase === 'loading' || state.phase === 'error';
+
+  /** Barre du haut + contenu + éléments communs (modale, annonces pour lecteurs d'écran). */
+  const page = (body: string, before = ''): string => `${before}${headerHtml({
+    version,
+    view: state.view,
+    newGameBlocked: newGameBlocked(),
+    accountReady: state.backend !== null && state.authReady,
+    user: state.account,
+  })}
+      <main class="app">${body}</main>
+      <p class="sr-only" aria-live="polite">${state.notice}</p>
+      ${toastHtml()}
+      ${modal()}`;
+
+  const homeGame = (session: GameSession) => ({
+    seed: session.seed,
+    extensions: extensionsLabel(session.gems),
+    shots: session.shotCount,
+    elapsedMs: session.elapsedMs(),
+  });
+
   const render = (): void => {
     syncClock();
     document.documentElement.classList.toggle(
@@ -453,7 +603,74 @@ export function startApp(root: HTMLElement, version: string): void {
       return;
     }
     if (state.view === 'rules') {
-      root.innerHTML = `<main class="app"><span class="version">v${version}</span>${rulesPage(version)}</main>`;
+      root.innerHTML = page(rulesPage());
+      return;
+    }
+    if (state.view === 'privacy') {
+      root.innerHTML = page(
+        privacyPage({
+          backend: state.backend !== null,
+          signedIn: state.account !== null,
+          deletion: state.deletion,
+        }),
+      );
+      return;
+    }
+    if ((state.view === 'history' || state.view === 'profile') && !state.backend) {
+      if (accountsExpected) {
+        // Le backend se charge : on attend de savoir si l'on est connecté.
+        root.innerHTML = page(
+          `<article class="history-page"><p class="placeholder" role="status">${t.history.loading}</p></article>`,
+        );
+        return;
+      }
+      // Site sans compte : ces pages n'existent pas, on retombe sur l'accueil.
+      state.view = 'home';
+    }
+    if (state.view === 'history' || state.view === 'profile') {
+      let body: string;
+      if (!state.authReady) {
+        body = `<article class="history-page"><p class="placeholder" role="status">${t.history.loading}</p></article>`;
+      } else if (state.view === 'history') {
+        body = historyPage({
+          signedIn: state.account !== null,
+          ...state.history,
+          pageSize: HISTORY_PAGE_SIZE,
+        });
+      } else {
+        body = profilePage({ user: state.account, ...state.profile });
+      }
+      root.innerHTML = page(body);
+      return;
+    }
+    if (state.view === 'game' && !gameAvailable()) state.view = 'home';
+    if (state.view === 'home') {
+      const current = inProgress() && state.session ? homeGame(state.session) : null;
+      root.innerHTML = page(
+        homePage({
+          current,
+          confirmAbandon: state.confirm === 'abandon' && current !== null,
+          newGameBlocked: newGameBlocked(),
+          accounts: state.backend !== null,
+          signedIn: state.account !== null,
+          canImport: current !== null && state.account !== null && state.game?.synced === false,
+          // La partie chargée dans cette fenêtre est déjà montrée en haut : pas de doublon dans la liste.
+          others: state.playing.games
+            .filter((game) => !(current && game.id === state.game?.id))
+            .map((game) => ({
+              id: game.id,
+              seed: game.seed,
+              extensions: extensionsLabelOfCode(game.extensions),
+              shots: game.lasersCount + game.probesCount,
+              elapsedMs: game.durationS * 1000,
+              updatedAt: game.updatedAt,
+            })),
+          othersStatus: state.playing.status,
+          confirmRemote: state.confirmRemote,
+          limitReached: limitReached(),
+        }),
+      );
+      persist();
       return;
     }
     const { session } = state;
@@ -485,15 +702,9 @@ export function startApp(root: HTMLElement, version: string): void {
         };
         board = `${notesBoardSvg(view)}${notesToolbar(view)}`;
       }
-    } else if (state.phase === 'resume' && state.pending) {
-      board = resumePanel(state.pending);
     } else {
       board = `<p class="placeholder" role="status">${
-        state.phase === 'error'
-          ? 'Échec de la génération.'
-          : state.phase === 'options'
-            ? ''
-            : 'Génération…'
+        state.phase === 'error' ? 'Échec de la génération.' : 'Génération…'
       }</p>`;
     }
 
@@ -516,27 +727,18 @@ export function startApp(root: HTMLElement, version: string): void {
           )
           .join('')}</ul>`
       : '';
-    root.innerHTML = `
-      <a class="skip-link" href="#plateau" data-action="skip">${t.skipToContent}</a>
-      <main class="app">
-        <span class="version" title="Version">v${version}</span>
-        <header class="top">
-          <div>
-            <h1>${t.appName}</h1>
-          </div>
-          <div class="seed-box">
-            <code class="seed" title="Graine">${session?.seed ?? '…'}</code>${
-              extensions
-                ? `
-            <span class="ext-chip" title="Extensions">${extensions}</span>`
-                : ''
-            }
-            <button type="button" class="ghost" data-action="copy-link"${session ? '' : ' disabled'}>${t.actions.copyLink}</button>
-            <a class="nav-link" href="#regles">${t.nav.rules}</a>
-            <button type="button" class="ghost" data-action="enter-immersive"${session && !session.finished ? '' : ' disabled'}>${t.actions.fullscreen}</button>
-            <button type="button" data-action="new-game">${t.actions.newGame}</button>
-          </div>
-        </header>
+    const gameBar = `
+        <div class="gamebar">
+          <code class="seed" title="Graine">${session ? escapeHtml(session.seed) : '…'}</code>${
+            extensions
+              ? `
+          <span class="ext-chip" title="Extensions">${extensions}</span>`
+              : ''
+          }
+          <button type="button" class="ghost icon-btn fs-btn" data-action="enter-immersive" aria-label="${t.actions.fullscreen}" title="${t.actions.fullscreen}"${session && !session.finished ? '' : ' disabled'}>${FULLSCREEN_ICON}</button>
+        </div>`;
+    root.innerHTML = page(
+      `${gameBar}
         ${store.available ? '' : `<p class="warning" role="status">${t.hints.storageOff}</p>`}
         <div class="play">
           <section class="board-wrap" id="plateau" tabindex="-1" aria-label="Plateau">
@@ -559,22 +761,66 @@ export function startApp(root: HTMLElement, version: string): void {
             ${probeHistory}
           </aside>
         </div>
-        <p class="sr-only" aria-live="polite">${state.notice}</p>
-        ${toastHtml()}
-        ${modal()}
-      </main>`;
+        ${state.backend ? `<footer class="foot"><a class="nav-link" href="${routeHash('privacy')}">${t.privacy.link}</a></footer>` : ''}`,
+      `<a class="skip-link" href="#plateau" data-action="skip">${t.skipToContent}</a>`,
+    );
     persist();
   };
 
   // ---------- Actions ----------
 
+  /** Affiche la page : charge ce qu'elle montre (historique, profil) puis dessine. */
+  const enterView = (view: View): void => {
+    if (view === 'history') loadHistory();
+    if (view === 'profile') loadProfile();
+    if (view === 'home') loadPlayingList();
+    render();
+    if (view !== 'game') window.scrollTo(0, 0);
+  };
+
+  /** Va à une page et met son adresse dans la barre du navigateur (le bouton Retour marche). */
+  const navigate = (view: View): void => {
+    state.confirm = null;
+    leaveImmersive();
+    state.view = view;
+    const hash = routeHash(view);
+    if (window.location.hash !== hash) window.location.hash = hash;
+    enterView(view);
+  };
+
+  /** Remet une partie sauvegardée en mémoire (chronomètre en pause tant qu'on n'est pas sur la vue Partie). */
+  const loadSave = (save: SaveData, id?: string): void => {
+    state.session = GameSession.fromSnapshot(save.session);
+    state.solution = save.solution;
+    state.notes = newHistory(save.notes);
+    state.skipConfirm = save.skipConfirm;
+    state.game = {
+      id: id ?? save.gameId ?? newGameId(),
+      startedAt: save.startedAt ?? Math.max(0, save.savedAt - save.session.elapsedMs),
+      ...(save.owner ? { owner: save.owner } : {}),
+      // Au chargement de la page le compte n'est pas encore connu : voir `onAccount`.
+      synced: save.owner !== undefined && save.owner === state.account?.id,
+    };
+    state.recorded = null;
+    state.selected = null;
+    state.selectedGem = null;
+    state.hypothesis = null;
+    state.explored = null;
+    state.ask = null;
+    state.confirm = null;
+    state.tab = 'shots';
+    state.phase = 'ready';
+    writeSeedToUrl(state.session.seed, extensionsOf(state.session.gems));
+  };
+
   const startGame = (seed: string, extensions: Readonly<Extensions> = NO_EXTENSIONS): void => {
     store.clear();
-    state.pending = null;
     state.choose = null;
     state.toast = false;
     state.phase = 'loading';
     state.session = null;
+    state.game = null;
+    state.recorded = null;
     state.selected = null;
     state.solution = emptySolution(gemsFor(extensions));
     state.selectedGem = null;
@@ -586,11 +832,18 @@ export function startApp(root: HTMLElement, version: string): void {
     state.confirm = null;
     state.tab = 'shots';
     state.notice = '';
-    render();
+    navigate('game');
     // Laisse le navigateur afficher « Génération… » avant le calcul de la mine.
     window.setTimeout(() => {
       try {
         state.session = GameSession.start(seed, extensions);
+        state.game = { id: newGameId(), startedAt: Date.now(), synced: false };
+        // Connecté : la partie est enregistrée sur le compte dès le début (reprise sur un autre appareil).
+        if (state.account && state.backend && sync) {
+          state.game.synced = true;
+          state.game.owner = state.account.id;
+        }
+        if (!state.account && (!state.authReady || accountsExpected)) state.game.autoImport = true;
         state.phase = 'ready';
         writeSeedToUrl(seed, extensions);
       } catch {
@@ -603,7 +856,6 @@ export function startApp(root: HTMLElement, version: string): void {
   /** Ouvre la fenêtre de choix des extensions (début de partie). */
   const openOptions = (): void => {
     state.choose = { ...(state.session ? extensionsOf(state.session.gems) : NO_EXTENSIONS) };
-    if (state.phase !== 'ready' && state.phase !== 'resume') state.phase = 'options';
     render();
     root.querySelector<HTMLElement>('#ext-diamond')?.focus();
   };
@@ -617,7 +869,10 @@ export function startApp(root: HTMLElement, version: string): void {
     }
     const checked = (id: string): boolean =>
       root.querySelector<HTMLInputElement>(`#${id}`)?.checked ?? false;
-    startGame(randomSeed(), { diamond: checked('ext-diamond'), blackBody: checked('ext-black') });
+    void beginGame(randomSeed(), {
+      diamond: checked('ext-diamond'),
+      blackBody: checked('ext-black'),
+    });
   };
 
   const doFire = (label: string): void => {
@@ -677,14 +932,273 @@ export function startApp(root: HTMLElement, version: string): void {
     }
   };
 
+  // ---------- Historique (v2) ----------
+
+  const recordStatusHtml = (): string =>
+    state.recorded === null
+      ? ''
+      : `<p class="record-status" role="status">${state.recorded === 'saved' ? `✓ ${t.history.saved}` : t.history.pending}</p>`;
+
+  let retryTimer: number | undefined;
+  let retryDelay = 15_000;
+
+  /** Envoie les parties en attente de l'utilisateur connecté ; en cas de coupure, réessaie plus tard. */
+  const flushOutbox = async (): Promise<void> => {
+    const { backend, account } = state;
+    if (!backend || !account || outbox.pending(account.id).length === 0) return;
+    const result = await outbox.flush(account.id, backend.games);
+    if (state.account?.id !== account.id) return;
+    window.clearTimeout(retryTimer);
+    if (result.retry) {
+      retryTimer = window.setTimeout(() => void flushOutbox(), retryDelay);
+      retryDelay = Math.min(retryDelay * 2, 300_000);
+    } else {
+      retryDelay = 15_000;
+    }
+    if (result.sent > 0 && state.view === 'history') loadHistory();
+    if (result.sent > 0 && state.view === 'profile') loadProfile();
+    if (result.sent > 0 && state.view === 'home') loadPlayingList();
+    if (state.recorded === 'pending' && state.game && !outbox.has(account.id, state.game.id)) {
+      state.recorded = 'saved';
+      render();
+    }
+  };
+
+  /** Met la partie terminée en file d'envoi (connecté seulement) puis tente l'envoi. */
+  const recordGame = (): void => {
+    const { session, game, account, backend } = state;
+    if (!session?.finished || !game || !account || !backend) return;
+    try {
+      const record = buildRecord({
+        id: game.id,
+        session,
+        extensions: extensionsOf(session.gems),
+        startedAt: game.startedAt,
+        endedAt: Date.now(),
+        submission: placedGems(state.solution),
+      });
+      // Une partie que la base refuserait ne doit pas rester bloquée en file.
+      if (parseRow(recordToRow(record)) === null) return;
+      sync?.forget(game.id);
+      outbox.add(account.id, record);
+      state.recorded = 'pending';
+      void flushOutbox();
+    } catch {
+      // L'enregistrement échoue : la partie reste jouable, sans historique.
+    }
+  };
+
+  let historyToken = 0;
+
+  /** Charge la page d'historique demandée ; une réponse tardive d'une demande dépassée est ignorée. */
+  const loadHistory = (): void => {
+    const { backend, account, history } = state;
+    if (!backend || !account) return;
+    const token = ++historyToken;
+    history.status = 'loading';
+    if (state.view === 'history') render();
+    backend.games
+      .list({
+        filter: history.filter,
+        sort: history.sort,
+        page: history.page,
+        pageSize: HISTORY_PAGE_SIZE,
+      })
+      .then(
+        (result) => {
+          if (token !== historyToken) return;
+          const last = pageCount(result.total, HISTORY_PAGE_SIZE) - 1;
+          if (history.page > last) {
+            history.page = last;
+            return loadHistory();
+          }
+          history.games = result.games;
+          history.total = result.total;
+          history.status = 'ready';
+          if (state.view === 'history') render();
+        },
+        () => {
+          if (token !== historyToken) return;
+          history.status = 'error';
+          if (state.view === 'history') render();
+        },
+      );
+  };
+
+  let profileToken = 0;
+
+  /** Charge les statistiques du profil ; une réponse tardive d'une demande dépassée est ignorée. */
+  const loadProfile = (): void => {
+    const { backend, account, profile } = state;
+    if (!backend || !account) return;
+    const token = ++profileToken;
+    profile.status = 'loading';
+    if (state.view === 'profile') render();
+    backend.games.stats().then(
+      (stats) => {
+        if (token !== profileToken) return;
+        profile.stats = stats;
+        profile.status = 'ready';
+        if (state.view === 'profile') render();
+      },
+      () => {
+        if (token !== profileToken) return;
+        profile.status = 'error';
+        if (state.view === 'profile') render();
+      },
+    );
+  };
+
+  // ---------- Parties en cours du compte (v2) ----------
+
+  let playingToken = 0;
+
+  /** Recharge la liste des parties en cours du compte ; une réponse tardive d'une demande dépassée est ignorée. */
+  const loadPlayingList = (): void => {
+    const { backend, account } = state;
+    if (!backend || !account) return;
+    const token = ++playingToken;
+    state.playing.status = 'loading';
+    if (state.view === 'home') render();
+    backend.games.listPlaying().then(
+      (games) => {
+        if (token !== playingToken) return;
+        state.playing = { status: 'ready', games };
+        if (state.view === 'home') render();
+      },
+      () => {
+        if (token !== playingToken) return;
+        state.playing.status = 'error';
+        if (state.view === 'home') render();
+      },
+    );
+  };
+
+  /**
+   * Avant de remplacer la partie chargée par une autre : s'assurer qu'elle est sur le compte. Une partie
+   * seulement locale y est importée d'office (sinon elle serait perdue). Faux si l'envoi échoue.
+   */
+  const secureCurrent = async (): Promise<boolean> => {
+    const { game, account, backend } = state;
+    if (!account || !backend || !sync || !game || !inProgress()) return true;
+    if (!game.synced) {
+      game.synced = true;
+      game.owner = account.id;
+    }
+    persist();
+    await sync.flush();
+    return !sync.pending().includes(game.id);
+  };
+
+  let starting = false;
+
+  /** Lance une partie : celle qui est chargée est d'abord mise à l'abri sur le compte. */
+  const beginGame = async (seed: string, extensions: Readonly<Extensions>): Promise<void> => {
+    if (starting) return;
+    starting = true;
+    try {
+      if (state.account && !(await secureCurrent())) {
+        state.choose = null;
+        state.notice = t.home.syncFailed;
+        render();
+        return;
+      }
+      startGame(seed, extensions);
+    } finally {
+      starting = false;
+    }
+  };
+
+  /** Reprend une partie du compte : elle remplace celle qui est chargée (mise à l'abri avant). */
+  const resumeRemote = async (id: string): Promise<void> => {
+    const { backend, account } = state;
+    if (!backend || !account || starting) return;
+    if (state.game?.id === id && inProgress()) return navigate('game');
+    starting = true;
+    try {
+      if (!(await secureCurrent())) {
+        state.notice = t.home.syncFailed;
+        return;
+      }
+      const loaded = await backend.games.loadPlaying(id);
+      if (!loaded) {
+        state.notice = t.home.gone;
+        loadPlayingList();
+        return;
+      }
+      store.clear();
+      loadSave({ ...loaded.save, owner: account.id }, id);
+      persist();
+      navigate('game');
+    } catch {
+      state.notice = t.home.actionFailed;
+    } finally {
+      starting = false;
+      render();
+    }
+  };
+
+  /** Abandonne une partie du compte sans la charger : elle entre dans l'historique comme abandonnée. */
+  const abandonRemote = async (id: string): Promise<void> => {
+    const { backend } = state;
+    const game = state.playing.games.find((candidate) => candidate.id === id);
+    state.confirmRemote = null;
+    if (!backend || !game) return render();
+    try {
+      await backend.games.abandonPlaying(id, game.startedAt);
+    } catch {
+      state.notice = t.home.actionFailed;
+    }
+    loadPlayingList();
+  };
+
+  /** Ajoute au compte la partie locale en cours. */
+  const importCurrent = async (): Promise<void> => {
+    const { game, account } = state;
+    if (!account || !game || !inProgress() || game.synced) return;
+    if (limitReached()) {
+      state.notice = t.home.limit;
+      return render();
+    }
+    game.synced = true;
+    game.owner = account.id;
+    persist();
+    render();
+    await sync?.flush();
+    loadPlayingList();
+  };
+
+  /** Supprime le compte et ses parties, puis revient au jeu (sans compte). */
+  const deleteAccount = (): void => {
+    const { backend, account } = state;
+    if (!backend || !account) return;
+    state.deletion = 'busy';
+    render();
+    backend.auth.deleteAccount().then(
+      () => {
+        outbox.discard(account.id);
+        state.deletion = 'idle';
+        state.recorded = null;
+        state.notice = t.privacy.deleted;
+        navigate('home');
+      },
+      () => {
+        state.deletion = 'error';
+        render();
+      },
+    );
+  };
+
   /** Termine la partie et affiche le résultat. */
   const showResult = (): void => {
     leaveImmersive();
     store.clear();
+    clearSeedFromUrl();
     state.confirm = null;
     state.ask = null;
     state.tab = 'result';
     state.notice = state.session ? t.status[state.session.status] : '';
+    recordGame();
     render();
   };
 
@@ -892,17 +1406,6 @@ export function startApp(root: HTMLElement, version: string): void {
     window.addEventListener('pointercancel', onCancel);
   };
 
-  /**
-   * Nouvelle partie au chargement : une graine dans l'adresse (lien partagé) relance cette mine
-   * avec les extensions de l'adresse ; sinon on demande les extensions.
-   */
-  const startFresh = (): void => {
-    const seed = seedFromUrl();
-    if (seed) return startGame(seed, extensionsFromUrl());
-    state.session = null;
-    openOptions();
-  };
-
   // ---------- Événements ----------
 
   root.addEventListener('pointerdown', (event) => {
@@ -946,7 +1449,7 @@ export function startApp(root: HTMLElement, version: string): void {
     if (target.closest('[data-recap]')) return closeAsk(false);
     if (target.hasAttribute('data-modal-backdrop')) return closeAsk(false);
     if (target.hasAttribute('data-options-backdrop')) {
-      if (state.session || state.pending) closeOptions(false);
+      closeOptions(false);
       return;
     }
     const entry = target.closest<HTMLElement>('[data-fire]');
@@ -989,15 +1492,83 @@ export function startApp(root: HTMLElement, version: string): void {
       state.selected = Number(shot.dataset['shot']);
       return render();
     }
+    const hfilter = target.closest<HTMLElement>('[data-hfilter]')?.dataset['hfilter'];
+    if (isHistoryFilter(hfilter)) {
+      state.history.filter = hfilter;
+      state.history.page = 0;
+      return loadHistory();
+    }
+    const hpage = target.closest<HTMLElement>('[data-hpage]')?.dataset['hpage'];
+    if (hpage) {
+      if (hpage === 'prev') state.history.page = Math.max(0, state.history.page - 1);
+      if (hpage === 'next') state.history.page++;
+      return loadHistory();
+    }
     const action = target.closest<HTMLElement>('[data-action]')?.dataset['action'];
     switch (action) {
+      case 'sign-in':
+        // La page est quittée pour Google : on sauvegarde d'abord la partie en cours.
+        persist();
+        void state.backend?.auth.signIn().catch(() => {
+          state.notice = t.account.signInFailed;
+          render();
+        });
+        return;
+      case 'import-game':
+        void importCurrent();
+        return;
+      case 'resume-remote': {
+        const id = target.closest<HTMLElement>('[data-id]')?.dataset['id'];
+        if (id) void resumeRemote(id);
+        return;
+      }
+      case 'ask-abandon-remote':
+        state.confirmRemote = target.closest<HTMLElement>('[data-id]')?.dataset['id'] ?? null;
+        return render();
+      case 'confirm-abandon-remote': {
+        const id = target.closest<HTMLElement>('[data-id]')?.dataset['id'];
+        if (id) void abandonRemote(id);
+        return;
+      }
+      case 'retry-playing':
+        return loadPlayingList();
+      case 'ask-delete-account':
+        state.deletion = 'confirm';
+        return render();
+      case 'cancel-delete-account':
+        state.deletion = 'idle';
+        return render();
+      case 'confirm-delete-account':
+        return deleteAccount();
+      case 'retry-profile':
+        return loadProfile();
+      case 'sign-out':
+        // Les dernières modifications des parties en cours partent avant la fin de la session.
+        void (async () => {
+          try {
+            persist();
+            await sync?.flush();
+            await state.backend?.auth.signOut();
+          } catch {
+            state.notice = t.account.signOutFailed;
+            render();
+          }
+        })();
+        return;
       case 'enter-immersive':
         return enterImmersive();
       case 'exit-immersive':
         leaveImmersive();
         return render();
       case 'new-game':
+        if (newGameBlocked()) return;
         return openOptions();
+      case 'resume-game':
+        if (state.session) {
+          state.notice = 'Reprise';
+          navigate('game');
+        }
+        return;
       case 'start-game':
         return closeOptions(true);
       case 'cancel-options':
@@ -1014,21 +1585,6 @@ export function startApp(root: HTMLElement, version: string): void {
         event.preventDefault();
         root.querySelector<HTMLElement>('#plateau')?.focus();
         return;
-      case 'resume':
-        if (state.pending) {
-          const save = state.pending;
-          state.session = GameSession.fromSnapshot(save.session);
-          state.solution = save.solution;
-          state.notes = newHistory(save.notes);
-          state.skipConfirm = save.skipConfirm;
-          state.pending = null;
-          state.phase = 'ready';
-          writeSeedToUrl(state.session.seed, extensionsOf(state.session.gems));
-          state.notice = 'Reprise';
-        }
-        return render();
-      case 'discard-save':
-        return startFresh();
       case 'modal-confirm':
         return closeAsk(true);
       case 'modal-cancel':
@@ -1041,6 +1597,7 @@ export function startApp(root: HTMLElement, version: string): void {
         return render();
       case 'cancel-confirm':
         state.confirm = null;
+        state.confirmRemote = null;
         return render();
       case 'confirm-submit':
         if (state.session && isSubmittable(state.solution)) {
@@ -1053,7 +1610,7 @@ export function startApp(root: HTMLElement, version: string): void {
         state.session?.abandon();
         return showResult();
       case 'replay':
-        if (state.session) startGame(state.session.seed, extensionsOf(state.session.gems));
+        if (state.session) void beginGame(state.session.seed, extensionsOf(state.session.gems));
         return;
       case 'undo':
         state.notes = undo(state.notes);
@@ -1064,18 +1621,19 @@ export function startApp(root: HTMLElement, version: string): void {
       case 'clear-notes':
         state.notes = commit(state.notes, emptyNotes());
         return render();
-      case 'copy-link':
-        navigator.clipboard?.writeText(window.location.href).then(
-          () => {
-            state.notice = 'Lien copié';
-            render();
-          },
-          () => undefined,
-        );
     }
   });
 
   root.addEventListener('change', (event) => {
+    const select = (event.target as Element).closest<HTMLSelectElement>('select[data-hsort]');
+    if (select) {
+      if (isHistorySort(select.value)) {
+        state.history.sort = select.value;
+        state.history.page = 0;
+        loadHistory();
+      }
+      return;
+    }
     const target = event.target as HTMLInputElement;
     if (target.dataset['toggle'] !== 'notes') return;
     state.showNotes = target.checked;
@@ -1086,7 +1644,7 @@ export function startApp(root: HTMLElement, version: string): void {
   root.addEventListener('keydown', (event) => {
     const target = event.target as Element;
     if (state.choose) {
-      if (event.key === 'Escape' && (state.session || state.pending)) {
+      if (event.key === 'Escape') {
         event.preventDefault();
         closeOptions(false);
       }
@@ -1216,9 +1774,12 @@ export function startApp(root: HTMLElement, version: string): void {
     if (++ticks % 15 === 0) persist();
   }, 1000);
   window.addEventListener('hashchange', () => {
-    state.view = viewFromHash();
-    render();
-    if (state.view === 'rules') window.scrollTo(0, 0);
+    const next = viewFromHash();
+    if (next === state.view) return;
+    if (next === 'game' && !gameAvailable()) return navigate('home');
+    state.view = next;
+    state.confirm = null;
+    enterView(next);
   });
   document.addEventListener('fullscreenchange', () => {
     // Sortie du plein écran navigateur (Échap, geste retour) : on quitte aussi le mode plein écran.
@@ -1227,19 +1788,117 @@ export function startApp(root: HTMLElement, version: string): void {
       render();
     }
   });
-  window.addEventListener('pagehide', persist);
+  const saveAndSend = (): void => {
+    persist();
+    void sync?.flush();
+  };
+  window.addEventListener('pagehide', saveAndSend);
   document.addEventListener('visibilitychange', () => {
     syncClock();
-    if (document.visibilityState === 'hidden') persist();
+    if (document.visibilityState === 'hidden') saveAndSend();
   });
 
-  // Une partie sauvegardée est proposée à la reprise ; sinon on en commence une neuve.
+  // Au chargement : une partie sauvegardée revient en mémoire (l'accueil la propose) ; sinon, un lien
+  // avec une graine lance cette mine ; sinon on arrive sur l'accueil.
   const saved = store.load();
+  const linkSeed = seedFromUrl();
   if (saved && saved.session.status === 'playing') {
-    state.pending = saved;
-    state.phase = 'resume';
+    loadSave(saved);
+    // Lien vers une autre mine alors qu'une partie est en cours : sans compte, une seule partie à la
+    // fois, donc on garde la partie en cours et on oublie le lien.
+    if (linkSeed && linkSeed !== saved.session.mine.seed) {
+      clearSeedFromUrl();
+      writeSeedToUrl(
+        saved.session.mine.seed,
+        extensionsOf(saved.session.mine.placements.map((placement) => placement.gem)),
+      );
+      if (state.view === 'game') state.view = 'home';
+    }
     render();
+  } else if (linkSeed) {
+    startGame(linkSeed, extensionsFromUrl());
   } else {
-    startFresh();
+    if (state.view === 'game') state.view = 'home';
+    render();
   }
+  // La page affichée peut différer de l'adresse (partie introuvable, page de compte sans compte) :
+  // on corrige l'adresse sans ajouter d'entrée à l'historique.
+  if (viewFromHash() !== state.view) {
+    try {
+      const url = new URL(window.location.href);
+      url.hash = routeHash(state.view);
+      window.history.replaceState(null, '', url);
+    } catch {
+      // L'adresse reste telle quelle : sans conséquence pour le jeu.
+    }
+  }
+
+  return {
+    backendUnavailable: () => {
+      accountsExpected = false;
+      render();
+      if (viewFromHash() !== state.view) {
+        try {
+          const url = new URL(window.location.href);
+          url.hash = routeHash(state.view);
+          window.history.replaceState(null, '', url);
+        } catch {
+          // L'adresse reste telle quelle : sans conséquence pour le jeu.
+        }
+      }
+    },
+    attachBackend: (backend) => {
+      state.backend = backend;
+      sync = createProgressSync(backend.games, {
+        // La base refuse cette partie (par exemple dix parties en cours) : elle reste seulement locale.
+        onRejected: (id) => {
+          if (state.game?.id !== id) return;
+          state.game.synced = false;
+          delete state.game.owner;
+          render();
+        },
+      });
+      const onAccount = (user: AccountUser | null): void => {
+        const changed = user?.id !== state.account?.id;
+        if (changed) {
+          sync?.reset();
+          // La partie chargée n'est reliée qu'au compte qui l'a envoyée ; sans compte, elle est locale.
+          if (state.game) {
+            state.game.synced = user !== null && state.game.owner === user.id;
+            if (!state.game.synced) delete state.game.owner;
+            if (user && state.game.autoImport && inProgress()) {
+              state.game.synced = true;
+              state.game.owner = user.id;
+              delete state.game.autoImport;
+            }
+          }
+          state.playing = { status: 'idle', games: [] };
+          playingToken++;
+          state.confirmRemote = null;
+          // Autre compte ou déconnexion : l'historique et le profil affichés ne sont plus les bons.
+          state.history = { ...state.history, page: 0, status: 'loading', games: [], total: 0 };
+          state.profile = { status: 'loading', stats: null };
+          historyToken++;
+          profileToken++;
+        }
+        state.account = user;
+        if (changed && user) {
+          void flushOutbox();
+          loadPlayingList();
+          if (state.view === 'history') loadHistory();
+          if (state.view === 'profile') loadProfile();
+        }
+        render();
+      };
+      backend.auth.onChange(onAccount);
+      void backend.auth.ready().then((user) => {
+        state.authReady = true;
+        onAccount(user);
+      });
+      window.addEventListener('online', () => {
+        void flushOutbox();
+        void sync?.flush();
+      });
+    },
+  };
 }

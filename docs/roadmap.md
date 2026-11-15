@@ -295,9 +295,9 @@ directement la vue partie.
 - Une partie « en cours » n'entre pas dans les statistiques ; une partie terminée ou abandonnée y
   entre.
 
-### v1.1 Choix du backend (S)
+### v1.1 Choix du backend (S) : fait
 
-Un service géré évite d'écrire un serveur. Deux options réalistes :
+Un service géré évite d'écrire un serveur. Deux options étaient réalistes :
 
 | | Supabase | Firebase |
 |---|---|---|
@@ -306,94 +306,258 @@ Un service géré évite d'écrire un serveur. Deux options réalistes :
 | Sécurité des données | règles par ligne (RLS) | règles Firestore |
 | Statistiques | une requête SQL | calcul côté client ou fonction |
 
-**Recommandation : Supabase**, parce que les deux statistiques demandées sont des
-agrégats naturels en SQL et que la sécurité par ligne est simple à écrire. Décision à
-confirmer avant de commencer.
+**Décision : Supabase**, parce que les deux statistiques demandées sont des agrégats naturels
+en SQL et que la sécurité par ligne est simple à écrire (et à tester en SQL pur dans la CI).
 
-### v1.2 Vues, navigation et authentification Google (M)
+Autres décisions prises avec le propriétaire :
 
-- **Vues** : routeur par adresse (`ui/router.ts`), vue **Accueil** (`ui/home.ts`) par défaut, vue
-  **Partie** (l'existant, déplacé derrière `#/partie`), vue **Profil** (`ui/profile.ts`, squelette).
-  Le titre du site mène à l'accueil. Cette partie ne dépend pas du backend : elle peut être
-  livrée avant le choix de la v1.1, avec l'accueil limité à la partie locale.
-- **Une seule partie à la fois sans compte** : « Nouvelle partie » est bloquée tant que la partie
-  locale n'est pas terminée ou abandonnée ; elle ouvre la fenêtre des extensions.
-- Bouton **Connexion / Déconnexion** en haut à droite ; connexion et déconnexion OAuth Google ;
-  session persistante. Nom et avatar affichés une fois connecté.
-- Configuration OAuth (écran de consentement, URI de redirection par environnement).
+- **Une partie abandonnée compte comme perdue** dans le pourcentage de victoires ; la moyenne de
+  lasers ne porte que sur les victoires.
+- **Le code est écrit sans projet Supabase** : clés dans `VITE_SUPABASE_URL` et
+  `VITE_SUPABASE_ANON_KEY` ; sans clés, le site reste en mode v1 (aucun bouton de connexion). La
+  création du projet, l'identifiant OAuth Google et les variables du déploiement sont à faire par
+  le propriétaire : guide pas à pas dans [`backend.md`](backend.md).
+- **Sécurité par ligne testée en CI** : des tests SQL sur un Postgres vide (deux utilisateurs
+  simulés), en plus des tests Vitest.
+- Pas d'import des parties locales au premier login : la v1 n'en garde aucune (la sauvegarde est
+  effacée à la fin de la partie).
+- **Fini quand :** le choix est écrit et le guide de mise en place existe. ✔
+
+### v1.2 Vues, navigation et authentification Google (M) : fait
+
+**Fait (authentification)** :
+
+- `src/backend/` : `config.ts` (lit `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` ; absentes ou
+  invalides : `null`), `auth.ts` (service de connexion au-dessus d'un client Supabase, testé avec un
+  faux client), `index.ts` (crée le client **à la demande** : sans configuration, la bibliothèque
+  n'est même pas téléchargée).
+- Connexion et déconnexion OAuth Google (flux PKCE), session persistante (gérée par Supabase),
+  retour sur la page sans paramètres : la partie en cours est sauvegardée en local avant de partir
+  et reprise au retour.
+- Le service ne retient que l'identifiant, le nom et l'avatar (https uniquement) ; le nom est échappé
+  avant d'être affiché. Les renouvellements de jeton ne redessinent pas la page.
+- En-tête : bouton « Se connecter » ; connecté : avatar, nom, « Déconnexion ». Aucun changement sans
+  configuration. Jouer sans compte fonctionne comme avant.
+- Configuration OAuth, écran de consentement et adresses de redirection : [`backend.md`](backend.md)
+  (étapes à faire par le propriétaire). `.env.example` donne les deux variables.
+- Vérifié dans un navigateur avec une configuration factice : bouton absent sans variables, présent
+  avec ; session simulée : avatar et nom affichés, balise dans le nom neutralisée. La connexion
+  Google réelle reste à essayer une fois le projet Supabase créé.
+- **Fini quand :** on peut se connecter, se déconnecter, recharger la page et rester connecté. (Code
+  et tests ✔ ; essai réel en attente du projet Supabase.)
+
+**Fait (vues et navigation)** :
+
+- **Routeur** par adresse (`ui/router.ts`, testé) : `#/` accueil (par défaut), `#/partie`,
+  `#/regles`, `#/historique`, `#/profil`, `#/confidentialite` ; les anciennes adresses restent
+  comprises ; une page de compte sans compte configuré, ou `#/partie` sans partie, retombe sur
+  l'accueil (l'adresse est corrigée sans ajouter d'entrée à l'historique du navigateur). Un lien
+  `?seed=…` lance cette mine directement ; la graine est retirée de l'adresse quand la partie se
+  termine (un rechargement ne relance rien).
+- **Barre du haut** (`ui/header.ts`, sur toutes les pages sauf le plein écran, collée en haut) : à
+  gauche « Orapa Training » (ramène à l'accueil) suivi de la **version**, « Nouvelle partie »,
+  « Règles » ; à droite « Historique », « Profil » (avatar du compte, jamais le nom ; icône de
+  personne sans avatar), « Déconnexion », ou « Connexion » si déconnecté. Sans backend : aucun
+  bouton de compte ; aucun bouton avant que la session soit lue (pas de clignotement).
+- **Accueil** (`ui/home.ts`) : la partie en cours (graine, extensions, tirs, temps ; Reprendre,
+  Abandonner avec confirmation) et « Nouvelle partie » (fenêtre des extensions). Une partie
+  sauvegardée revient en mémoire au chargement ; sur `#/partie` un rechargement la reprend
+  directement (plus d'écran « Reprendre » intermédiaire).
+- **Sans compte, une seule partie à la fois** : « Nouvelle partie » est désactivée (barre et accueil)
+  tant que la partie n'est ni terminée ni abandonnée ; un lien vers une autre mine est ignoré
+  (la partie en cours est gardée). Après la fin, « Nouvelle partie » et « Rejouer » refonctionnent.
+- **Barre de la partie** : graine, extensions et **plein écran**, devenu un **pictogramme** affiché
+  seulement sur écran tactile (`pointer: coarse`). Le bouton « Lien » a été retiré : l'adresse du
+  navigateur porte déjà `?seed=…&ext=…` pendant la partie, et ce lien relance la même mine.
+- Avec compte, cette règle est levée (parties en cours côté serveur) : plusieurs parties en cours, enregistrées sur le compte
+  (voir v1.3 et v1.4).
+- Vérifié dans un navigateur : accueil avec et sans partie, démarrage, rechargement sur la partie et
+  sur l'accueil, lien vers une autre mine, abandon depuis l'accueil, lien partagé, retour arrière,
+  `#/partie` sans partie, pages de compte sans backend, icône de plein écran masquée sur ordinateur
+  et affichée (sans débordement horizontal) sur un profil de téléphone.
 - **Fini quand :** on navigue entre les trois vues, on peut se connecter, se déconnecter, recharger
-  la page et rester connecté.
+  la page et rester connecté. ✔ (essai réel de la connexion en attente du projet Supabase)
 
-### v1.3 Modèle de données et sécurité (M)
+### v1.3 Modèle de données et sécurité (M) : fait
 
-Table `games` (une ligne par partie, **en cours ou terminée**), au minimum :
+Table `games` (une ligne par partie terminée), migration
+`supabase/migrations/20261115000001_games.sql` :
 
 | Champ | Rôle |
 |---|---|
-| `id`, `user_id` | clés ; `user_id` = utilisateur connecté |
-| `seed`, `generator_version` | pour rejouer la mine |
-| `status` | `playing`, `won`, `lost` ou `abandoned` |
-| `snapshot` | JSON : la sauvegarde de `game/save.ts` (mine, tirs, solution, notes), renseignée tant que la partie est en cours, effacée à la fin |
-| `updated_at` | dernière modification (tri de la liste des parties en cours) |
-| `shots_count` | tirs pendant la partie : lasers et sondes de cases |
+| `id`, `user_id` | `id` tiré par le navigateur au début de la partie (renvoyer la même partie ne crée pas de doublon) ; `user_id` = utilisateur connecté, rempli par la base |
+| `seed`, `generator_version`, `extensions` | pour rejouer la mine (`extensions` : `''`, `d`, `n` ou `dn`, comme l'adresse) |
+| `status` | `won`, `lost` ou `abandoned` |
+| `lasers_count`, `probes_count`, `shots_count` | lasers tirés, cases sondées, et leur total `shots_count` (colonne calculée : depuis la v1.0.17 un laser et une sonde comptent chacun pour un tir) |
 | `started_at`, `ended_at`, `duration_s` | temps |
-| `shots`, `submission` | JSON : tirs effectués et solution proposée |
+| `shots`, `submission` | JSON : repères tirés dans l'ordre, gemmes proposées (`null` si abandon) |
 
-- Règles de sécurité : chaque utilisateur ne lit et n'écrit **que ses propres lignes**.
-- Migrations versionnées dans le dépôt.
-- **Fini quand :** un utilisateur A ne peut jamais lire ni modifier les parties de B
-  (test d'accès automatisé).
+- **Sécurité par ligne** (RLS, forcée) : chaque utilisateur ne lit, n'écrit et ne supprime que ses
+  parties ; `anon` n'a aucun droit ; **aucun droit de mise à jour** (une partie est immuable).
+  Contraintes de forme : statut, bornes, `lasers_count` = nombre de repères tirés, proposition
+  présente sauf abandon, tailles de JSON bornées. La migration 4 (v1.0.17) ajoute `shots_count`,
+  colonne **calculée** = lasers + sondes (un seul compteur de tirs, comme en jeu).
+- **Tests SQL** (`supabase/tests/`, `npm run test:db`, job `database` de la CI avec un Postgres
+  vide) : deux utilisateurs simulés ; A ne lit, n'écrit au nom de B, ne modifie ni ne supprime les
+  parties de B (et inversement) ; `anon` bloqué ; identifiant déjà pris par un autre : rien n'est
+  écrasé ni révélé ; contraintes de forme ; suppression du compte emporte ses parties. Vérifiés
+  « à l'envers » : affaiblir une politique (lecture, écriture, droit de mise à jour, RLS coupée) fait
+  échouer les tests.
+- `src/game/record.ts` : `buildRecord` (partie terminée → enregistrement), `recordToRow`,
+  `parseRow` (valide une ligne avec les mêmes bornes que la base : une partie refusée par la base ne
+  peut pas bloquer la file d'envoi de la v1.4). Aucune mine dans l'enregistrement.
+- **Fini quand :** un utilisateur A ne peut jamais lire ni modifier les parties de B (test d'accès
+  automatisé). ✔
+- **Parties en cours côté serveur**, migration `20261115000005_playing_games.sql` : la table
+  contient aussi des parties **en cours** (`status = 'playing'`, colonne `snapshot` = la sauvegarde
+  du site, mine comprise, `ended_at` vide) en plus des terminées (`snapshot` effacé). `updated_at`
+  suit chaque modification. Règles : un propriétaire ne **modifie** que ses parties **en cours** et
+  seulement les colonnes qui évoluent (jamais le propriétaire, la graine, l'identifiant) ; une partie
+  terminée redevient **immuable** ; au plus **10 parties en cours par compte** (déclencheur, erreur
+  `23514`) ; snapshot borné à 250 000 caractères ; les parties en cours sont **hors de l'historique
+  et des statistiques**. Le snapshot (qui contient la mine) n'est lisible que par son propriétaire.
+  Tests SQL (`progress.test.sql`) : formes valides et invalides, B ne lit ni ne modifie ni ne
+  supprime les parties en cours de A, synchronisation, colonnes verrouillées, fin de partie puis
+  immuabilité, terminer deux fois, abandon, limite de dix (et place libérée à la fin d'une partie),
+  statistiques sans les parties en cours, suppression du compte. Vérifiés « à l'envers » : politique
+  de modification trop large, droit de modification trop large, limite retirée, contraintes
+  retirées, statistiques qui comptent les parties en cours.
 
-### v1.4 Parties enregistrées et historique (M)
+### v1.4 Parties enregistrées et historique (M) : fait pour les parties terminées
 
-- Si connecté : la partie est créée en base au lancement (`playing`) et sa sauvegarde est
-  **synchronisée** au même rythme que la sauvegarde locale ; à la fin, `status` passe à
-  `won`, `lost` ou `abandoned`. Gérer l'échec réseau (file locale, nouvel essai).
-- **Accueil** : la liste des parties non terminées vient de la base (`status = 'playing'`),
-  triée par `updated_at` ; « Reprendre » charge le `snapshot` dans la vue partie.
-- **Historique** (dans la vue Profil) : liste paginée des parties terminées (date, résultat,
-  lasers, durée), tri et filtre victoire/défaite.
-- Option : revoir une partie passée à partir de sa graine et de ses tirs.
-- À la première connexion : la partie locale en cours (et, en option, les parties locales
-  terminées) est proposée à l'import dans le compte.
-- **Fini quand :** les parties en cours et terminées suivent le compte sur n'importe quel
-  navigateur où l'on se connecte.
+- **Enregistrement** : à la fin d'une partie (victoire, défaite ou abandon), si le joueur est
+  connecté, la partie est mise dans une **file d'envoi** locale (`backend/outbox.ts`) puis envoyée
+  (`backend/games.ts`, `upsert` qui ignore les doublons : renvoyer la même partie ne crée rien).
+  Chaque partie a un identifiant tiré au début (conservé par la sauvegarde locale, donc stable
+  après une reprise). La mine n'est jamais envoyée : graine, version du générateur, extensions,
+  repères tirés et proposition suffisent à la rejouer. Sans compte, rien n'est enregistré.
+- **Coupure réseau** : la partie reste en file (même après rechargement), nouvel essai à la
+  connexion, au retour du réseau (`online`) et par délais croissants (15 s à 5 min). Chaque entrée
+  porte l'utilisateur qui jouait : la partie de A ne part jamais sous le compte de B. Un refus
+  définitif de la base (contrainte violée) retire l'entrée au lieu de la rejouer sans fin ; la file
+  est bornée (50). Sur l'écran de résultat : « ✓ Enregistrée » ou « En attente ».
+- **Page Historique** (`#historique`, lien visible une fois connecté, `ui/history.ts`) : liste
+  paginée (20 par page) avec date, résultat, tirs (lasers + sondes), durée et lien **Rejouer** (même graine, mêmes
+  extensions) ; filtre Toutes / Victoires / Défaites (les abandons comptent comme des défaites,
+  comme dans les statistiques) ; tri Récentes / Anciennes / Moins de tirs (départage stable par
+  identifiant) ; états chargement, vide et erreur avec « Réessayer ». Déconnexion ou changement de
+  compte : la liste affichée est oubliée.
+- **Correction de sécurité** : la graine (venant de l'adresse `?seed=` ou de la sauvegarde) était
+  insérée sans échappement dans l'en-tête et dans l'écran de reprise : un lien piégé pouvait
+  exécuter du script dans la page, ce qui devient grave avec une session de compte. Elle est
+  maintenant échappée partout (et vérifiée dans un navigateur).
+- Non fait, volontairement : revoir une partie passée case par case (« Rejouer » refait la même
+  mine, le déroulé des tirs est conservé en base pour plus tard) ; import des parties locales au
+  premier login (la v1 n'en garde aucune).
+- Tests : file d'envoi (coupure, rechargement, utilisateurs séparés, refus définitif, un seul envoi
+  à la fois, stockage corrompu ou plein), service (requêtes, erreurs, lignes illisibles), page
+  (échappement, états, pagination), sauvegarde (identité de la partie, anciennes sauvegardes).
+  Vérifié dans un navigateur avec une API Supabase simulée : envoi réel par `supabase-js`
+  (`on_conflict=id`, `resolution=ignore-duplicates`), historique, filtre, tri, coupure puis envoi au
+  rechargement.
+- **Fini quand :** les parties terminées apparaissent dans l'historique, sur n'importe quel
+  navigateur où l'on se connecte. (Code et tests ✔ ; essai réel en attente du projet Supabase.)
+- **Parties en cours** : connecté, la partie est **créée en base au lancement** et sa
+  sauvegarde est **synchronisée** (`backend/sync.ts`) : la dernière version de chaque partie, au plus
+  toutes les 8 s, seulement si elle a changé (le temps qui passe seul ne compte pas), avec délais
+  croissants après une coupure, envoi immédiat à la déconnexion, au retour du réseau et quand la page
+  se cache ; un refus définitif de la base (dix parties…) laisse la partie seulement locale. La fin
+  de partie passe la ligne à `won`, `lost` ou `abandoned` (file d'envoi existante, `finish` : mise à
+  jour de la partie en cours, sinon création terminée, sans doublon).
+- **Accueil** : la partie chargée dans la fenêtre, puis la **liste des parties en cours du compte**
+  (graine, extensions, tirs, temps, dernière modification ; Reprendre, Abandonner avec confirmation,
+  sans les charger). « Reprendre » charge le snapshot (validé comme une sauvegarde locale) ; la partie
+  chargée jusque-là est d'abord mise à l'abri sur le compte. Avec un compte, « Nouvelle partie » est
+  toujours possible, sauf à dix parties en cours (message sur l'accueil).
+- **Import** : la partie locale en cours n'est jamais envoyée sans accord : à la connexion l'accueil
+  propose **« Importer »** ; elle est aussi importée d'office avant qu'on lance ou reprenne une autre
+  partie (sinon elle serait perdue), et si elle a été lancée par un lien avant que le compte soit
+  connu. Chaque sauvegarde locale garde le compte auquel sa partie est reliée (`owner`) : la partie
+  d'un compte ne part jamais sous un autre. Déconnecté, la partie chargée redevient locale.
+- Vérifié dans un navigateur avec un faux serveur PostgREST en mémoire et deux « appareils » : création
+  au lancement, synchronisation espacée, liste et reprise sur l'autre appareil, deux parties en
+  cours, abandon à distance, fin de partie sans doublon, limite de dix, import, lien partagé avec
+  compte, coupure puis retour du réseau, déconnexion.
+- **Pas fait** : l'historique reste une **page à part** (`#/historique`) et non dans la vue Profil, à
+  la demande du propriétaire ; deux appareils qui jouent la **même** partie en même temps s'écrasent
+  (la dernière version gagne).
+### v1.5 Vue Profil (S à M) : fait (page séparée `#profil`, historique à part)
 
-### v1.5 Vue Profil (S à M)
+Deux statistiques, **calculées par la base à partir de `games`** (fonction `profile_stats()`,
+migration `20261115000002_profile_stats.sql`, droit d'exécution réservé aux utilisateurs connectés,
+filtre explicite sur l'utilisateur en plus de la sécurité par ligne) :
 
-La vue affiche le **nom Google**, les statistiques ci-dessous et l'**historique** de la v1.4.
-Deux statistiques, **calculées à partir de `games`** (parties terminées seulement) :
+- **Moyenne de tirs avant de gagner** (lasers **et** sondes, depuis la v1.0.17) = moyenne de
+  `shots_count` sur les parties **gagnées** uniquement (arrondie à 2 décimales en base, 1 à
+  l'écran). La fonction a été recréée par la migration `20261115000004_shots_count.sql`
+  (`avg_shots_to_win`) ; la migration 2 reste telle quelle.
+- **Pourcentage de parties gagnées** = parties gagnées ÷ parties totales terminées (1 décimale au
+  plus à l'écran : « 66,7 % »).
 
-- **Moyenne de tirs avant de gagner** = moyenne de `shots_count` sur les parties
-  **gagnées** uniquement.
-- **Pourcentage de parties gagnées** = parties gagnées ÷ parties totales terminées.
+Règles de calcul (figées, testées) :
 
-Règles de calcul à figer (voir questions ouvertes) :
+- Une partie compte dans le total dès qu'elle est terminée : gagnée, perdue ou abandonnée ;
+  **une partie abandonnée compte comme perdue**.
+- Pas de victoire : la moyenne vaut `null` et s'affiche « — », jamais 0 (une vraie moyenne de 0
+  tir, possible, s'affiche « 0 »). Le pourcentage vaut alors 0 %.
+- Pas de partie : « Aucune partie jouée » (taux et moyenne `null`).
+- Affichage (`#profil`, `ui/profile.ts`) : avatar et nom, nombre de parties, victoires, % de
+  victoires, tirs par victoire ; pas de classement ni de comparaison entre joueurs. Chargement,
+  erreur avec « Réessayer » ; les chiffres sont rechargés quand une partie en file est envoyée.
+- Tests SQL (`supabase/tests/profile.test.sql`) sur des jeux de parties dont les résultats sont
+  calculés à la main : mélange de victoires, défaites et abandons (3 victoires sur 6 parties,
+  moyenne 5 + 10 + 8 = 7,67 ; les tirs des parties perdues ou abandonnées ne comptent pas ; un
+  joueur dont les victoires comptent des sondes : (3 + 2 + 4) / 2 = 4,5 tirs),
+  aucun joueur, aucune victoire, une seule victoire, victoires à 0 laser, isolation entre
+  utilisateurs, accès refusé sans connexion. Les tests échouent si l'on change la règle (moyenne sur
+  toutes les parties, abandons exclus du total, moyenne ramenée à 0). Tests Vitest : lecture et
+  cohérence de la ligne reçue, mise en forme, états de la page.
+- **Fini quand :** les valeurs affichées correspondent à un calcul à la main sur un jeu de parties
+  de test, cas limites compris. ✔
 
-- Une partie compte dans le total dès qu'elle est terminée : gagnée, perdue ou abandonnée.
-  Par défaut, **une partie abandonnée compte comme perdue**.
-- Pas de victoire : la moyenne s'affiche « — », jamais 0.
-- Pas de partie : « Aucune partie jouée ».
-- Affichage : nombre total de parties, victoires, les deux statistiques ; pas de
-  classement ni de comparaison entre joueurs.
-- **Fini quand :** les valeurs affichées correspondent à un calcul à la main sur un jeu de
-  parties de test, cas limites compris.
+### v1.6 Vie privée et exploitation (S) : fait
 
-### v1.6 Vie privée et exploitation (S)
+- **Données minimales** : le site n'utilise du compte Google que le **nom** et l'**avatar**
+  (l'identifiant sert de clé) ; Supabase garde aussi l'adresse e-mail pour la connexion (on ne peut
+  pas la refuser), le site ne la lit jamais. Chaque partie ne contient ni la mine, ni les notes, ni
+  les dessins.
+- **Page Confidentialité** (`#confidentialite`, lien en bas du jeu une fois le backend branché et
+  sur la page Profil) : ce qui est gardé et où (Supabase ; navigateur), ce qui ne l'est jamais, les
+  droits (consulter, se déconnecter, supprimer). Sans backend, la page dit que rien ne quitte le
+  navigateur.
+- **Suppression du compte** : bouton avec confirmation ; la fonction SQL `delete_my_account()`
+  (`security definer`, sans paramètre : elle ne vise que `auth.uid()`) supprime le compte, et ses
+  parties partent avec (clé étrangère en cascade) ; la session locale et la file d'envoi de cet
+  utilisateur sont effacées, retour au jeu sans compte. En cas d'échec, rien n'est supprimé et on
+  reste connecté. Tests SQL (`account.test.sql`) : refusé sans connexion, n'efface que l'appelant et
+  ses parties, un compte déjà supprimé ne provoque pas d'erreur.
+- **Environnements et secrets** : un projet Supabase par environnement ; la configuration passe par
+  `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` (publiques) : `.env.local` en développement,
+  *variables* du dépôt GitHub en production (`deploy.yml` les transmet au build ; absentes, le site
+  est publié sans connexion). Les fichiers `.env*` sont ignorés par git (sauf `.env.example`). Le
+  secret client Google reste dans Supabase. Un test échoue si `service_role`, `sb_secret_` ou un
+  jeton JWT apparaît dans le code du site, ou si une autre variable `VITE_*` est lue.
+- **Politique de sécurité du contenu** (build seulement) : `script-src 'self'`, requêtes sortantes
+  limitées au projet Supabase configuré, avatars Google en https. Vérifiée dans un navigateur sur le
+  build : aucune violation en jeu normal, un script injecté ne s'exécute pas. Elle double la
+  correction d'échappement de la v1.4.
+- **Fini quand :** un utilisateur peut effacer son compte et ses parties, et aucun secret n'est dans
+  le dépôt. ✔
 
-- Ne conserver que le nécessaire de Google (identifiant, nom, avatar).
-- Page de confidentialité ; suppression du compte avec **effacement de ses parties**.
-- Séparation des environnements (développement / production) et gestion des secrets hors du
-  dépôt.
+### Critères de sortie : livraison de la v2 (v2.0.0)
 
-### Critères de sortie : livraison de la v2
-
-- Connexion Google fonctionnelle en production.
-- Les trois vues (accueil, partie, profil) sont navigables, le titre ramène à l'accueil.
-- L'historique et le profil reflètent exactement les parties terminées ; l'accueil liste les
-  parties en cours.
-- Aucun accès possible aux données d'un autre utilisateur.
-- Sans compte : une seule partie à la fois, jouable comme en v1 (sauvegarde locale inchangée).
+- **Code et tests : atteints.** Les trois vues sont navigables, le titre ramène à l'accueil, l'accueil
+  liste les parties en cours ; historique et profil reflètent exactement les parties terminées (tests
+  SQL et Vitest) ; aucun accès possible aux données d'un autre utilisateur (tests SQL, en CI) ;
+  la v1 sans compte fonctionne à l'identique (sans variables, aucun bouton, aucun appel réseau, la
+  bibliothèque n'est pas chargée).
+- **Reste à faire par le propriétaire, pour la mise en service** : créer le projet Supabase, appliquer
+  les migrations, créer l'identifiant OAuth Google, renseigner les variables du dépôt (guide pas à
+  pas : [`backend.md`](backend.md)), puis **essayer la connexion Google réelle** et une partie
+  complète de bout en bout. Tout ce qui précède a été vérifié contre une API Supabase simulée, pas
+  contre un vrai projet.
+- Ajouter, si la loi l'exige pour ce site, un contact et les mentions légales sur la page
+  Confidentialité (le texte actuel n'en contient pas).
 
 ### Notes de conception pour la v2
 
@@ -633,6 +797,11 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
   la graine. Arbitrage du propriétaire, noté dans `regles.md` : sonder un corps noir répond
   « signal perdu », sonder un diamant répond « diamant ».
 
+- **v2.0.0** : livraison de la v2 (étapes v1.1 à v1.6 : Supabase, connexion Google, historique et
+  profil, confidentialité, barre du haut, routeur et accueil, parties en cours côté serveur), fusionnée
+  avec la v1.0.17 (sondes comptées comme des tirs, migration 4). Complète côté code ; reste la mise
+  en service. (Les numéros v2.1 à v2.7 désignent des **étapes** de la v3, pas des versions du site.)
+
 ## Questions ouvertes
 
 - **Duel (v3) : « en même temps » ou tour par tour ?** Tu as écrit que l'IA joue en même temps que
@@ -645,9 +814,11 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
   invités ? Chronomètre par tour ?
 - Soumission : une seule tentative (comme à deux joueurs, une erreur = défaite) ou
   plusieurs essais ?
-- Une partie abandonnée compte-t-elle comme perdue dans le pourcentage de victoires ?
-  Proposition : oui.
+- ~~Un « sondage de case » compte-t-il dans le nombre de lasers ?~~ Décidé en v1.0.17 : oui, un seul
+  compteur de **tirs** (lasers + sondes) ; la moyenne du profil porte sur les tirs.
+- ~~Une partie abandonnée compte-t-elle comme perdue dans le pourcentage de victoires ?~~ Décidé en
+  v1.1 : oui.
 - Limite de tirs imposée ou simple compteur ?
 - Dimensions des gemmes : voir [`regles.md`](regles.md). (Règle d de contact : tranchée, voir `regles.md`.)
-- Supabase ou Firebase pour la v2 ?
-- Nombre maximal de parties en cours par compte (par exemple 10) ?
+- ~~Supabase ou Firebase pour la v2 ?~~ Décidé en v1.1 : Supabase.
+- ~~Nombre maximal de parties en cours par compte~~ : décidé pour la v2, 10 (imposé par la base).

@@ -1,7 +1,7 @@
 {
   "name": "orapa-training",
   "private": true,
-  "version": "1.0.17",
+  "version": "2.0.0",
   "description": "Site d'entraînement au jeu de société Orapa Mine",
   "type": "module",
   "engines": {
@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test:db": "bash supabase/tests/run.sh"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -29,5 +30,8 @@
     "typescript-eslint": "^8.72.2",
     "vite": "^8.3.8",
     "vitest": "^5.1.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.0"
   }
 }

@@ -28,8 +28,23 @@ vous n'avez pas assez cherché.
 - **Règles** du jeu dans le site (`#regles`), accessibilité (clavier, lecteurs d'écran),
   thèmes clair et sombre, mobile.
 
-Pas de compte ni de serveur : tout tourne dans le navigateur. La version 2 ajoutera la connexion
-Google, l'historique des parties et un profil ; la version 3 ajoutera un plateau personnalisé et un duel contre une IA, la version 4 un duel en direct contre un autre joueur (voir [`docs/roadmap.md`](docs/roadmap.md)).
+Sans configuration, pas de compte ni de serveur : tout tourne dans le navigateur.
+
+## Ce que fait la version 2 (comptes, optionnel)
+
+Une fois le site relié à un projet Supabase ([`docs/backend.md`](docs/backend.md)) :
+
+- **Connexion Google** (facultative : le jeu reste identique sans compte).
+- **Parties en cours sur le compte** : accueil avec la liste, reprise sur un autre appareil (dix au
+  plus).
+- **Historique** (`#/historique`) : parties terminées, filtre victoires / défaites, tri, lien pour
+  rejouer la même mine ; envoi avec file locale en cas de coupure.
+- **Profil** (`#/profil`) : nombre de parties, victoires, % de victoires et tirs moyens par
+  victoire (une partie abandonnée compte comme perdue).
+- **Confidentialité** (`#/confidentialite`) : ce qui est gardé, suppression du compte et de ses parties.
+- Chaque utilisateur ne voit que ses parties (sécurité par ligne, testée en CI).
+
+Ensuite : la version 3 ajoutera un plateau personnalisé et un duel contre une IA, la version 4 un duel en direct contre un autre joueur (voir [`docs/roadmap.md`](docs/roadmap.md)).
 
 ## Développer
 
@@ -37,6 +52,7 @@ Google, l'historique des parties et un profil ; la version 3 ajoutera un plateau
 npm install
 npm run dev        # http://localhost:5173
 npm test           # tests Vitest
+npm run test:db    # tests SQL de la sécurité par ligne (demande un Postgres)
 npm run lint       # ESLint
 npm run typecheck  # TypeScript
 npm run build      # build statique dans dist/
@@ -50,6 +66,8 @@ fait à chaque push sur `main`.
 - `src/game/` : toute la logique du jeu, sans DOM (grille, gemmes, géométrie, laser, génération,
   session, solution, notes, sauvegarde).
 - `src/ui/` : l'interface (SVG et DOM).
+- `src/backend/` : connexion Google, parties, file d'envoi (Supabase, chargé à la demande).
+- `supabase/` : migrations SQL et leurs tests.
 - `tests/` : tests Vitest.
 - [`docs/regles.md`](docs/regles.md) : les règles du jeu, référence unique.
 - [`docs/roadmap.md`](docs/roadmap.md) : le plan et l'état d'avancement.

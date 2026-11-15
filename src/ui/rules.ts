@@ -17,7 +17,6 @@ import { boundingBox } from '../game/geometry';
 import { shoot } from '../game/laser';
 import { boardFrame, entryLabelsSvg } from './board';
 import { RAY_COLOR, gemPolygons, lostSignalHtml } from './palette';
-import { t } from './strings';
 
 const COLORS: readonly GemColor[] = ['red', 'yellow', 'blue', 'white'];
 
@@ -75,10 +74,9 @@ const COLOR_NAME: Record<GemColor, string> = {
   white: 'blanc',
 };
 
-export function rulesPage(version: string): string {
+export function rulesPage(): string {
   return `
     <article class="rules">
-      <p><a class="back" href="#jeu">← ${t.nav.backToGame}</a></p>
       <h1>Règles</h1>
 
       <h2>But</h2>
@@ -121,7 +119,6 @@ export function rulesPage(version: string): string {
         <li><b>Gemmes</b> : posez les gemmes ; touchez un repère pour tester un tir sur votre grille.</li>
         <li><b>Soumettre</b> : une seule proposition.</li>
       </ul>
-      <p><a class="back" href="#jeu">← ${t.nav.backToGame}</a></p>
-      <p class="hint">Orapa Mine : J. Choi et W. Gill (Gameology, Miraludo) · v${version}</p>
+      <p class="hint">Orapa Mine : J. Choi et W. Gill (Gameology, Miraludo)</p>
     </article>`;
 }
