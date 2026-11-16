@@ -136,12 +136,16 @@ describe('accueil', () => {
     expect(html).not.toContain('<b>');
   });
 
-  it('bloque « Nouvelle partie » avec une partie en cours, et explique comment faire', () => {
-    const offline = homePage(home({ newGameBlocked: true, accounts: false }));
-    expect(offline).toMatch(/data-action="new-game" disabled|disabled>Nouvelle/);
-    expect(offline).toContain('Terminer la partie en cours');
-    const withAccounts = homePage(home({ newGameBlocked: true, accounts: true }));
-    expect(withAccounts).toContain('se connecter');
+  it('laisse « Nouvelle partie » disponible avec une partie en cours (la modale confirme)', () => {
+    const offline = homePage(home({ newGameBlocked: false, accounts: false }));
+    expect(offline).not.toMatch(/new-game"[^>]*disabled/);
+    expect(offline).not.toContain('class="hint"');
+  });
+
+  it('bloque « Nouvelle partie » à la limite de parties en cours, avec le motif', () => {
+    const html = homePage(home({ newGameBlocked: true, limitReached: true, signedIn: true }));
+    expect(html).toMatch(/new-game"[^>]*disabled/);
+    expect(html).toContain('10 parties en cours au maximum');
   });
 
   it('sans partie : seulement « Nouvelle partie », disponible', () => {

@@ -117,9 +117,10 @@ Pages :
 4. **Historique** (connecté) : les parties terminées, filtre victoires / défaites, tri, « Rejouer ».
    (Page à part, à la demande du propriétaire, et non dans la vue Profil.)
 
-**Sans compte, une seule partie à la fois** (la sauvegarde locale) : tant qu'elle n'est pas terminée,
-« Nouvelle partie » est désactivée (la terminer, ou se connecter) et un lien vers une autre mine est
-ignoré. **Il n'y a pas d'abandon** (retiré en 2.0.1) : on termine une partie en la soumettant ; le
+**Sans compte, une seule partie à la fois** (la sauvegarde locale) : « Nouvelle partie » reste
+disponible mais **remplace** la partie en cours, après une **modale de confirmation** (« Vous allez perdre
+votre partie en cours. Connectez-vous pour sauvegarder plusieurs parties en même temps. ») ; un lien vers
+une autre mine est ignoré. **Il n'y a pas d'abandon** (retiré en 2.0.1) : on termine une partie en la soumettant ; le
 statut `abandoned` n'existe plus que dans les anciennes données, où il compte comme une défaite. Avec un compte, plusieurs parties en cours (10 au plus), enregistrées côté
 serveur et synchronisées (`backend/sync.ts`) : on les reprend depuis n'importe quel appareil.
 

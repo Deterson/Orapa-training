@@ -1,6 +1,6 @@
 /**
  * Page d'accueil : la partie en cours (reprendre) et « Nouvelle partie ». Sans compte, une seule
- * partie à la fois : tant qu'elle n'est pas terminée, « Nouvelle partie » n'est pas disponible.
+ * partie à la fois : « Nouvelle partie » la remplace, après confirmation (modale de l'application).
  * Pas d'horloge : le temps ne se montre qu'à la fin de la partie.
  */
 import { formatDate, plural } from './format';
@@ -71,11 +71,7 @@ function others(model: HomeModel): string {
 }
 
 export function homePage(model: HomeModel): string {
-  const hint = model.limitReached
-    ? `<p class="hint">${t.home.limit}</p>`
-    : !model.newGameBlocked
-      ? ''
-      : `<p class="hint">${model.accounts ? t.home.blockedSignIn : t.home.blockedNoAccount}</p>`;
+  const hint = model.limitReached ? `<p class="hint">${t.home.limit}</p>` : '';
   return `<div class="home">
     <h1 class="sr-only">${t.appName}</h1>
     ${model.current ? card(model.current, model.canImport) : ''}

@@ -59,6 +59,11 @@ export const fr = {
     cancel: 'Annuler',
     close: 'Fermer',
     dontAsk: 'Ne plus demander',
+    replaceTitle: 'Partie en cours',
+    replaceText: 'Vous allez perdre votre partie en cours.',
+    replaceSignIn:
+      'Vous allez perdre votre partie en cours. Connectez-vous pour sauvegarder plusieurs parties en même temps.',
+    replaceConfirm: 'Continuer',
   },
   options: {
     title: 'Extensions',
@@ -75,9 +80,7 @@ export const fr = {
   },
   home: {
     current: 'Partie en cours',
-    blocked: 'Partie en cours',
-    blockedSignIn: 'Terminer la partie en cours, ou se connecter.',
-    blockedNoAccount: 'Terminer la partie en cours.',
+    blocked: '10 parties en cours au maximum.',
     others: 'Parties en cours',
     import: 'Importer',
     limit: '10 parties en cours au maximum.',

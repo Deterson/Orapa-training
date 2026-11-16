@@ -284,9 +284,8 @@ directement la vue partie.
   bouton **« Connexion »** (non connecté) ou **« Déconnexion »** (connecté) qui lance l'OAuth Google ;
   la version du build reste en petit à côté. Le nom du joueur, cliquable, mène au profil.
 - **Sans compte** : **une seule partie à la fois**, celle de la sauvegarde locale. L'accueil la
-  propose (« Reprendre »). Tant qu'elle n'est pas terminée, « Nouvelle partie » n'est
-  pas disponible (terminer la partie ou se connecter) ; une fois terminée, on peut en lancer une
-  autre. Pas de liste, pas d'historique, pas de profil.
+  propose (« Reprendre »). « Nouvelle partie » la remplace, après une
+  modale de confirmation qui avertit de la perte et invite à se connecter. Pas de liste, pas d'historique, pas de profil.
 - **« Nouvelle partie »** (accueil) ouvre la fenêtre des **extensions** (Diamant, Corps noir),
   la même qu'au début d'une partie, puis lance la génération et ouvre la vue Partie.
 - **Avec compte** : plusieurs parties en cours en même temps, chacune reprise depuis l'accueil.
@@ -363,9 +362,9 @@ Autres décisions prises avec le propriétaire :
   Abandonner avec confirmation) et « Nouvelle partie » (fenêtre des extensions). Une partie
   sauvegardée revient en mémoire au chargement ; sur `#/partie` un rechargement la reprend
   directement (plus d'écran « Reprendre » intermédiaire).
-- **Sans compte, une seule partie à la fois** : « Nouvelle partie » est désactivée (barre et accueil)
-  tant que la partie n'est ni terminée ni abandonnée ; un lien vers une autre mine est ignoré
-  (la partie en cours est gardée). Après la fin, « Nouvelle partie » et « Rejouer » refonctionnent.
+- **Sans compte, une seule partie à la fois** : « Nouvelle partie » (barre et accueil) remplace la partie
+  en cours après une modale de confirmation (perte de la partie, invitation à se connecter) ; un lien
+  vers une autre mine est ignoré (la partie en cours est gardée). Après la fin, « Nouvelle partie » et « Rejouer » refonctionnent.
 - **Barre de la partie** : graine, extensions et **plein écran**, devenu un **pictogramme** affiché
   seulement sur écran tactile (`pointer: coarse`). Le bouton « Lien » a été retiré : l'adresse du
   navigateur porte déjà `?seed=…&ext=…` pendant la partie, et ce lien relance la même mine.
@@ -823,6 +822,10 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
   (avec « Effacer »), les cases « Notes » et « Gemmes » à droite. **Deux modes cachés** : *notes* dès qu'un
   outil de dessin est actif, *gemmes* sinon (nouveau bouton « Gemmes » à gauche de « Crayon », prise d'une
   gemme de la réserve, clic hors de la grille) ; le mode estompe légèrement l'autre calque.
+- **v2.0.4** : **« Nouvelle partie » n'est plus grisée sans compte** : elle remplace la partie en cours, après
+  une modale de confirmation (« Vous allez perdre votre partie en cours. Connectez-vous pour sauvegarder
+  plusieurs parties en même temps. », avec un bouton « Connexion »). Elle ne reste désactivée qu'à la
+  limite de 10 parties en cours du compte.
 
 ## Questions ouvertes
 

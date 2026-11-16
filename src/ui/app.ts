@@ -85,6 +85,8 @@ type Phase = 'idle' | 'loading' | 'options' | 'ready' | 'error';
 type Ask =
   | { kind: 'fire'; label: string }
   | { kind: 'probe'; cell: string }
+  /** « Nouvelle partie » sans compte alors qu'une partie est en cours : elle serait perdue. */
+  | { kind: 'replace' }
   /** Résumé d'un tir déjà fait (numéro du tir) : aucune action, il se ferme d'un clic. */
   | { kind: 'recap'; n: number };
 
@@ -466,8 +468,18 @@ export function startApp(
     if (state.choose) return optionsModal(state.choose);
     if (!ask) return '';
     if (ask.kind === 'recap') return recapModal(ask.n);
+    if (ask.kind === 'replace') return replaceModal();
     const title = ask.kind === 'fire' ? t.modal.fire(ask.label) : t.modal.probe(ask.cell);
     return `<div class="modal-backdrop" data-modal-backdrop><div class="modal" role="dialog" aria-modal="true" aria-label="${title}"><p class="modal-title">${title}</p><label class="check"><input type="checkbox" id="skip-confirm" />${t.modal.dontAsk}</label><div class="actions"><button type="button" data-action="modal-confirm">${t.modal.confirm}</button><button type="button" class="ghost" data-action="modal-cancel">${t.modal.cancel}</button></div></div></div>`;
+  };
+
+  /** Sans compte, une nouvelle partie efface la partie en cours : confirmation (et invitation à se connecter). */
+  const replaceModal = (): string => {
+    const canSignIn = state.backend !== null && state.authReady;
+    const signIn = canSignIn
+      ? `<button type="button" class="ghost" data-action="sign-in">${t.account.signIn}</button>`
+      : '';
+    return `<div class="modal-backdrop" data-modal-backdrop><div class="modal" role="alertdialog" aria-modal="true" aria-label="${t.modal.replaceTitle}"><p class="modal-title">${t.modal.replaceTitle}</p><p>${canSignIn ? t.modal.replaceSignIn : t.modal.replaceText}</p><div class="actions"><button type="button" data-action="modal-confirm">${t.modal.replaceConfirm}</button>${signIn}<button type="button" class="ghost" data-action="modal-cancel">${t.modal.cancel}</button></div></div></div>`;
   };
 
   /** Résumé d'un tir déjà fait : « E → F » et les pastilles de la couleur obtenue. Un clic n'importe où le ferme. */
@@ -589,8 +601,11 @@ export function startApp(
     state.playing.games.length + (inProgress() && state.game?.synced === false ? 1 : 0) >=
       MAX_PLAYING;
 
-  /** « Nouvelle partie » indisponible : sans compte, une seule partie à la fois. */
-  const newGameBlocked = (): boolean => (state.account === null && inProgress()) || limitReached();
+  /**
+   * « Nouvelle partie » indisponible : seulement à la limite de parties en cours du compte. Sans compte,
+   * elle reste disponible mais remplace la partie en cours, après confirmation (modale « replace »).
+   */
+  const newGameBlocked = (): boolean => limitReached();
 
   /** La vue Partie n'a de sens que s'il y a une partie (ou qu'elle se génère). */
   const gameAvailable = (): boolean =>
@@ -1210,6 +1225,7 @@ export function startApp(
     const skip = root.querySelector<HTMLInputElement>('#skip-confirm')?.checked ?? false;
     state.ask = null;
     if (!confirmed || ask.kind === 'recap') return render();
+    if (ask.kind === 'replace') return openOptions();
     if (skip) state.skipConfirm = true;
     if (ask.kind === 'fire') doFire(ask.label);
     else doProbe(ask.cell);
@@ -1528,6 +1544,7 @@ export function startApp(
     switch (action) {
       case 'sign-in':
         // La page est quittée pour Google : on sauvegarde d'abord la partie en cours.
+        state.ask = null;
         persist();
         void state.backend?.auth.signIn().catch(() => {
           state.notice = t.account.signInFailed;
@@ -1574,6 +1591,13 @@ export function startApp(
         return render();
       case 'new-game':
         if (newGameBlocked()) return;
+        // Sans compte, la partie en cours serait perdue : on demande d'abord confirmation.
+        if (state.account === null && inProgress()) {
+          state.ask = { kind: 'replace' };
+          render();
+          root.querySelector<HTMLElement>('[data-action="modal-confirm"]')?.focus();
+          return;
+        }
         return openOptions();
       case 'resume-game':
         if (state.session) {
