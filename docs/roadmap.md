@@ -826,6 +826,8 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
   une modale de confirmation (« Vous allez perdre votre partie en cours. Connectez-vous pour sauvegarder
   plusieurs parties en même temps. », avec un bouton « Connexion »). Elle ne reste désactivée qu'à la
   limite de 10 parties en cours du compte.
+- **v2.0.5** : **plus de confirmation « Laser en E ? » à la souris** (ordinateur) : le laser part directement ;
+  elle reste sur écran tactile (`pointer: coarse`), et la sonde d'une case demande toujours confirmation.
 
 ## Questions ouvertes
 

@@ -229,6 +229,15 @@ function viewFromHash(): View {
   }
 }
 
+/** Écran tactile (pointeur grossier) : même critère que les styles `@media (pointer: coarse)`. */
+function isTouchScreen(): boolean {
+  try {
+    return window.matchMedia('(pointer: coarse)').matches;
+  } catch {
+    return false;
+  }
+}
+
 /** Retire la graine de l'adresse (partie terminée ou lien ignoré) : un rechargement ne relance rien. */
 function clearSeedFromUrl(): void {
   try {
@@ -1203,7 +1212,8 @@ export function startApp(
       root.querySelector<HTMLElement>('.modal-close')?.focus();
       return;
     }
-    if (state.skipConfirm) return doFire(label);
+    // À la souris, le tir est direct (le repère est précis) ; au doigt, on confirme.
+    if (state.skipConfirm || !isTouchScreen()) return doFire(label);
     state.ask = { kind: 'fire', label };
     render();
     root.querySelector<HTMLElement>('[data-action="modal-confirm"]')?.focus();

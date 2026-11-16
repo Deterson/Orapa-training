@@ -152,7 +152,8 @@ Zones :
    le nom de la couleur apparaît **au survol de la souris** (pour toutes les couleurs). Viennent ensuite les
    sondes. **Pas d'horloge** : le temps n'est montré qu'au résultat.
 2. **Grille de jeu (au centre).** Les repères de bord sont cliquables pour tirer un laser, et **toucher une
-   case la sonde**. Chaque tir ou sonde demande une confirmation en modale (« Laser en E ? », « Sonder E4 ? »),
+   case la sonde**. Chaque sonde demande une confirmation en modale (« Sonder E4 ? »), et chaque laser aussi
+   **sur écran tactile seulement** (« Laser en E ? » ; à la souris, le laser part directement),
    désactivable pour la partie ; redemander un laser déjà tiré est gratuit et ouvre à la place une **modale de
    résumé** (« E → F » + pastilles de la couleur, fermée d'un clic n'importe où), redemander une case sondée est
    gratuit. Le numéro du tir figure sur le repère d'entrée (en haut à droite) et, dans une pastille de la
