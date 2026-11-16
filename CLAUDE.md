@@ -152,15 +152,19 @@ Zones :
    le nom de la couleur apparaît **au survol de la souris** (pour toutes les couleurs). Viennent ensuite les
    sondes. **Pas d'horloge** : le temps n'est montré qu'au résultat.
 2. **Grille de jeu (au centre).** Les repères de bord sont cliquables pour tirer un laser, et **toucher une
-   case la sonde**. Chaque sonde demande une confirmation en modale (« Sonder E4 ? »), et chaque laser aussi
-   **sur écran tactile seulement** (« Laser en E ? » ; à la souris, le laser part directement),
-   désactivable pour la partie ; redemander un laser déjà tiré est gratuit et ouvre à la place une **modale de
+   case la sonde**. Un tir ou une sonde se fait **en deux clics** (pas de modale) : le
+   premier sur un repère ou une case affiche une **bulle verte** (« Tirer en E ? », « Tirer en E4 ? »), le second au
+   même endroit tire ; un clic ailleurs, une gemme prise ou Échap annule la bulle. La ligne ajoutée à l'historique
+   et les pastilles du tir sur la grille apparaissent avec une courte animation. Redemander un laser déjà tiré est gratuit et ouvre à la place une **modale de
    résumé** (« E → F » + pastilles de la couleur, fermée d'un clic n'importe où), redemander une case sondée est
    gratuit. Le numéro du tir figure sur le repère d'entrée (en haut à droite) et, dans une pastille de la
    couleur obtenue (en bas à droite), sur le repère de sortie. **Le chemin du rayon n'est jamais tracé** (il
    trahirait les gemmes) ; il ne l'est que par l'outil « Simuler » (sur les gemmes du joueur) et à la fin.
    Les **gemmes posées** par le joueur (déplaçables, la gemme sélectionnée porte un **bouton rond ↻
-   (pivoter)** à son coin haut-droit, et la rouge un bouton **⇋ (retourner)**) et ses **notes** sont dessinées
+   (pivoter)**, sauf le losange blanc (identique dans ses quatre quarts de tour), et la rouge un bouton **⇋
+   (retourner)** ; les boutons sont ancrés à l'**axe de rotation** et ne bougent pas quand la gemme pivote.
+   Une gemme pivote autour du **centre de sa boîte** (`pivot` dans `game/gems.ts`), le Corps noir et le Diamant
+   autour de leur **case de droite** (la case de gauche après deux tours)) et ses **notes** sont dessinées
    sur cette grille. Les placements invalides (chevauchement, hors grille, contact par un segment) sont
    refusés ou signalés avec la règle enfreinte.
 3. **Sous la grille.** À gauche, **↶** (annuler), **↷** (rétablir) et **« Effacer »** (les notes). À droite, deux cases

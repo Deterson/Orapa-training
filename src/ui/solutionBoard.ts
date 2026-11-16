@@ -4,12 +4,16 @@
  * dans app.ts.
  */
 import { cellLabel } from '../game/board';
+import { GRID_COLS } from '../game/constants';
 import {
   EXTENSION_GEM_IDS,
   GEM_SHAPES,
   type GemId,
+  isRotatable,
   orientedPolygon,
+  placedPivot,
   placedPolygon,
+  pivotReach,
 } from '../game/gems';
 import { translate } from '../game/geometry';
 import type { SolutionIssue } from '../game/solution';
@@ -119,18 +123,29 @@ export function gemSize(solution: Solution, gem: GemId): { width: number; height
   return sizeOf(gem, solution[gem]?.orientation ?? { rotation: 0, flipped: false });
 }
 
-/** Bouton rond posé au coin haut-droit de la gemme sélectionnée : pivoter, et retourner pour la rouge. */
+/** Jusqu'où un bouton peut déborder de la grille (la marge du cadre est de 1,1 case, le bouton fait 0,46 de rayon). */
+const BUTTON_OVERFLOW = 0.6;
+
+/**
+ * Boutons ronds de la gemme sélectionnée : pivoter (sauf le losange, identique dans ses quatre quarts de
+ * tour) et, pour la rouge, retourner. Ils sont ancrés à l'axe de rotation de la gemme, au coin haut-droit
+ * du carré qui contient la gemme dans toutes ses orientations : l'axe ne bouge pas quand elle pivote, donc
+ * le bouton reste sous le doigt pour cliquer plusieurs fois. Il reste dans le cadre de la grille.
+ */
 export function gemButtonsSvg(view: Pick<GemsView, 'solution' | 'selected'>): string {
   const gem = view.selected;
   const placement = gem ? view.solution[gem] : null;
   if (!gem || !placement) return '';
-  const { width } = sizeOf(gem, placement.orientation);
-  const cx = placement.col + width + 0.15;
-  const cy = placement.row - 0.15;
+  const shape = GEM_SHAPES[gem];
+  const [pivotX, pivotY] = placedPivot(placement);
+  const reach = pivotReach(shape) + 0.15;
+  const cx = Math.min(pivotX + reach, GRID_COLS + BUTTON_OVERFLOW);
+  const cy = Math.max(pivotY - reach, -BUTTON_OVERFLOW);
   const button = (action: 'rotate' | 'flip', y: number, icon: string, label: string): string =>
     `<g class="gem-btn" data-action="${action}" role="button" tabindex="0" aria-label="${label}"><title>${label}</title><circle cx="${cx}" cy="${y}" r="0.46"/><text x="${cx}" y="${y + 0.03}">${icon}</text></g>`;
-  const rotate = button('rotate', cy, '↻', t.actions.rotate);
-  const flip = GEM_SHAPES[gem].flippable ? button('flip', cy + 1.05, '⇋', t.actions.flip) : '';
+  const rotate = isRotatable(shape) ? button('rotate', cy, '↻', t.actions.rotate) : '';
+  const flipY = rotate ? cy + 1.05 : cy;
+  const flip = shape.flippable ? button('flip', flipY, '⇋', t.actions.flip) : '';
   return `${rotate}${flip}`;
 }
 

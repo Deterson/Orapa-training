@@ -1318,6 +1318,76 @@ html.is-immersive body {
   }
 }
 
+/* Bulle verte « Tirer en E ? » : le premier clic sur un repère ou une case l'annonce, le second tire. */
+.shot-bubble {
+  pointer-events: none;
+  transform-box: fill-box;
+  filter: drop-shadow(0 0.05px 0.1px rgba(0, 0, 0, 0.35));
+  animation: bubble-in 0.16s ease-out;
+}
+
+.shot-bubble.from-top {
+  transform-origin: 50% 0;
+}
+
+.shot-bubble.from-bottom {
+  transform-origin: 50% 100%;
+}
+
+.shot-bubble.from-left {
+  transform-origin: 0 50%;
+}
+
+.shot-bubble.from-right {
+  transform-origin: 100% 50%;
+}
+
+.shot-bubble rect,
+.shot-bubble polygon {
+  fill: #1f8f4e;
+}
+
+.shot-bubble text {
+  fill: #fff;
+  font-size: 0.48px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+@keyframes bubble-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+/* Apparition du dernier tir : la ligne de l'historique glisse, les pastilles de la grille « poppent ». */
+.history li.is-new,
+.probe-list li.is-new {
+  animation: row-in 0.3s ease-out;
+}
+
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+}
+
+.pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pop-in 0.34s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+}
+
 /* Compte Google (v2) */
 
 .avatar {

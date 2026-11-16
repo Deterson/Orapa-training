@@ -7,7 +7,14 @@ import type { GemId } from '../game/gems';
 import type { Ink, Notes } from '../game/notes';
 import type { ProbeRecord, ShotRecord } from '../game/session';
 import { type Solution, type SolutionIssue, gemsOf } from '../game/solution';
-import { boardFrame, entryLabelsSvg, probeMarksSvg, probeTargetsSvg } from './board';
+import {
+  type Pending,
+  boardFrame,
+  bubbleSvg,
+  entryLabelsSvg,
+  probeMarksSvg,
+  probeTargetsSvg,
+} from './board';
 import { notesLayerSvg } from './notesLayer';
 import { INK_COLOR } from './palette';
 import { gemButtonsSvg, gemGroupSvg } from './solutionBoard';
@@ -26,6 +33,10 @@ export interface ImmersiveView {
   ink: Ink;
   /** Partie terminée : plus de tirs ni de sondes. */
   finished: boolean;
+  /** Tir ou sonde annoncé par la bulle verte, qui part au second clic. */
+  pending: Pending | null;
+  /** Dernier tir et dernière case sondée : leurs marques apparaissent en s'animant. */
+  fresh: { shot: number | null; probe: string | null };
 }
 
 /** Largeur ajoutée à droite de la grille pour la réserve. */
@@ -47,9 +58,10 @@ export function immersiveBoardSvg(view: ImmersiveView): string {
     gems,
     `<g id="note-layer" class="immersive-notes">${notesLayerSvg(view.notes)}</g>`,
     `<polyline id="note-preview" class="note-stroke" points="" stroke="${INK_COLOR[view.ink]}"/>`,
-    probeMarksSvg(view.probes),
-    entryLabelsSvg({ shots: view.shots, selected: null }),
+    probeMarksSvg(view.probes, view.fresh.probe),
+    entryLabelsSvg({ shots: view.shots, selected: null, fresh: view.fresh.shot }),
     gemButtonsSvg(view),
+    bubbleSvg(view.pending),
   ].join('');
   return boardFrame(
     'Plateau plein écran : tirez depuis les bords, sondez les cases, déplacez les gemmes, dessinez',

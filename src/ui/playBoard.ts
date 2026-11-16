@@ -10,7 +10,15 @@ import type { ShotResult } from '../game/laser';
 import type { Ink, Notes } from '../game/notes';
 import type { ProbeRecord, ShotRecord } from '../game/session';
 import { type Solution, type SolutionIssue, gemsOf } from '../game/solution';
-import { boardFrame, cursorSvg, entryLabelsSvg, probeMarksSvg, probeTargetsSvg } from './board';
+import {
+  type Pending,
+  boardFrame,
+  bubbleSvg,
+  cursorSvg,
+  entryLabelsSvg,
+  probeMarksSvg,
+  probeTargetsSvg,
+} from './board';
 import { type Tool, isDrawingTool } from './notesBoard';
 import { notesLayerSvg } from './notesLayer';
 import { INK_COLOR, RAY_COLOR } from './palette';
@@ -34,6 +42,10 @@ export interface PlayView {
   hypothesis: ShotResult | null;
   /** Case du curseur clavier (sonder sans souris). */
   cursor: { row: number; col: number };
+  /** Tir ou sonde annoncé par la bulle verte, qui part au second clic. */
+  pending: Pending | null;
+  /** Dernier tir et dernière case sondée : leurs marques apparaissent en s'animant. */
+  fresh: { shot: number | null; probe: string | null };
 }
 
 function points(list: readonly (readonly [number, number])[]): string {
@@ -59,10 +71,14 @@ export function playBoardSvg(view: PlayView): string {
     `<g id="note-layer" class="board-notes">${view.notes ? notesLayerSvg(view.notes) : ''}</g>`,
     `<polyline id="note-preview" class="note-stroke" points="" stroke="${INK_COLOR[view.ink]}"/>`,
     ray,
-    probeMarksSvg(view.probes),
-    entryLabelsSvg({ shots: view.shots, selected: view.selectedShot }, action),
+    probeMarksSvg(view.probes, view.fresh.probe),
+    entryLabelsSvg(
+      { shots: view.shots, selected: view.selectedShot, fresh: view.fresh.shot },
+      action,
+    ),
     gemButtonsSvg(view),
     playing ? cursorSvg(view.cursor) : '',
+    bubbleSvg(view.pending),
   ].join('');
   return boardFrame(
     'Grille de jeu : tirez depuis les repères du bord, sondez les cases, placez vos gemmes, notez',

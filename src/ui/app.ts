@@ -48,6 +48,7 @@ import {
 } from '../game/notes';
 import { type Tool, footerHtml, isDrawingTool, toolsHtml } from './notesBoard';
 import { notesLayerSvg } from './notesLayer';
+import type { Pending } from './board';
 import { playBoardSvg } from './playBoard';
 import { INK_COLOR, INK_LABEL, RAY_COLOR, lostSignalHtml } from './palette';
 import { diffLine, resultBoardSvg } from './resultBoard';
@@ -83,8 +84,6 @@ import { gemOrigin, gemSize, trayHtml } from './solutionBoard';
 
 type Phase = 'idle' | 'loading' | 'options' | 'ready' | 'error';
 type Ask =
-  | { kind: 'fire'; label: string }
-  | { kind: 'probe'; cell: string }
   /** « Nouvelle partie » sans compte alors qu'une partie est en cours : elle serait perdue. */
   | { kind: 'replace' }
   /** Résumé d'un tir déjà fait (numéro du tir) : aucune action, il se ferme d'un clic. */
@@ -107,10 +106,12 @@ interface State {
   /** Outil actif ; null = jouer (tirer, sonder, déplacer les gemmes). */
   tool: Tool | null;
   ink: Ink;
-  /** Tir ou sonde en attente de confirmation (fenêtre modale). */
+  /** Fenêtre modale ouverte : résumé d'un tir, ou remplacement de la partie en cours. */
   ask: Ask | null;
-  /** Confirmations désactivées pour cette partie. */
-  skipConfirm: boolean;
+  /** Tir ou sonde annoncé par la bulle verte : le second clic au même endroit l'effectue. */
+  pending: Pending | null;
+  /** Dernier tir et dernière case sondée, pour animer leur apparition (effacés après l'animation). */
+  fresh: { shot: number | null; probe: string | null };
   /** Case du curseur clavier (sonder sans souris). */
   cursor: { row: number; col: number };
   /** Notes affichées sur la grille. */
@@ -229,15 +230,6 @@ function viewFromHash(): View {
   }
 }
 
-/** Écran tactile (pointeur grossier) : même critère que les styles `@media (pointer: coarse)`. */
-function isTouchScreen(): boolean {
-  try {
-    return window.matchMedia('(pointer: coarse)').matches;
-  } catch {
-    return false;
-  }
-}
-
 /** Retire la graine de l'adresse (partie terminée ou lien ignoré) : un rechargement ne relance rien. */
 function clearSeedFromUrl(): void {
   try {
@@ -343,7 +335,8 @@ export function startApp(
     tool: null,
     ink: 'ink',
     ask: null,
-    skipConfirm: false,
+    pending: null,
+    fresh: { shot: null, probe: null },
     cursor: { row: 0, col: 0 },
     showNotes: true,
     showGems: true,
@@ -376,7 +369,7 @@ export function startApp(
       ? `<ol class="history" aria-label="Tirs">${shots
           .map(
             (shot) =>
-              `<li><button type="button" class="shot${state.selected === shot.n ? ' is-selected' : ''}" data-shot="${shot.n}" aria-label="${describe(shot)}"><span class="n">${shot.n}</span><span class="path"><b>${shot.entry}</b> → ${isAbsorbed(shot) ? lostSignalHtml() : `<b>${shot.exit}</b>`}</span>${isAbsorbed(shot) ? '' : chips(shot.color)}</button></li>`,
+              `<li${state.fresh.shot === shot.n ? ' class="is-new"' : ''}><button type="button" class="shot${state.selected === shot.n ? ' is-selected' : ''}" data-shot="${shot.n}" aria-label="${describe(shot)}"><span class="n">${shot.n}</span><span class="path"><b>${shot.entry}</b> → ${isAbsorbed(shot) ? lostSignalHtml() : `<b>${shot.exit}</b>`}</span>${isAbsorbed(shot) ? '' : chips(shot.color)}</button></li>`,
           )
           .join('')}</ol>`
       : '';
@@ -384,7 +377,7 @@ export function startApp(
       ? `<ul class="probe-list" aria-label="Sondages">${session.probes
           .map(
             (probe) =>
-              `<li><b>${probe.cell}</b> · ${probe.content === 'black' ? `${lostSignalHtml()} ` : ''}${t.probe[probe.content]}</li>`,
+              `<li${state.fresh.probe === probe.cell ? ' class="is-new"' : ''}><b>${probe.cell}</b> · ${probe.content === 'black' ? `${lostSignalHtml()} ` : ''}${t.probe[probe.content]}</li>`,
           )
           .join('')}</ul>`
       : '';
@@ -471,15 +464,12 @@ export function startApp(
     return `<div class="modal-backdrop" data-options-backdrop><div class="modal" role="dialog" aria-modal="true" aria-label="${t.options.title}"><p class="modal-title">${t.options.title}</p><label class="check"><input type="checkbox" id="ext-diamond"${choose.diamond ? ' checked' : ''} />${t.options.diamond}</label><label class="check"><input type="checkbox" id="ext-black"${choose.blackBody ? ' checked' : ''} />${t.options.blackBody}</label><div class="actions"><button type="button" data-action="start-game">${t.options.play}</button><button type="button" class="ghost" data-action="cancel-options">${t.modal.cancel}</button></div></div></div>`;
   };
 
-  /** Fenêtre modale de confirmation d'un tir ou d'une sonde. */
+  /** Fenêtre modale : choix des extensions, résumé d'un tir, ou remplacement de la partie en cours. */
   const modal = (): string => {
     const { ask } = state;
     if (state.choose) return optionsModal(state.choose);
     if (!ask) return '';
-    if (ask.kind === 'recap') return recapModal(ask.n);
-    if (ask.kind === 'replace') return replaceModal();
-    const title = ask.kind === 'fire' ? t.modal.fire(ask.label) : t.modal.probe(ask.cell);
-    return `<div class="modal-backdrop" data-modal-backdrop><div class="modal" role="dialog" aria-modal="true" aria-label="${title}"><p class="modal-title">${title}</p><label class="check"><input type="checkbox" id="skip-confirm" />${t.modal.dontAsk}</label><div class="actions"><button type="button" data-action="modal-confirm">${t.modal.confirm}</button><button type="button" class="ghost" data-action="modal-cancel">${t.modal.cancel}</button></div></div></div>`;
+    return ask.kind === 'recap' ? recapModal(ask.n) : replaceModal();
   };
 
   /** Sans compte, une nouvelle partie efface la partie en cours : confirmation (et invitation à se connecter). */
@@ -522,7 +512,8 @@ export function startApp(
       session: session.toSnapshot(),
       solution: state.solution,
       notes: state.notes.present,
-      skipConfirm: state.skipConfirm,
+      // Champ d'anciennes sauvegardes (les confirmations par modale n'existent plus).
+      skipConfirm: false,
       ...(game ? { gameId: game.id, startedAt: game.startedAt } : {}),
       ...(synced && state.account ? { owner: state.account.id } : {}),
     };
@@ -585,6 +576,8 @@ export function startApp(
       tool: state.itool,
       ink: state.ink,
       finished: session.finished,
+      pending: state.pending,
+      fresh: state.fresh,
     });
     root.innerHTML = `
       <div class="immersive" role="application" aria-label="Plein écran">
@@ -742,6 +735,8 @@ export function startApp(
             ink: state.ink,
             hypothesis: state.hypothesis,
             cursor: state.cursor,
+            pending: state.pending,
+            fresh: state.fresh,
           })}${footerHtml({ history: state.notes, showNotes: state.showNotes, showGems: state.showGems })}`;
     } else {
       center = `<p class="placeholder" role="status">${
@@ -804,7 +799,6 @@ export function startApp(
     state.session = GameSession.fromSnapshot(save.session);
     state.solution = save.solution;
     state.notes = newHistory(save.notes);
-    state.skipConfirm = save.skipConfirm;
     state.game = {
       id: id ?? save.gameId ?? newGameId(),
       startedAt: save.startedAt ?? Math.max(0, save.savedAt - save.session.elapsedMs),
@@ -818,6 +812,8 @@ export function startApp(
     state.hypothesis = null;
     state.explored = null;
     state.ask = null;
+    state.pending = null;
+    state.fresh = { shot: null, probe: null };
     state.confirm = null;
     state.tool = null;
     state.phase = 'ready';
@@ -839,7 +835,8 @@ export function startApp(
     state.explored = null;
     state.notes = newHistory();
     state.ask = null;
-    state.skipConfirm = false;
+    state.pending = null;
+    state.fresh = { shot: null, probe: null };
     state.confirm = null;
     state.tool = null;
     state.notice = '';
@@ -886,21 +883,36 @@ export function startApp(
     });
   };
 
+  let freshTimer: number | undefined;
+  /** Retient le dernier tir ou la dernière sonde le temps de leur animation (sans réafficher ensuite). */
+  const markFresh = (fresh: State['fresh']): void => {
+    state.fresh = fresh;
+    window.clearTimeout(freshTimer);
+    freshTimer = window.setTimeout(() => {
+      state.fresh = { shot: null, probe: null };
+    }, 1000);
+  };
+
   const doFire = (label: string): void => {
+    state.pending = null;
     if (!state.session || state.session.finished) return;
     const shot = state.session.fire(label);
     state.selected = shot.n;
     state.notice = describe(shot);
+    markFresh({ shot: shot.n, probe: null });
     if (isAbsorbed(shot)) showLostSignal();
     render();
   };
 
   const doProbe = (label: string): void => {
+    state.pending = null;
     const { session } = state;
     if (!session || session.finished) return;
     try {
+      const known = session.probes.some((probe) => probe.cell === label);
       const record = session.probe(label);
       state.notice = `${record.cell} : ${t.probe[record.content]}`;
+      if (!known) markFresh({ shot: null, probe: record.cell });
       if (record.content === 'black') showLostSignal();
     } catch {
       state.notice = `« ${label} » : case invalide (A1 à H10).`;
@@ -1199,46 +1211,51 @@ export function startApp(
     render();
   };
 
-  /** Ouvre la confirmation, sauf si elle est désactivée ou si la réponse est déjà connue (gratuit). */
+  /**
+   * Tir au laser en deux clics : le premier sur un repère affiche la bulle verte « Tirer en E ? », le
+   * second sur le même repère tire. Un tir déjà fait est gratuit : on en montre le résumé à la place.
+   */
   const askFire = (label: string): void => {
     const session = state.session;
     if (!session || session.finished) return;
     const known = session.shots.find((shot) => shot.entry === label);
     if (known) {
-      // Déjà tiré : gratuit, on en montre le résumé.
+      state.pending = null;
       state.selected = known.n;
       state.ask = { kind: 'recap', n: known.n };
       render();
       root.querySelector<HTMLElement>('.modal-close')?.focus();
       return;
     }
-    // À la souris, le tir est direct (le repère est précis) ; au doigt, on confirme.
-    if (state.skipConfirm || !isTouchScreen()) return doFire(label);
-    state.ask = { kind: 'fire', label };
+    if (state.pending?.kind === 'fire' && state.pending.label === label) return doFire(label);
+    state.pending = { kind: 'fire', label };
     render();
-    root.querySelector<HTMLElement>('[data-action="modal-confirm"]')?.focus();
   };
 
+  /** Sonde en deux clics, comme le laser (bulle « Tirer en E4 ? »). Une case déjà sondée est gratuite. */
   const askProbe = (cell: string): void => {
     const session = state.session;
     if (!session || session.finished) return;
-    if (state.skipConfirm || session.probes.some((probe) => probe.cell === cell))
-      return doProbe(cell);
-    state.ask = { kind: 'probe', cell };
+    if (session.probes.some((probe) => probe.cell === cell)) return doProbe(cell);
+    if (state.pending?.kind === 'probe' && state.pending.cell === cell) return doProbe(cell);
+    state.pending = { kind: 'probe', cell };
     render();
-    root.querySelector<HTMLElement>('[data-action="modal-confirm"]')?.focus();
   };
 
+  /** Annule le tir ou la sonde annoncé : la bulle disparaît sans réafficher la page. */
+  const cancelPending = (): void => {
+    if (!state.pending) return;
+    state.pending = null;
+    root.querySelectorAll('.shot-bubble').forEach((element) => element.remove());
+  };
+
+  /** Ferme la fenêtre modale ; « Continuer » (remplacement de la partie en cours) ouvre le choix des extensions. */
   const closeAsk = (confirmed: boolean): void => {
     const ask = state.ask;
     if (!ask) return;
-    const skip = root.querySelector<HTMLInputElement>('#skip-confirm')?.checked ?? false;
     state.ask = null;
-    if (!confirmed || ask.kind === 'recap') return render();
-    if (ask.kind === 'replace') return openOptions();
-    if (skip) state.skipConfirm = true;
-    if (ask.kind === 'fire') doFire(ask.label);
-    else doProbe(ask.cell);
+    if (confirmed && ask.kind === 'replace') return openOptions();
+    render();
   };
 
   /** Après la fin de la partie : tire un laser libre dans la mine révélée et en trace le trajet. */
@@ -1434,6 +1451,10 @@ export function startApp(
 
   root.addEventListener('pointerdown', (event) => {
     if (event.button > 0) return;
+    // Prendre une gemme ou dessiner annule le tir annoncé par la bulle (le clic final peut ne pas arriver).
+    if (!(event.target as Element).closest('[data-fire], [data-probe], [data-cursor]')) {
+      cancelPending();
+    }
     if (state.immersive) {
       const target = event.target as Element;
       if (state.itool === 'move') {
@@ -1462,6 +1483,8 @@ export function startApp(
 
   root.addEventListener('click', (event) => {
     const target = event.target as Element;
+    // Un clic ailleurs que sur un repère ou une case annule le tir annoncé par la bulle.
+    if (!target.closest('[data-fire], [data-probe], [data-cursor]')) cancelPending();
     // Un clic ailleurs que sur une gemme ou ses boutons ronds désélectionne la gemme : les boutons
     // disparaissent aussitôt (retirés du DOM sans refaire l'affichage, pour ne pas perdre le clic).
     if (
@@ -1698,6 +1721,11 @@ export function startApp(
       }
       return;
     }
+    if (state.pending && event.key === 'Escape') {
+      event.preventDefault();
+      cancelPending();
+      return;
+    }
     if (target.closest('[data-cursor]')) {
       const step: Record<string, [number, number]> = {
         ArrowLeft: [0, -1],
@@ -1717,6 +1745,7 @@ export function startApp(
       } else if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
         askProbe(cellLabel(state.cursor));
+        root.querySelector<SVGElement>('[data-cursor]')?.focus();
       }
       return;
     }
@@ -1781,6 +1810,7 @@ export function startApp(
     if (fireEntry) {
       event.preventDefault();
       askFire(fireEntry);
+      root.querySelector<SVGElement>(`[data-fire="${fireEntry}"]`)?.focus();
     } else if (hypoEntry) {
       event.preventDefault();
       testOnSolution(hypoEntry);

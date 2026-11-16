@@ -53,17 +53,18 @@ export const fr = {
     black: 'signal perdu',
   } satisfies Record<ProbeRecord['content'], string>,
   modal: {
-    fire: (label: string) => `Laser en ${label} ?`,
-    probe: (cell: string) => `Sonder ${cell} ?`,
-    confirm: 'Confirmer',
     cancel: 'Annuler',
     close: 'Fermer',
-    dontAsk: 'Ne plus demander',
     replaceTitle: 'Partie en cours',
     replaceText: 'Vous allez perdre votre partie en cours.',
     replaceSignIn:
       'Vous allez perdre votre partie en cours. Connectez-vous pour sauvegarder plusieurs parties en même temps.',
     replaceConfirm: 'Continuer',
+  },
+  /** Bulle verte du premier clic sur un repère (laser) ou une case (sonde) ; le second clic tire. */
+  bubble: {
+    fire: (label: string) => `Tirer en ${label} ?`,
+    probe: (cell: string) => `Tirer en ${cell} ?`,
   },
   options: {
     title: 'Extensions',

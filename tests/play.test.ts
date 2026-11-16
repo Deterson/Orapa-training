@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { newHistory } from '../src/game/notes';
-import { emptySolution } from '../src/game/solution';
-import { EXTENSION_GEM_IDS, BASE_GEM_IDS } from '../src/game/gems';
+import { emptySolution, rotateGem } from '../src/game/solution';
+import { EXTENSION_GEM_IDS, BASE_GEM_IDS, type GemId } from '../src/game/gems';
 import { footerHtml, isDrawingTool, toolsHtml } from '../src/ui/notesBoard';
+import type { Pending } from '../src/ui/board';
 import { playBoardSvg } from '../src/ui/playBoard';
-import { trayHtml } from '../src/ui/solutionBoard';
+import { gemButtonsSvg, trayHtml } from '../src/ui/solutionBoard';
+import type { ProbeRecord, ShotRecord } from '../src/game/session';
 
 const baseView = {
   solution: emptySolution(),
@@ -19,6 +21,8 @@ const baseView = {
   ink: 'ink' as const,
   hypothesis: null,
   cursor: { row: 0, col: 0 },
+  pending: null as Pending | null,
+  fresh: { shot: null as number | null, probe: null as string | null },
 };
 
 describe('outils de notes', () => {
@@ -97,6 +101,111 @@ describe('grille de jeu unique', () => {
     const html = playBoardSvg({ ...baseView, tool: 'simulate' });
     expect(html).toContain('data-hypo="1"');
     expect(html).not.toContain('data-fire');
+  });
+});
+
+describe('bulle de confirmation du tir', () => {
+  it('sans tir annoncé : aucune bulle', () => {
+    expect(playBoardSvg(baseView)).not.toContain('shot-bubble');
+  });
+
+  it('annonce un laser : « Tirer en E ? », bulle verte à l’intérieur de la grille', () => {
+    const html = playBoardSvg({ ...baseView, pending: { kind: 'fire', label: 'E' } });
+    expect(html).toContain('class="shot-bubble from-left"');
+    expect(html).toContain('>Tirer en E ?<');
+    // Elle laisse passer le pointeur : le second clic tombe sur le repère.
+    expect(html.indexOf('shot-bubble')).toBeGreaterThan(html.indexOf('data-fire="E"'));
+  });
+
+  it('annonce une sonde : « Tirer en E4 ? » au-dessus de la case, ou en dessous en haut de grille', () => {
+    const middle = playBoardSvg({ ...baseView, pending: { kind: 'probe', cell: 'E4' } });
+    expect(middle).toContain('>Tirer en E4 ?<');
+    expect(middle).toContain('from-bottom');
+    const top = playBoardSvg({ ...baseView, pending: { kind: 'probe', cell: 'A4' } });
+    expect(top).toContain('from-top');
+  });
+
+  it('un repère ou une case inconnus ne dessinent rien', () => {
+    expect(playBoardSvg({ ...baseView, pending: { kind: 'fire', label: 'ZZ' } })).not.toContain(
+      'shot-bubble',
+    );
+    expect(playBoardSvg({ ...baseView, pending: { kind: 'probe', cell: 'Z99' } })).not.toContain(
+      'shot-bubble',
+    );
+  });
+});
+
+describe('apparition animée des marques', () => {
+  const shot: ShotRecord = {
+    n: 1,
+    entry: '1',
+    exit: '11',
+    color: 'red',
+    path: [],
+  } as unknown as ShotRecord;
+  const probe: ProbeRecord = { cell: 'E4', content: 'nothing' } as ProbeRecord;
+
+  it("anime seulement les pastilles du dernier tir, pas celles d'avant", () => {
+    const fresh = playBoardSvg({ ...baseView, shots: [shot], fresh: { shot: 1, probe: null } });
+    expect(fresh).toContain('class="pop"');
+    const old = playBoardSvg({ ...baseView, shots: [shot] });
+    expect(old).not.toContain('class="pop"');
+  });
+
+  it('anime la marque de la case qui vient d’être sondée', () => {
+    const fresh = playBoardSvg({
+      ...baseView,
+      probes: [probe],
+      fresh: { shot: null, probe: 'E4' },
+    });
+    expect(fresh).toContain('probe-nothing pop');
+    expect(playBoardSvg({ ...baseView, probes: [probe] })).not.toContain('pop');
+  });
+});
+
+describe('boutons de la gemme sélectionnée', () => {
+  const place = (gem: GemId, rotation: 0 | 1 | 2 | 3, col: number, row: number) => ({
+    ...emptySolution(),
+    [gem]: { gem, orientation: { rotation, flipped: false }, col, row },
+  });
+  const rotateButtonCenter = (solution: ReturnType<typeof emptySolution>, gem: GemId) => {
+    const html = gemButtonsSvg({ solution, selected: gem });
+    const match = /data-action="rotate".*?<circle cx="([\d.-]+)" cy="([\d.-]+)"/.exec(html);
+    return match ? [Number(match[1]), Number(match[2])] : null;
+  };
+
+  it('le bouton de rotation ne bouge pas quand on fait tourner la gemme', () => {
+    for (const gem of [
+      'blue-triangle',
+      'red-parallelogram',
+      'white-triangle',
+      'black-body',
+    ] as const) {
+      let solution = place(gem, 0, 3, 3);
+      const first = rotateButtonCenter(solution, gem);
+      expect(first).not.toBeNull();
+      for (let turn = 0; turn < 4; turn++) {
+        solution = rotateGem(solution, gem);
+        expect(rotateButtonCenter(solution, gem)).toEqual(first);
+      }
+    }
+  });
+
+  it('le losange blanc n’a pas de bouton de rotation', () => {
+    const html = gemButtonsSvg({
+      solution: place('white-rhombus', 0, 3, 3),
+      selected: 'white-rhombus',
+    });
+    expect(html).not.toContain('data-action="rotate"');
+  });
+
+  it('la gemme rouge garde son bouton de retournement', () => {
+    const html = gemButtonsSvg({
+      solution: place('red-parallelogram', 0, 3, 3),
+      selected: 'red-parallelogram',
+    });
+    expect(html).toContain('data-action="rotate"');
+    expect(html).toContain('data-action="flip"');
   });
 });
 

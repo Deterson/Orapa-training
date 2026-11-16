@@ -39,6 +39,13 @@ export interface GemShape {
    * C'est le cas de la gemme rouge seulement (précision du propriétaire du projet).
    */
   flippable: boolean;
+  /**
+   * Axe de rotation, dans l'orientation de référence : le point autour duquel la gemme pivote, et qui
+   * reste en place quand on la fait tourner. Le centre de la boîte englobante, sauf pour les pièces
+   * dont la boîte a une largeur et une hauteur de parités différentes (Diamant, Corps noir) : le
+   * centre de leur case de droite, pour que le pivot tombe sur une case.
+   */
+  pivot: Point;
 }
 
 const BIG_TRIANGLE: Polygon = [
@@ -59,6 +66,7 @@ export const GEM_SHAPES: Readonly<Record<GemId, GemShape>> = {
       [0, 1],
     ],
     flippable: true,
+    pivot: [1.5, 0.5],
   },
   'yellow-triangle': {
     id: 'yellow-triangle',
@@ -70,6 +78,7 @@ export const GEM_SHAPES: Readonly<Record<GemId, GemShape>> = {
       [0, 2],
     ],
     flippable: false,
+    pivot: [1, 1],
   },
   'blue-triangle': {
     id: 'blue-triangle',
@@ -77,6 +86,7 @@ export const GEM_SHAPES: Readonly<Record<GemId, GemShape>> = {
     label: 'Grand triangle bleu',
     vertices: BIG_TRIANGLE,
     flippable: false,
+    pivot: [2, 1],
   },
   'white-rhombus': {
     id: 'white-rhombus',
@@ -89,6 +99,7 @@ export const GEM_SHAPES: Readonly<Record<GemId, GemShape>> = {
       [0, 1],
     ],
     flippable: false,
+    pivot: [1, 1],
   },
   'white-triangle': {
     id: 'white-triangle',
@@ -96,6 +107,7 @@ export const GEM_SHAPES: Readonly<Record<GemId, GemShape>> = {
     label: 'Grand triangle blanc',
     vertices: BIG_TRIANGLE,
     flippable: false,
+    pivot: [2, 1],
   },
   diamond: {
     id: 'diamond',
@@ -108,6 +120,7 @@ export const GEM_SHAPES: Readonly<Record<GemId, GemShape>> = {
       [1, 1],
     ],
     flippable: false,
+    pivot: [1.5, 0.5],
   },
   'black-body': {
     id: 'black-body',
@@ -121,6 +134,7 @@ export const GEM_SHAPES: Readonly<Record<GemId, GemShape>> = {
       [0, 1],
     ],
     flippable: false,
+    pivot: [1.5, 0.5],
   },
 };
 
@@ -180,11 +194,45 @@ export interface Placement {
 
 /** Sommets de la gemme dans cette orientation, boîte englobante recalée en (0, 0). */
 export function orientedPolygon(shape: GemShape, orientation: Orientation): Polygon {
-  let polygon: Polygon = orientation.flipped ? mirrorX(shape.vertices) : shape.vertices;
+  return normalize(turned(shape.vertices, orientation));
+}
+
+/** Applique le retournement puis les quarts de tour, sans recaler la boîte englobante. */
+function turned(points: Polygon, orientation: Orientation): Polygon {
+  let result: Polygon = orientation.flipped ? mirrorX(points) : points;
   for (let i = 0; i < orientation.rotation; i++) {
-    polygon = rotateQuarterTurn(polygon);
+    result = rotateQuarterTurn(result);
   }
-  return normalize(polygon);
+  return result;
+}
+
+/** Axe de rotation de la gemme dans cette orientation, relatif au coin haut-gauche de sa boîte. */
+export function orientedPivot(shape: GemShape, orientation: Orientation): Point {
+  const { minX, minY } = boundingBox(turned(shape.vertices, orientation));
+  const [x, y] = turned([shape.pivot], orientation)[0] ?? shape.pivot;
+  return [x - minX, y - minY];
+}
+
+/** Axe de rotation de la gemme posée, en coordonnées de la grille : il ne bouge pas quand elle tourne. */
+export function placedPivot(placement: Placement): Point {
+  const [x, y] = orientedPivot(GEM_SHAPES[placement.gem], placement.orientation);
+  return [placement.col + x, placement.row + y];
+}
+
+/** Distance maximale de l'axe aux bords de la gemme, quelle que soit son orientation (en cases). */
+export function pivotReach(shape: GemShape): number {
+  const [px, py] = shape.pivot;
+  return Math.max(...shape.vertices.map(([x, y]) => Math.max(Math.abs(x - px), Math.abs(y - py))));
+}
+
+/** Vrai si faire tourner la gemme change quelque chose (faux pour le losange, identique dans ses 4 quarts de tour). */
+export function isRotatable(shape: GemShape): boolean {
+  const keys = new Set(
+    ([0, 1, 2, 3] as const).map((rotation) =>
+      polygonKey(orientedPolygon(shape, { rotation, flipped: false })),
+    ),
+  );
+  return keys.size > 1;
 }
 
 /** Sommets de la gemme posée, en coordonnées de la grille (unité : la case). */

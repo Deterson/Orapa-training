@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BOOKLET_LAYOUT } from '../src/game/examples';
 import { generateMine } from '../src/game/generate';
-import { GEM_SHAPES, type GemId, placedPolygon } from '../src/game/gems';
+import { GEM_SHAPES, type GemId, gemsFor, placedPivot, placedPolygon } from '../src/game/gems';
 import { boundingBox } from '../src/game/geometry';
 import { GameSession } from '../src/game/session';
 import {
@@ -88,7 +88,51 @@ describe('solution : rotation et retournement', () => {
     solution = rotateGem(solution, 'blue-triangle');
     const box = boundingBox(placedPolygon(solution['blue-triangle']!));
     expect(box.maxY).toBeLessThanOrEqual(8);
-    expect(solution['blue-triangle']).toMatchObject({ col: 6, row: 4 });
+    // Pivote autour du centre (8, 7), puis remonte pour ne pas dépasser le bas du plateau.
+    expect(solution['blue-triangle']).toMatchObject({ col: 7, row: 4 });
+  });
+
+  it('pivote autour du centre : la gemme pointant à gauche ou à droite ne se décale pas', () => {
+    for (const gem of ['blue-triangle', 'white-triangle'] as const) {
+      const turned = rotateGem(dropGem(emptySolution(), gem, 2, 2), gem);
+      // Boîte 4 × 2 en (2, 2), centre (4, 3) : la boîte 2 × 4 a le même centre.
+      expect(turned[gem]).toMatchObject({ col: 3, row: 1 });
+    }
+    const red = rotateGem(dropGem(emptySolution(), 'red-parallelogram', 2, 2), 'red-parallelogram');
+    // Boîte 3 × 1 en (2, 2), centre (3,5 ; 2,5) : la boîte 1 × 3 a le même centre.
+    expect(red['red-parallelogram']).toMatchObject({ col: 3, row: 1 });
+  });
+
+  it('le losange blanc ne pivote pas (identique dans ses quatre quarts de tour)', () => {
+    const solution = dropGem(emptySolution(), 'white-rhombus', 2, 2);
+    expect(rotateGem(solution, 'white-rhombus')).toBe(solution);
+  });
+
+  it('le Corps noir tourne autour de sa case de droite, puis de sa case de gauche après deux tours', () => {
+    const start = dropGem(
+      emptySolution(gemsFor({ diamond: false, blackBody: true })),
+      'black-body',
+      2,
+      2,
+    );
+    const pivotCell = (s: typeof start): [number, number] => {
+      const [x, y] = placedPivot(s['black-body']!);
+      return [x - 0.5, y - 0.5];
+    };
+    const [cx, cy] = pivotCell(start);
+    expect([cx, cy]).toEqual([3, 2]); // case de droite du Corps noir posé en (2, 2)
+    const states = [start];
+    for (let turn = 0; turn < 4; turn++) {
+      states.push(rotateGem(states[turn]!, 'black-body'));
+    }
+    // La case pivot ne bouge jamais ; au bout de quatre tours la gemme est revenue à sa place.
+    for (const s of states) expect(pivotCell(s)).toEqual([3, 2]);
+    expect(states[4]!['black-body']).toEqual(start['black-body']);
+    // Un tour : debout, l'autre case au-dessus du pivot ; deux tours : couchée, pivot à gauche.
+    expect(states[1]!['black-body']).toMatchObject({ col: 3, row: 1 });
+    expect(states[2]!['black-body']).toMatchObject({ col: 3, row: 2 });
+    // Trois tours : debout, l'autre case sous le pivot.
+    expect(states[3]!['black-body']).toMatchObject({ col: 3, row: 2 });
   });
 
   it("revient à l'orientation de départ après quatre quarts de tour", () => {

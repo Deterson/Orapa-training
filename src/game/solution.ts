@@ -11,7 +11,10 @@ import {
   type GemId,
   type Orientation,
   type Placement,
+  isRotatable,
+  orientedPivot,
   orientedPolygon,
+  placedPivot,
 } from './gems';
 import { boundingBox } from './geometry';
 import { shoot } from './laser';
@@ -90,14 +93,21 @@ export function nudgeGem(solution: Solution, gem: GemId, dCol: number, dRow: num
   );
 }
 
-/** Pivote la gemme d'un quart de tour (sens horaire), en la gardant dans le plateau. */
+/**
+ * Pivote la gemme d'un quart de tour (sens horaire) autour de son axe (`pivot` dans `gems.ts` : le
+ * centre de la boîte, ou la case de droite du Corps noir et du Diamant), puis la ramène dans le
+ * plateau. Le losange, identique dans ses quatre quarts de tour, ne pivote pas.
+ */
 export function rotateGem(solution: Solution, gem: GemId): Solution {
   const placement = solution[gem];
-  if (!placement) return solution;
+  if (!placement || !isRotatable(GEM_SHAPES[gem])) return solution;
   const rotation = ((placement.orientation.rotation + 1) % 4) as Orientation['rotation'];
+  const orientation = { ...placement.orientation, rotation };
+  const [pivotX, pivotY] = placedPivot(placement);
+  const [x, y] = orientedPivot(GEM_SHAPES[gem], orientation);
   return withPlacement(
     solution,
-    clamped({ ...placement, orientation: { ...placement.orientation, rotation } }),
+    clamped({ ...placement, orientation, col: pivotX - x, row: pivotY - y }),
     gem,
   );
 }
