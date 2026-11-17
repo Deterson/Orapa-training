@@ -31,6 +31,8 @@ export interface PlayView {
   shots: readonly ShotRecord[];
   /** Tir mis en avant dans l'historique. */
   selectedShot: number | null;
+  /** Sonde mise en avant dans l'historique. */
+  selectedProbe: string | null;
   probes: readonly ProbeRecord[];
   /** Notes affichées ; null pour les masquer. */
   notes: Notes | null;
@@ -53,7 +55,8 @@ function points(list: readonly (readonly [number, number])[]): string {
 }
 
 export function playBoardSvg(view: PlayView): string {
-  const playing = view.tool === null;
+  // Cases sondables et curseur clavier : en jeu normal et avec l'outil « Tir ».
+  const playing = view.tool === null || view.tool === 'fire';
   const gems = view.showGems
     ? gemsOf(view.solution)
         .filter((gem) => view.solution[gem] !== null)
@@ -71,7 +74,7 @@ export function playBoardSvg(view: PlayView): string {
     `<g id="note-layer" class="board-notes">${view.notes ? notesLayerSvg(view.notes) : ''}</g>`,
     `<polyline id="note-preview" class="note-stroke" points="" stroke="${INK_COLOR[view.ink]}"/>`,
     ray,
-    probeMarksSvg(view.probes, view.fresh.probe),
+    probeMarksSvg(view.probes, view.fresh.probe, view.selectedProbe),
     entryLabelsSvg(
       { shots: view.shots, selected: view.selectedShot, fresh: view.fresh.shot },
       action,

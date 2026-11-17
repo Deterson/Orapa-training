@@ -2,11 +2,15 @@ import './style.css';
 import { connectBackend } from './backend';
 import { readConfig } from './backend/config';
 import { startApp } from './ui/app';
+import { initTheme } from './ui/theme';
 
 const root = document.getElementById('app');
 if (!root) {
   throw new Error('Élément #app introuvable');
 }
+
+// Le thème choisi s'applique avant le premier affichage (pas de clignotement).
+initTheme();
 
 const app = startApp(root, __APP_VERSION__, {
   accountsConfigured: readConfig(import.meta.env) !== null,

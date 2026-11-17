@@ -78,8 +78,9 @@ export function entryLabelsSvg(
     ]
       .filter(Boolean)
       .join(' ');
-    const popped = (n: number, markup: string): string =>
-      marks?.fresh === n ? `<g class="pop">${markup}</g>` : markup;
+    // `late` : la pastille de résultat apparaît un demi-seconde après celle du tir (voir `.pop-late`).
+    const popped = (n: number, markup: string, late = false): string =>
+      marks?.fresh === n ? `<g class="pop${late ? ' pop-late' : ''}">${markup}</g>` : markup;
     const badge = from
       ? popped(
           from.n,
@@ -91,17 +92,18 @@ export function entryLabelsSvg(
     let dot = '';
     if (from && isAbsorbed(from)) {
       // Rayon absorbé : pas de point de sortie, le pictogramme « signal perdu » à sa place.
-      dot = popped(from.n, lostSignalSvg(x + 0.34, y + 0.34, 0.62));
+      dot = popped(from.n, lostSignalSvg(x + 0.34, y + 0.34, 0.62), true);
     } else if (to) {
       const dx = x + 0.34;
       const dy = y + 0.34;
       if (to.color === 'transparent') {
-        dot = popped(to.n, `<text class="exit-number" x="${dx}" y="${dy}">${to.n}</text>`);
+        dot = popped(to.n, `<text class="exit-number" x="${dx}" y="${dy}">${to.n}</text>`, true);
       } else {
         const fill = RAY_COLOR[to.color];
         dot = popped(
           to.n,
           `<circle class="dot" cx="${dx}" cy="${dy}" r="0.24" fill="${fill}"/><text class="dot-text" x="${dx}" y="${dy}" fill="${readableOn(fill)}">${to.n}</text>`,
+          true,
         );
       }
     }
@@ -129,92 +131,91 @@ export function boardFrame(
     </svg>`;
 }
 
-/** `fresh` : la case qui vient d'être sondée, dont la marque apparaît avec une petite animation. */
-export function probeMarksSvg(probes: readonly ProbeRecord[], fresh: string | null = null): string {
+/**
+ * `fresh` : la case qui vient d'être sondée, dont la marque apparaît avec une petite animation.
+ * `selected` : la case de la sonde sélectionnée dans l'historique. Chaque sonde porte aussi un contour
+ * (`.probe-ring`), caché sauf s'il est sélectionné ou survolé dans l'historique (voir app.ts).
+ */
+export function probeMarksSvg(
+  probes: readonly ProbeRecord[],
+  fresh: string | null = null,
+  selected: string | null = null,
+): string {
   return probes
     .map((probe) => {
       const cell = parseCell(probe.cell);
       if (cell === null) return '';
+      const ring = `<rect class="probe-ring${probe.cell === selected ? ' is-selected' : ''}" data-cell="${probe.cell}" x="${cell.col + 0.06}" y="${cell.row + 0.06}" width="0.88" height="0.88" rx="0.12"/>`;
       const cx = cell.col + 0.5;
       const cy = cell.row + 0.5;
-      const pop = probe.cell === fresh ? ' pop' : '';
+      const pop = probe.cell === fresh ? ' pop pop-late' : '';
       if (probe.content === 'nothing') {
-        return `<circle class="probe-nothing${pop}" cx="${cx}" cy="${cy}" r="0.17"><title>Case ${probe.cell} : rien</title></circle>`;
+        return `${ring}<circle class="probe-nothing${pop}" cx="${cx}" cy="${cy}" r="0.17"><title>Case ${probe.cell} : rien</title></circle>`;
       }
       if (probe.content === 'black') {
-        return `<g class="probe-gem probe-lost${pop}"><rect x="${cell.col + 0.12}" y="${cell.row + 0.12}" width="0.76" height="0.76" rx="0.1" fill="${GEM_FILL.black}"/>${lostSignalSvg(cx, cy, 0.62)}<title>Case ${probe.cell} : signal perdu</title></g>`;
+        return `${ring}<g class="probe-gem probe-lost${pop}"><rect x="${cell.col + 0.12}" y="${cell.row + 0.12}" width="0.76" height="0.76" rx="0.1" fill="${GEM_FILL.black}"/>${lostSignalSvg(cx, cy, 0.62)}<title>Case ${probe.cell} : signal perdu</title></g>`;
       }
-      return `<g class="probe-gem${pop}"><rect x="${cell.col + 0.18}" y="${cell.row + 0.18}" width="0.64" height="0.64" rx="0.1" fill="${GEM_FILL[probe.content]}"${probe.content === 'clear' ? ` fill-opacity="${CLEAR_FILL_OPACITY}" stroke="#2b6fa8" stroke-width="0.06"` : ''}/><text x="${cx}" y="${cy + 0.02}">${PAINT_LETTER[probe.content]}</text><title>Case ${probe.cell} : gemme ${GEM_PAINT_LABELS[probe.content]}</title></g>`;
+      return `${ring}<g class="probe-gem${pop}"><rect x="${cell.col + 0.18}" y="${cell.row + 0.18}" width="0.64" height="0.64" rx="0.1" fill="${GEM_FILL[probe.content]}"${probe.content === 'clear' ? ` fill-opacity="${CLEAR_FILL_OPACITY}" stroke="#2b6fa8" stroke-width="0.06"` : ''}/><text x="${cx}" y="${cy + 0.02}">${PAINT_LETTER[probe.content]}</text><title>Case ${probe.cell} : gemme ${GEM_PAINT_LABELS[probe.content]}</title></g>`;
     })
     .join('');
 }
 
+/** Pointeur précis (souris) : la grille est affichée grande, la bulle est alors réduite. */
+function finePointer(): boolean {
+  try {
+    return window.matchMedia('(pointer: fine)').matches;
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Bulle verte « Tirer en E ? » / « Tirer en E4 ? » : le premier clic sur un repère ou une case l'affiche,
- * le second effectue le tir. Elle se pose à l'intérieur de la grille, la queue pointée vers le repère ou
- * la case, et laisse passer le pointeur (le second clic tombe sur le repère ou la case).
+ * Bulle verte « Tirer en E ? » / « Tirer en E4 ? » : le premier clic sur un repère ou une case l'affiche et
+ * entoure en vert la cible ; le second effectue le tir. La bulle se pose au-dessus de la cible, la queue
+ * pointée vers elle (au-dessous pour les repères du haut et la première ligne, faute de place), plus petite
+ * à la souris. Elle laisse passer le pointeur : le second clic tombe sur le repère ou la case.
  */
 export function bubbleSvg(pending: Pending | null): string {
   if (!pending) return '';
   const text =
     pending.kind === 'fire' ? t.bubble.fire(pending.label) : t.bubble.probe(pending.cell);
-  const width = 0.3 * text.length + 0.7;
-  const height = 0.95;
+  const scale = finePointer() ? 0.72 : 1;
+  const width = (0.3 * text.length + 0.7) * scale;
+  const height = 0.95 * scale;
+  const tail = 0.22 * scale;
+  const half = 0.18 * scale;
   const clampX = (x: number): number =>
     Math.min(Math.max(x, -BOARD_MARGIN + 0.2), GRID_COLS + BOARD_MARGIN - 0.2 - width);
-  // Corps de la bulle (x0, y0), sens de la queue et point visé (tx, ty).
-  let x0: number;
-  let y0: number;
-  let from: 'top' | 'bottom' | 'left' | 'right';
+  // Cible : centre (tx) et bords haut et bas (top, bottom) du repère ou de la case, et son contour vert.
   let tx: number;
-  let ty: number;
+  let top: number;
+  let bottom: number;
+  let ring: string;
+  let belowOnly = false;
   if (pending.kind === 'fire') {
     const entry = ENTRY_POINTS.find((candidate) => candidate.label === pending.label);
     if (!entry) return '';
     const [x, y] = labelCenter(entry);
-    from = entry.side;
-    tx = x;
-    ty = y;
-    switch (entry.side) {
-      case 'top':
-        [x0, y0, ty] = [clampX(x - width / 2), 0.3, 0.02];
-        break;
-      case 'bottom':
-        [x0, y0, ty] = [clampX(x - width / 2), GRID_ROWS - 0.3 - height, GRID_ROWS - 0.02];
-        break;
-      case 'left':
-        [x0, y0, tx] = [0.3, y - height / 2, 0.02];
-        break;
-      case 'right':
-        [x0, y0, tx] = [GRID_COLS - 0.3 - width, y - height / 2, GRID_COLS - 0.02];
-        break;
-    }
+    [tx, top, bottom] = [x, y - 0.45, y + 0.45];
+    belowOnly = entry.side === 'top';
+    ring = `<rect class="pending-ring" x="${x - 0.52}" y="${y - 0.52}" width="1.04" height="1.04" rx="0.26"/>`;
   } else {
     const cell = parseCell(pending.cell);
     if (cell === null) return '';
-    tx = cell.col + 0.5;
-    x0 = clampX(tx - width / 2);
-    // Au-dessus de la case ; en dessous pour les deux premières lignes (le haut est pris par les repères).
-    if (cell.row >= 2) {
-      from = 'bottom';
-      y0 = cell.row - 0.3 - height;
-      ty = cell.row + 0.1;
-    } else {
-      from = 'top';
-      y0 = cell.row + 1.3;
-      ty = cell.row + 0.9;
-    }
+    [tx, top, bottom] = [cell.col + 0.5, cell.row, cell.row + 1];
+    ring = `<rect class="pending-ring" x="${cell.col + 0.05}" y="${cell.row + 0.05}" width="0.9" height="0.9" rx="0.12"/>`;
   }
-  const tail = 0.2;
-  let points: string;
-  if (from === 'top' || from === 'bottom') {
-    const base = from === 'top' ? y0 : y0 + height;
-    points = `${tx - tail},${base} ${tx + tail},${base} ${tx},${ty}`;
-  } else {
-    const base = from === 'left' ? x0 : x0 + width;
-    points = `${base},${y0 + height / 2 - tail} ${base},${y0 + height / 2 + tail} ${tx},${y0 + height / 2}`;
-  }
-  return `<g class="shot-bubble from-${from}" role="status" aria-label="${text}"><rect x="${x0}" y="${y0}" width="${width}" height="${height}" rx="0.3"/><polygon points="${points}"/><text x="${x0 + width / 2}" y="${y0 + height / 2 + 0.02}">${text}</text></g>`;
+  // Au-dessus de la cible si la bulle tient dans le cadre, sinon au-dessous.
+  const aboveY = top - 0.03 - tail - height;
+  const above =
+    !belowOnly && aboveY >= -BOARD_MARGIN + 0.1 && !(pending.kind === 'probe' && aboveY < -0.2);
+  const x0 = clampX(tx - width / 2);
+  const y0 = above ? aboveY : bottom + 0.03 + tail;
+  const base = above ? y0 + height : y0;
+  const tip = above ? top - 0.03 : bottom + 0.03;
+  const points = `${tx - half},${base} ${tx + half},${base} ${tx},${tip}`;
+  const side = above ? 'bottom' : 'top';
+  return `${ring}<g class="shot-bubble from-${side}" role="status" aria-label="${text}"><rect x="${x0}" y="${y0}" width="${width}" height="${height}" rx="${0.3 * scale}"/><polygon points="${points}"/><text x="${x0 + width / 2}" y="${y0 + height / 2 + 0.02}" style="font-size:${0.48 * scale}px">${text}</text></g>`;
 }
 
 export function probeTargetsSvg(): string {

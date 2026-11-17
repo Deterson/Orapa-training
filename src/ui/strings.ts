@@ -22,12 +22,14 @@ export const fr = {
     clear: 'Effacer',
     fullscreen: 'Plein écran',
     resume: 'Reprendre',
+    reset: 'Réinitialiser',
     rotate: 'Pivoter',
     flip: 'Retourner',
   },
   /** Outils de la colonne de droite (notes et simulation). */
   tools: {
     label: 'Outils',
+    fire: 'Tir',
     pencil: 'Crayon',
     line: 'Ligne droite',
     eraser: 'Gomme',
@@ -54,7 +56,6 @@ export const fr = {
   } satisfies Record<ProbeRecord['content'], string>,
   modal: {
     cancel: 'Annuler',
-    close: 'Fermer',
     replaceTitle: 'Partie en cours',
     replaceText: 'Vous allez perdre votre partie en cours.',
     replaceSignIn:
@@ -65,6 +66,11 @@ export const fr = {
   bubble: {
     fire: (label: string) => `Tirer en ${label} ?`,
     probe: (cell: string) => `Tirer en ${cell} ?`,
+  },
+  /** Bouton jour / nuit de la barre du haut. */
+  theme: {
+    toDark: 'Mode nuit',
+    toLight: 'Mode jour',
   },
   options: {
     title: 'Extensions',

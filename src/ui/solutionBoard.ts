@@ -13,7 +13,7 @@ import {
   orientedPolygon,
   placedPivot,
   placedPolygon,
-  pivotReach,
+  buttonOffset,
 } from '../game/gems';
 import { translate } from '../game/geometry';
 import type { SolutionIssue } from '../game/solution';
@@ -129,8 +129,8 @@ const BUTTON_OVERFLOW = 0.6;
 /**
  * Boutons ronds de la gemme sélectionnée : pivoter (sauf le losange, identique dans ses quatre quarts de
  * tour) et, pour la rouge, retourner. Ils sont ancrés à l'axe de rotation de la gemme, au coin haut-droit
- * du carré qui contient la gemme dans toutes ses orientations : l'axe ne bouge pas quand elle pivote, donc
- * le bouton reste sous le doigt pour cliquer plusieurs fois. Il reste dans le cadre de la grille.
+ * de la gemme dans son orientation de référence (`buttonOffset`) : l'axe ne bouge pas quand elle pivote,
+ * donc le bouton reste sous le doigt pour cliquer plusieurs fois. Il reste dans le cadre de la grille.
  */
 export function gemButtonsSvg(view: Pick<GemsView, 'solution' | 'selected'>): string {
   const gem = view.selected;
@@ -138,9 +138,9 @@ export function gemButtonsSvg(view: Pick<GemsView, 'solution' | 'selected'>): st
   if (!gem || !placement) return '';
   const shape = GEM_SHAPES[gem];
   const [pivotX, pivotY] = placedPivot(placement);
-  const reach = pivotReach(shape) + 0.15;
-  const cx = Math.min(pivotX + reach, GRID_COLS + BUTTON_OVERFLOW);
-  const cy = Math.max(pivotY - reach, -BUTTON_OVERFLOW);
+  const [offsetX, offsetY] = buttonOffset(shape);
+  const cx = Math.min(pivotX + offsetX, GRID_COLS + BUTTON_OVERFLOW);
+  const cy = Math.max(pivotY + offsetY, -BUTTON_OVERFLOW);
   const button = (action: 'rotate' | 'flip', y: number, icon: string, label: string): string =>
     `<g class="gem-btn" data-action="${action}" role="button" tabindex="0" aria-label="${label}"><title>${label}</title><circle cx="${cx}" cy="${y}" r="0.46"/><text x="${cx}" y="${y + 0.03}">${icon}</text></g>`;
   const rotate = isRotatable(shape) ? button('rotate', cy, '↻', t.actions.rotate) : '';

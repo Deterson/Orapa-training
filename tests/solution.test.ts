@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BOOKLET_LAYOUT } from '../src/game/examples';
 import { generateMine } from '../src/game/generate';
+import { independentEntries } from './helpers';
 import { GEM_SHAPES, type GemId, gemsFor, placedPivot, placedPolygon } from '../src/game/gems';
 import { boundingBox } from '../src/game/geometry';
 import { GameSession } from '../src/game/session';
@@ -15,6 +16,7 @@ import {
   nudgeGem,
   placedGems,
   removeGem,
+  resetSolution,
   rotateGem,
   solutionIssues,
 } from '../src/game/solution';
@@ -70,6 +72,34 @@ describe('solution : poser et déplacer', () => {
     expect(rotateGem(solution, 'blue-triangle')).toBe(solution);
     expect(flipGem(solution, 'red-parallelogram')).toBe(solution);
     expect(nudgeGem(solution, 'blue-triangle', 1, 1)).toBe(solution);
+  });
+});
+
+describe('solution : réinitialisation', () => {
+  it('remet toutes les gemmes dans la réserve', () => {
+    let solution = dropGem(emptySolution(), 'blue-triangle', 1, 1);
+    solution = dropGem(solution, 'yellow-triangle', 6, 4);
+    expect(placedGems(solution)).toHaveLength(2);
+    const reset = resetSolution(solution);
+    expect(placedGems(reset)).toHaveLength(0);
+    for (const gem of Object.keys(solution)) expect(reset[gem as GemId]).toBeNull();
+  });
+
+  it('garde les mêmes gemmes, extensions comprises', () => {
+    const extended = dropGem(
+      emptySolution(gemsFor({ diamond: true, blackBody: true })),
+      'black-body',
+      2,
+      2,
+    );
+    const reset = resetSolution(extended);
+    expect(Object.keys(reset).sort()).toEqual(Object.keys(extended).sort());
+    expect(reset['black-body']).toBeNull();
+    expect(reset['diamond']).toBeNull();
+  });
+
+  it('une solution vide reste vide', () => {
+    expect(resetSolution(emptySolution())).toEqual(emptySolution());
   });
 });
 
@@ -200,14 +230,14 @@ describe('solution : comparaison avec les tirs', () => {
 
   it('la vraie solution reproduit tous les tirs', () => {
     const session = new GameSession(mine);
-    ['1', 'I', 'A', '15', '11', '5'].forEach((label) => session.fire(label));
+    independentEntries(mine.placements, 6).forEach((label) => session.fire(label));
     const matches = compareWithShots(truth, session.shots);
     expect([...matches.values()]).toEqual([true, true, true, true, true, true]);
   });
 
   it('une grille vide ne reproduit pas les tirs qui touchent des gemmes', () => {
     const session = new GameSession(mine);
-    for (const label of ['1', 'I', 'A', '15', '11', '5']) session.fire(label);
+    for (const label of independentEntries(mine.placements, 6)) session.fire(label);
     const matches = compareWithShots(emptySolution(), session.shots);
     const touched = session.shots.filter((shot) => shot.color !== 'transparent');
     expect(touched.length).toBeGreaterThan(0);

@@ -120,7 +120,8 @@ export class GameSession {
   /** Reprend une partie sauvegardée : les tirs et sondes sont rejoués sur la mine. */
   static fromSnapshot(snapshot: SessionSnapshot, options: SessionOptions = {}): GameSession {
     const session = new GameSession(snapshot.mine, options);
-    for (const entry of snapshot.shots) session.fire(entry);
+    // Rejeu fidèle : une ancienne sauvegarde peut contenir un tir et son trajet inverse (voir `fire`).
+    for (const entry of snapshot.shots) session.#fire(entry, false);
     for (const cell of snapshot.probes) session.probe(cell);
     session.#attempts = snapshot.attempts;
     session.#elapsedBefore = snapshot.elapsedMs;
@@ -214,15 +215,24 @@ export class GameSession {
 
   /**
    * Tire un laser depuis ce repère. Redemander un repère déjà tiré renvoie la réponse déjà donnée
-   * sans compter un nouveau tir : le livret autorise de redemander une réponse gratuitement.
+   * sans compter un nouveau tir : le livret autorise de redemander une réponse gratuitement. Il en va de
+   * même d'un repère qui est la **sortie** d'un tir précédent : le trajet est réversible, un tir de x vers
+   * y est le même qu'un tir de y vers x, donc il n'apprend rien et reste gratuit (renvoie le tir de x).
    */
   fire(label: string): ShotRecord {
+    return this.#fire(label, true);
+  }
+
+  /** `guardReverse` faux : seulement pour rejouer une sauvegarde (voir `fromSnapshot`). */
+  #fire(label: string, guardReverse: boolean): ShotRecord {
     this.#assertPlaying();
     const entry = parseEntryLabel(label);
     if (entry === null) {
       throw new Error(`Point d'entrée inconnu : « ${label} »`);
     }
-    const already = this.#shots.find((shot) => shot.entry === entry.label);
+    const already = this.#shots.find(
+      (shot) => shot.entry === entry.label || (guardReverse && shot.exit === entry.label),
+    );
     if (already) return already;
 
     const { exit, color } = shoot(this.#mine.placements, entry);

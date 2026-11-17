@@ -9,6 +9,8 @@ import { GRID_COLS, GRID_ROWS } from '../src/game/constants';
 import { boundingBox } from '../src/game/geometry';
 import { orientedPolygon } from '../src/game/gems';
 import { validatePlacements } from '../src/game/placement';
+import { ENTRY_POINTS } from '../src/game/board';
+import { shoot } from '../src/game/laser';
 
 /** Pose une gemme à partir de ses sommets en coordonnées de la grille. */
 export function place(gem: GemId, vertices: readonly (readonly [number, number])[]): Placement {
@@ -62,4 +64,21 @@ export function randomValidLayout(random: () => number): Placement[] | null {
     if (!placed) return null;
   }
   return placements;
+}
+
+/**
+ * Les `count` premiers repères dont les tirs sont indépendants : un tir de x vers y est le même qu'un tir de
+ * y vers x (trajet réversible), donc aucun repère retenu n'est la sortie d'un autre.
+ */
+export function independentEntries(placements: readonly Placement[], count: number): string[] {
+  const chosen: string[] = [];
+  const covered = new Set<string>();
+  for (const { label } of ENTRY_POINTS) {
+    if (covered.has(label)) continue;
+    chosen.push(label);
+    covered.add(label);
+    covered.add(shoot(placements, label).exit);
+    if (chosen.length === count) break;
+  }
+  return chosen;
 }

@@ -7,6 +7,7 @@ import type { AccountUser } from '../backend/auth';
 import { escapeHtml } from './html';
 import { type View, routeHash } from './router';
 import { t } from './strings';
+import type { Theme } from './theme';
 
 export interface HeaderModel {
   version: string;
@@ -16,6 +17,8 @@ export interface HeaderModel {
   /** Le backend est branché et la session de connexion est lue : sinon aucun bouton de compte. */
   accountReady: boolean;
   user: AccountUser | null;
+  /** Thème affiché : le bouton propose l'autre (lune en mode jour, soleil en mode nuit). */
+  theme: Theme;
 }
 
 const PERSON_ICON =
@@ -25,6 +28,17 @@ function avatar(user: AccountUser): string {
   return user.avatarUrl
     ? `<img class="avatar" src="${escapeHtml(user.avatarUrl)}" alt="" referrerpolicy="no-referrer" width="24" height="24">`
     : PERSON_ICON;
+}
+
+const MOON_ICON =
+  '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+const SUN_ICON =
+  '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+
+/** Bouton jour / nuit : la lune propose la nuit, le soleil propose le jour. */
+function themeButton(theme: Theme): string {
+  const label = theme === 'dark' ? t.theme.toLight : t.theme.toDark;
+  return `<button type="button" class="ghost theme-btn" data-action="toggle-theme" aria-label="${label}" title="${label}">${theme === 'dark' ? SUN_ICON : MOON_ICON}</button>`;
 }
 
 function link(view: View, current: View, label: string, content = label): string {
@@ -48,5 +62,5 @@ export function headerHtml(model: HeaderModel): string {
          <button type="button" class="ghost" data-action="sign-out">${t.account.signOut}</button>`
       : `<button type="button" class="ghost" data-action="sign-in">${t.account.signIn}</button>`;
   }
-  return `<header class="topbar"><nav class="tb-left" aria-label="Navigation">${left}</nav><div class="tb-right">${right}</div></header>`;
+  return `<header class="topbar"><nav class="tb-left" aria-label="Navigation">${left}</nav><div class="tb-right">${themeButton(model.theme)}${right}</div></header>`;
 }

@@ -18,8 +18,13 @@ prenant des notes et en plaçant ses propres gemmes, puis en soumettant sa solut
   extensions, fin de partie). **À lire avant de toucher à `src/game/`.** En cas de
   désaccord entre le code et ce fichier, c'est ce fichier qui a raison ; si une règle
   change, la corriger là **et** dans les tests.
-- [`docs/roadmap.md`](docs/roadmap.md) : le plan de réalisation en deux versions (v1 jeu
-  complet avec sauvegarde locale, v2 comptes Google + historique + profil).
+- [`docs/roadmap.md`](docs/roadmap.md) : le plan de réalisation en quatre versions (v1 jeu
+  complet avec sauvegarde locale, v2 comptes Google + historique + profil, v3 duel contre une IA,
+  v4 duel en direct).
+  **Tenue de la roadmap :** une fois une étape faite, la réduire à **une ou deux phrases** de
+  description (ce qu'elle a livré, ce qui reste ou n'a pas été fait) ; le détail vit dans le code,
+  les tests et l'historique git, pas dans la roadmap. Seules les étapes à venir gardent leur détail
+  (contenu, tailles, critères de fin). Idem pour l'entrée de chaque nouvelle version dans « Évolutions ».
 
 Ne pas dupliquer les règles dans ce fichier : y renvoyer.
 
@@ -102,7 +107,8 @@ comprises. Un lien `?seed=…` (avec `ext=`) lance cette mine directement.
 
 - à gauche : **« Orapa Training »** (ramène à l'accueil) suivi de la **version du build**, le bouton
   **« Nouvelle partie »** et **« Règles »** ;
-- à droite : **« Historique »**, **« Profil »** (avec l'**avatar** du compte sur le bouton, jamais le
+- à droite : un **bouton jour / nuit** en premier (lune en mode jour, soleil en mode nuit ; il force le thème,
+  mémorisé dans le navigateur, sinon le site suit le réglage du système, `ui/theme.ts`), puis **« Historique »**, **« Profil »** (avec l'**avatar** du compte sur le bouton, jamais le
   nom) et **« Déconnexion »** ; déconnecté : seulement **« Connexion »** (OAuth Google). Sans
   backend configuré, aucun bouton de compte.
 
@@ -132,10 +138,11 @@ pas seulement à la souris).
 **Texte minimal.** Le joueur ne doit lire presque rien : libellés courts (« Soumettre », « Retirer »),
 pas de paragraphe d'aide ni de phrase d'explication dans le jeu, symboles et schémas plutôt que
 des phrases. Les explications vivent dans la page « Règles », elle-même concise. Tous les textes
-sont dans `src/ui/strings.ts` ; les messages de règle (`game/placement.ts`) tiennent en une ligne.
+sont dans `src/ui/strings.ts`. **Aucun texte n'explique un placement refusé** : les messages de règle
+(`game/placement.ts`) servent aux tests et à la logique, pas à l'affichage.
 Les étiquettes d'accessibilité (`aria-label`, texte pour lecteurs d'écran) restent complètes.
 
-**Gemmes.** Elles portent le **quadrillage des vraies pièces** : les lignes de la grille qui les traversent, un peu plus foncées que la gemme, pour aider à les aligner (`gridSegments` dans `game/geometry.ts`, `gemPolygons` dans `ui/palette.ts`).
+**Gemmes.** Elles portent le **quadrillage des vraies pièces** : les lignes de la grille qui les traversent, un peu plus foncées que la gemme, pour aider à les aligner (`gridSegments` dans `game/geometry.ts`, `gemPolygons` dans `ui/palette.ts`). Trois calques par gemme : fond, quadrillage, puis **bordure par-dessus** ; une gemme glissée passe **au-dessus** des repères du bord.
 
 La **version du build** (`vX.Y.Z`, issue de `package.json`) s'affiche en petit à droite du titre, dans la barre du haut : l'incrémenter à chaque livraison.
 
@@ -149,16 +156,29 @@ Zones :
 1. **Colonne de gauche : compteur et historique des tirs.** Le **compteur de tirs** ne baisse jamais ;
    l'historique (numéroté, consultable) montre le trajet « E → F » et des **pastilles** de la couleur
    obtenue, **sans le nom** de la couleur : « transparent » est une pastille au **simple contour blanc**, et
-   le nom de la couleur apparaît **au survol de la souris** (pour toutes les couleurs). Viennent ensuite les
-   sondes. **Pas d'horloge** : le temps n'est montré qu'au résultat.
+   le nom de la couleur apparaît **au survol de la souris** (pour toutes les couleurs). Les **sondes** viennent
+   ensuite, **dans des cartes de la même forme** : « 5   B6   =   ● » (pastille de la gemme), « B6 = rien »,
+   « B6 = » + pictogramme du signal perdu, ou « B6 = » + le **Diamant en miniature** (`ui/historyCards.ts`).
+   **Sélection :** tant que rien n'est sélectionné, **survoler** une carte la met en avant provisoirement (ses repères
+   sur la grille, ou le contour de la case sondée) ; **cliquer** la sélectionne (elle reste en avant, le survol ne
+   fait plus rien) ; **recliquer** la désélectionne. Un tir n'est pas sélectionné d'office
+   après avoir été tiré, mais **toucher un repère déjà tiré** (ou l'arrivée d'un tir) le sélectionne : ses
+   repères de départ et d'arrivée sont surlignés. Quand la liste dépasse la hauteur de la grille, elle défile **sans barre du navigateur** (elle
+   prendrait de la place) : une **barre légère, en surimpression à droite, n'apparaît qu'au survol** et se
+   glisse à la souris (`ui/scrollbar.ts`) ; la position est gardée d'un affichage à l'autre, et un nouveau tir
+   fait défiler jusqu'à lui. **Pas d'horloge** : le temps n'est montré qu'au résultat.
 2. **Grille de jeu (au centre).** Les repères de bord sont cliquables pour tirer un laser, et **toucher une
    case la sonde**. Un tir ou une sonde se fait **en deux clics** (pas de modale) : le
-   premier sur un repère ou une case affiche une **bulle verte** (« Tirer en E ? », « Tirer en E4 ? »), le second au
-   même endroit tire ; un clic ailleurs, une gemme prise ou Échap annule la bulle. La ligne ajoutée à l'historique
-   et les pastilles du tir sur la grille apparaissent avec une courte animation. Redemander un laser déjà tiré est gratuit et ouvre à la place une **modale de
-   résumé** (« E → F » + pastilles de la couleur, fermée d'un clic n'importe où), redemander une case sondée est
+   premier sur un repère ou une case affiche une **bulle verte** (« Tirer en E ? », « Tirer en E4 ? ») **au-dessus**
+   de la cible (au-dessous pour les repères du haut et la première ligne), **plus petite à la souris**, et
+   **entoure la cible en vert** ; le second clic au même endroit tire ; un clic ailleurs, une gemme prise ou Échap
+   annule la bulle. La ligne ajoutée à l'historique et les pastilles du tir sur la grille apparaissent avec une
+   courte animation : **le tir (numéro, entrée) d'abord, le résultat (sortie, couleur) 0,5 s plus tard**. Redemander un laser déjà tiré, **ou tirer depuis le repère d'arrivée d'un tir précédent** (le trajet est
+   réversible : de x vers y ou de y vers x, c'est le même rayon, `GameSession.fire`), est gratuit et affiche à la place une **infobulle de
+   résumé** en bas de l'écran, temporaire, comme « signal perdu » (« E → F » + pastilles de la couleur), redemander une case sondée est
    gratuit. Le numéro du tir figure sur le repère d'entrée (en haut à droite) et, dans une pastille de la
-   couleur obtenue (en bas à droite), sur le repère de sortie. **Le chemin du rayon n'est jamais tracé** (il
+   couleur obtenue (en bas à droite), sur le repère de sortie ; pour « transparent » il n'y a pas de pastille :
+   le numéro seul, **en blanc cerclé de noir (1 px)**. **Le chemin du rayon n'est jamais tracé** (il
    trahirait les gemmes) ; il ne l'est que par l'outil « Simuler » (sur les gemmes du joueur) et à la fin.
    Les **gemmes posées** par le joueur (déplaçables, la gemme sélectionnée porte un **bouton rond ↻
    (pivoter)**, sauf le losange blanc (identique dans ses quatre quarts de tour), et la rouge un bouton **⇋
@@ -166,22 +186,26 @@ Zones :
    Une gemme pivote autour du **centre de sa boîte** (`pivot` dans `game/gems.ts`), le Corps noir et le Diamant
    autour de leur **case de droite** (la case de gauche après deux tours)) et ses **notes** sont dessinées
    sur cette grille. Les placements invalides (chevauchement, hors grille, contact par un segment) sont
-   refusés ou signalés avec la règle enfreinte.
+   refusés ou signalés par le **contour rouge en pointillés** des gemmes concernées, **sans texte** ; « Soumettre »
+   reste alors désactivé, comme quand toutes les gemmes ne sont pas posées.
 3. **Sous la grille.** À gauche, **↶** (annuler), **↷** (rétablir) et **« Effacer »** (les notes). À droite, deux cases
    à cocher **« Notes »** et **« Gemmes »** : afficher ou masquer les notes et les gemmes déjà placées.
-4. **Colonne de droite, en haut : outils de notes.** **Gemmes** (à gauche de Crayon), **Crayon**, **Ligne droite**, **Gomme**, **Vide** (stries
+4. **Colonne de droite, en haut : outils de notes.** **Tir** (le plus à gauche), **Gemmes**, **Crayon**, **Ligne droite**, **Vide** (stries
    diagonales grises transparentes), **Simuler** (les repères testent un tir sur les gemmes du joueur et en
    tracent le trajet : « mon placement produirait-il bien ce résultat ? ») et le choix de l'encre : noir « auto »
-   (suit le thème), **noir**, rouge, jaune, bleu. Plus de marques « R J B Bl » ni de « ? » (les anciennes notes
+   (suit le thème), **noir**, rouge, jaune, bleu, puis une **icône de gomme** (l'outil Gomme, sans bouton texte). Plus de marques « R J B Bl » ni de « ? » (les anciennes notes
    restent lisibles). **Aucun outil actif = « jouer »** (tirer, sonder, déplacer les gemmes) ; recliquer
    l'outil actif le désactive ; un outil de dessin laisse passer le pointeur à travers les gemmes posées.
+   **« Tir »** fait de même sans dessiner : repères et cases tirent, mais toucher une case ne sélectionne pas la
+   gemme dessous (les gemmes posées sont inertes) ; prendre une gemme de la réserve le désactive.
    **Deux modes cachés**, sans interrupteur propre : **mode notes** dès qu'un outil de dessin est actif (clic sur
    Crayon, Ligne droite, Gomme, Vide ou une encre), **mode gemmes** sinon (bouton « Gemmes », saisie d'une
    gemme de la réserve, ou clic hors de la grille, des outils de notes, du pied de grille et des fenêtres
    modales). En mode gemmes les notes sont légèrement estompées, en mode notes ce sont les gemmes.
    Les notes n'ont aucun effet sur la correction.
 5. **Colonne de droite, en bas : gemmes à placer et « Soumettre ».** La réserve (les mêmes gemmes que celles
-   cachées) se glisse sur la grille ; **« Soumettre »** est **en vert**, sous les gemmes (activé quand toutes sont
+   cachées) se glisse sur la grille ; **« Réinitialiser »**, sous la réserve, remet toutes les gemmes dans la réserve
+   (désactivé quand aucune n'est posée) ; **« Soumettre »** est **en vert**, sous les gemmes (activé quand toutes sont
    bien placées), avec confirmation. **Pas de bouton « Abandonner ».**
 6. **Résultat** (fin de partie) : « Gagné » / « Perdu », le **nombre de tirs et le temps** (seul endroit où
    l'horloge apparaît), la vraie mine et la proposition ; les 36 repères restent cliquables pour tirer des
@@ -257,12 +281,15 @@ src/
     header.ts      # ✔ barre du haut (titre + version, Nouvelle partie, Règles ; Historique, Profil, Connexion)
     home.ts        # ✔ vue Accueil : partie en cours, nouvelle partie
     strings.ts     # ✔ table de chaînes de l'interface
+    theme.ts       # ✔ thème jour / nuit : choix du joueur (data-theme, localStorage) ou réglage du système
     palette.ts     # ✔ couleurs d'affichage des gemmes et des rayons
     html.ts        # ✔ échappement du texte venant de l'extérieur (graine, nom du compte) : à utiliser partout
     history.ts     # ✔ page « Historique »
     profile.ts     # ✔ page « Profil » (nom, statistiques)
     privacy.ts     # ✔ page « Confidentialité », suppression du compte
     format.ts      # ✔ durées, dates
+    historyCards.ts # ✔ cartes de l'historique : tirs et sondes (« B6 = ● »), pastilles de couleur
+    scrollbar.ts   # ✔ barre de défilement légère en surimpression (historique des tirs)
   backend/     # v2 : Supabase (chargé à la demande, absent sans configuration)
     config.ts      # ✔ variables VITE_SUPABASE_*
     auth.ts        # ✔ connexion Google

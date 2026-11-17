@@ -5,19 +5,41 @@
   --muted: #596171;
   --line: #dde1e8;
   --accent: #2a5fa8;
+  /* Réussite, erreur et bouton de danger plein : plus clairs la nuit. */
+  --good: #1e9e50;
+  --bad: #d33a2c;
+  --danger-solid: #d33a2c;
   color-scheme: light;
 }
 
+/* Nuit : le réglage du système, sauf si le joueur a choisi « jour » (data-theme) ... */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #11141a;
     --surface: #181c24;
     --fg: #e8eaee;
     --muted: #9aa3b2;
     --line: #2a303b;
     --accent: #7fb0ee;
+    --good: #5fd48c;
+    --bad: #ff8a7f;
+    --danger-solid: #c0392b;
     color-scheme: dark;
   }
+}
+
+/* ... ou le choix du joueur (bouton de la barre du haut). */
+:root[data-theme='dark'] {
+  --bg: #11141a;
+  --surface: #181c24;
+  --fg: #e8eaee;
+  --muted: #9aa3b2;
+  --line: #2a303b;
+  --accent: #7fb0ee;
+  --good: #5fd48c;
+  --bad: #ff8a7f;
+  --danger-solid: #c0392b;
+  color-scheme: dark;
 }
 
 * {
@@ -178,6 +200,10 @@ h2 {
 
   .play-history {
     order: 1;
+  }
+
+  /* Au-delà de la hauteur de la grille, l'historique défile (la barre du navigateur est cachée). */
+  .play-history .scroll-body {
     max-height: calc(10.2 * var(--u));
     overflow-y: auto;
   }
@@ -192,10 +218,58 @@ h2 {
 }
 
 .play-history {
+  position: relative;
+  min-width: 0;
+}
+
+.scroll-body {
   display: flex;
   flex-direction: column;
   gap: 10px;
   min-width: 0;
+  /* Pas de barre du navigateur : elle prendrait de la place (voir .scrollbar). */
+  scrollbar-width: none;
+}
+
+.scroll-body::-webkit-scrollbar {
+  display: none;
+}
+
+/* Barre légère en surimpression, à droite de la zone, visible seulement au survol. */
+.scrollbar {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  bottom: 0;
+  width: 8px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.scrollbar[hidden] {
+  display: none;
+}
+
+.scroll-area:hover .scrollbar,
+.scroll-area.is-dragging .scrollbar {
+  opacity: 1;
+}
+
+.scrollbar-thumb {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  border-radius: 3px;
+  background: var(--muted);
+  opacity: 0.55;
+  pointer-events: auto;
+}
+
+.scrollbar-thumb:hover,
+.scroll-area.is-dragging .scrollbar-thumb {
+  opacity: 0.85;
 }
 
 .play-side {
@@ -414,9 +488,24 @@ button.submit-btn {
   stroke-width: 0.04;
 }
 
-.entry.is-selected rect {
+.entry.is-selected rect,
+.entry.is-preview rect {
   stroke: var(--fg);
   stroke-width: 0.12;
+}
+
+/* Contour de la case d'une sonde : sélectionnée dans l'historique, ou survolée (aperçu provisoire). */
+.probe-ring {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: 0.1;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.probe-ring.is-selected,
+.probe-ring.is-preview {
+  opacity: 1;
 }
 
 .side {
@@ -472,7 +561,9 @@ button.submit-btn {
   padding: 6px 10px;
 }
 
-.shot.is-selected {
+/* Sélectionné (clic), ou survolé tant que rien n'est sélectionné (aperçu provisoire). */
+.shot.is-selected,
+.shot.is-preview {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
 }
@@ -485,6 +576,18 @@ button.submit-btn {
 
 .shot .path {
   flex: 1;
+}
+
+/* Sonde : « B6 = ● » (pastille, « rien », signal perdu ou Diamant en miniature). */
+.shot.is-probe .path {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+}
+
+.gem-mini {
+  width: 2.1rem;
+  height: 1.15rem;
 }
 
 .chip {
@@ -508,29 +611,31 @@ button.submit-btn {
   outline: none;
 }
 
-.gem-g polygon {
+/* Bordure des gemmes : un calque à part, au-dessus du fond et du quadrillage (voir gemPolygons). */
+.gem-edge {
+  fill: none;
   stroke: #000;
   stroke-opacity: 0.4;
   stroke-width: 0.06;
   stroke-linejoin: round;
+  pointer-events: none;
 }
 
 /* Diamant : bordure bleue franche autour d'un centre translucide (fill-opacity posé par gemPolygons). */
-polygon.gem-clear,
-.gem-g polygon.gem-clear {
+.gem-edge.gem-edge-clear {
   stroke: #2b6fa8;
   stroke-opacity: 1;
   stroke-width: 0.1;
 }
 
-.gem-g:focus-visible polygon,
-.gem-g.is-selected polygon {
+.gem-g:focus-visible .gem-edge,
+.gem-g.is-selected .gem-edge {
   stroke: var(--accent);
   stroke-opacity: 1;
   stroke-width: 0.16;
 }
 
-.gem-g.is-bad polygon {
+.gem-g.is-bad .gem-edge {
   stroke: #d33a2c;
   stroke-opacity: 1;
   stroke-width: 0.14;
@@ -563,18 +668,6 @@ polygon.gem-clear,
 .status,
 .hypo {
   margin: 6px 0;
-}
-
-.issues {
-  margin: 8px 0 0;
-  padding-left: 1.2rem;
-  color: #d33a2c;
-}
-
-@media (prefers-color-scheme: dark) {
-  .issues {
-    color: #ff8a7f;
-  }
 }
 
 .notes-svg {
@@ -641,12 +734,23 @@ polygon.gem-clear,
   box-shadow: 0 0 0 2px var(--accent);
 }
 
-.ink {
+.ink,
+.tool.eraser-btn {
   width: 44px;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.eraser-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .ink span {
@@ -671,11 +775,6 @@ polygon.gem-clear,
 
 .confirm p {
   margin: 0 0 8px;
-}
-
-.probe-list {
-  margin: 0;
-  padding-left: 1.2rem;
 }
 
 .probe-target {
@@ -722,18 +821,11 @@ polygon.gem-clear,
 }
 
 .result.is-won h2 {
-  color: #1e9e50;
+  color: var(--good);
 }
 
 .result.is-lost h2 {
-  color: #d33a2c;
-}
-
-.real-gem {
-  stroke: #000;
-  stroke-opacity: 0.4;
-  stroke-width: 0.06;
-  stroke-linejoin: round;
+  color: var(--bad);
 }
 
 .guess-gem {
@@ -762,25 +854,12 @@ polygon.gem-clear,
 }
 
 .diff .correct {
-  color: #1e9e50;
+  color: var(--good);
 }
 
 .diff .wrong,
 .diff .missing {
-  color: #d33a2c;
-}
-
-@media (prefers-color-scheme: dark) {
-  .diff .correct,
-  .result.is-won h2 {
-    color: #5fd48c;
-  }
-
-  .diff .wrong,
-  .diff .missing,
-  .result.is-lost h2 {
-    color: #ff8a7f;
-  }
+  color: var(--bad);
 }
 
 .resume {
@@ -1027,49 +1106,6 @@ polygon.gem-clear,
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
-.modal-close {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--muted);
-  font-size: 1.6rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.recap {
-  align-items: center;
-  text-align: center;
-  cursor: pointer;
-}
-
-.recap .modal-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.recap-result {
-  margin: 0;
-  display: flex;
-  justify-content: center;
-}
-
-.recap .chip {
-  width: 1.6rem;
-  height: 1.6rem;
-}
-
-.recap .plus {
-  font-size: 1.2rem;
-}
-
 .modal-title {
   margin: 0;
   font-size: 1.3rem;
@@ -1115,8 +1151,14 @@ polygon.gem-clear,
   pointer-events: none;
 }
 
+/* Résultat « transparent » : le numéro seul, blanc cerclé de noir (1 px) pour rester lisible sur tout fond.
+   Le contour est dessiné sous le remplissage : 2 px de trait, dont 1 px visible hors du chiffre. */
 .entry .exit-number {
-  fill: var(--muted);
+  fill: #fff;
+  stroke: #000;
+  stroke-width: 0.034px;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
 }
 
 .explore-ring {
@@ -1363,8 +1405,7 @@ html.is-immersive body {
 }
 
 /* Apparition du dernier tir : la ligne de l'historique glisse, les pastilles de la grille « poppent ». */
-.history li.is-new,
-.probe-list li.is-new {
+.history li.is-new {
   animation: row-in 0.3s ease-out;
 }
 
@@ -1385,6 +1426,38 @@ html.is-immersive body {
   from {
     opacity: 0;
     transform: scale(0.2);
+  }
+}
+
+/* Le résultat (pastille de sortie, couleur, sortie dans l'historique) apparaît 0,5 s après le tir. */
+.pop-late {
+  animation-delay: 0.5s;
+  animation-fill-mode: backwards;
+}
+
+.history li.is-new .res,
+.history li.is-new .chips {
+  animation: res-in 0.3s ease-out 0.5s backwards;
+}
+
+@keyframes res-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Cible du tir annoncé par la bulle : repère ou case entourés en vert. */
+.pending-ring {
+  fill: none;
+  stroke: #1f8f4e;
+  stroke-width: 0.1px;
+  pointer-events: none;
+  animation: ring-in 0.16s ease-out;
+}
+
+@keyframes ring-in {
+  from {
+    opacity: 0;
   }
 }
 
@@ -1473,13 +1546,13 @@ html.is-immersive body {
 }
 
 .h-row.is-won .h-status {
-  color: #1e9e50;
+  color: var(--good);
   font-weight: 600;
 }
 
 .h-row.is-lost .h-status,
 .h-row.is-abandoned .h-status {
-  color: #d33a2c;
+  color: var(--bad);
 }
 
 .h-date,
@@ -1497,17 +1570,6 @@ html.is-immersive body {
   margin: 0;
   color: var(--muted);
   font-size: 0.85rem;
-}
-
-@media (prefers-color-scheme: dark) {
-  .h-row.is-won .h-status {
-    color: #5fd48c;
-  }
-
-  .h-row.is-lost .h-status,
-  .h-row.is-abandoned .h-status {
-    color: #ff8a7f;
-  }
 }
 
 @media (max-width: 520px) {
@@ -1566,29 +1628,17 @@ html.is-immersive body {
 }
 
 button.danger {
-  border-color: #d33a2c;
-  color: #d33a2c;
+  border-color: var(--bad);
+  color: var(--bad);
 }
 
 .confirm button.danger {
-  background: #d33a2c;
+  background: var(--danger-solid);
   color: #fff;
 }
 
 .foot {
   margin-top: 8px;
-}
-
-@media (prefers-color-scheme: dark) {
-  button.danger {
-    border-color: #ff8a7f;
-    color: #ff8a7f;
-  }
-
-  .confirm button.danger {
-    background: #c0392b;
-    color: #fff;
-  }
 }
 
 /* Barre du haut (toutes les pages) */
@@ -1733,4 +1783,55 @@ button.big {
 .hc-date {
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+/* Bouton jour / nuit, à gauche des boutons de droite de la barre du haut. */
+.theme-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+
+.theme-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Résumé d'un tir déjà fait : la même infobulle que « signal perdu », aux couleurs normales. */
+.toast.toast-recap {
+  max-width: calc(100vw - 32px);
+  padding: 16px 32px;
+  gap: 22px;
+  border-width: 3px;
+  border-color: var(--accent);
+  color: var(--fg);
+  font-size: clamp(1.4rem, 4.5vw, 2rem);
+}
+
+.toast-route {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toast-result {
+  display: inline-flex;
+  align-items: center;
+}
+
+.toast-recap .chip {
+  width: 1.6em;
+  height: 1.6em;
+}
+
+.toast-recap .plus {
+  font-size: 1em;
 }

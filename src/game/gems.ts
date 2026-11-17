@@ -219,10 +219,14 @@ export function placedPivot(placement: Placement): Point {
   return [placement.col + x, placement.row + y];
 }
 
-/** Distance maximale de l'axe aux bords de la gemme, quelle que soit son orientation (en cases). */
-export function pivotReach(shape: GemShape): number {
-  const [px, py] = shape.pivot;
-  return Math.max(...shape.vertices.map(([x, y]) => Math.max(Math.abs(x - px), Math.abs(y - py))));
+/**
+ * Où ancrer le bouton de rotation, relativement à l'axe : le coin haut-droit de la gemme dans son
+ * orientation de référence, 0,15 case vers l'extérieur. L'axe ne bougeant pas quand la gemme pivote, le
+ * bouton non plus.
+ */
+export function buttonOffset(shape: GemShape): Point {
+  const { maxX, minY } = boundingBox(shape.vertices);
+  return [maxX - shape.pivot[0] + 0.15, minY - shape.pivot[1] - 0.15];
 }
 
 /** Vrai si faire tourner la gemme change quelque chose (faux pour le losange, identique dans ses 4 quarts de tour). */

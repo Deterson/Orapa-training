@@ -48,6 +48,7 @@ const header = (over: Partial<Parameters<typeof headerHtml>[0]> = {}) =>
     newGameBlocked: false,
     accountReady: true,
     user: null,
+    theme: 'light' as const,
     ...over,
   });
 
@@ -99,7 +100,28 @@ describe('barre du haut', () => {
 
   it("aucun bouton de compte tant que la session n'est pas lue (ou sans backend)", () => {
     const right = header({ accountReady: false }).split('tb-right')[1] ?? '';
-    expect(right).not.toContain('data-action');
+    expect(right).not.toMatch(/data-action="sign-/);
+    expect(right).not.toContain('tb-link');
+  });
+
+  it('le bouton jour / nuit est le premier de ceux de droite, même sans compte', () => {
+    for (const accountReady of [false, true]) {
+      const right = header({ accountReady }).split('tb-right')[1] ?? '';
+      expect(right).toContain('data-action="toggle-theme"');
+      const others = right.indexOf('sign-in') === -1 ? right.length : right.indexOf('sign-in');
+      expect(right.indexOf('toggle-theme')).toBeLessThan(others);
+    }
+    const connected = header({ user: user() }).split('tb-right')[1] ?? '';
+    expect(connected.indexOf('toggle-theme')).toBeLessThan(connected.indexOf('tb-link'));
+  });
+
+  it('en mode jour il propose la nuit (lune), en mode nuit il propose le jour (soleil)', () => {
+    const day = header({ theme: 'light' });
+    expect(day).toContain('aria-label="Mode nuit"');
+    expect(day).not.toContain('<circle cx="12" cy="12" r="4"/><path d="M12 2v2');
+    const night = header({ theme: 'dark' });
+    expect(night).toContain('aria-label="Mode jour"');
+    expect(night).toContain('<circle cx="12" cy="12" r="4"/><path d="M12 2v2');
   });
 
   it('« Nouvelle partie » est désactivée quand elle est bloquée', () => {

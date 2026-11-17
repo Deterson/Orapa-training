@@ -1,5 +1,5 @@
 /**
- * Outils de la colonne de droite (crayon, ligne droite, gomme, vide, simulation, couleurs) et rangée
+ * Outils de la colonne de droite (tir, crayon, ligne droite, vide, simulation, couleurs et gomme) et rangée
  * du bas de la grille (afficher les notes et les gemmes ; annuler, rétablir, effacer). Le dessin des
  * notes est dans notesLayer.ts ; les interactions sont dans app.ts.
  */
@@ -9,14 +9,20 @@ import { t } from './strings';
 
 /**
  * Outil actif. Aucun (null) = « jouer » : les repères tirent, les cases sondent, les gemmes se
- * déplacent. « simulate » : les repères testent un tir sur les gemmes posées par le joueur.
+ * déplacent. « fire » (bouton « Tir ») : les repères tirent et les cases sondent, mais les gemmes posées
+ * laissent passer le pointeur : toucher une case ne sélectionne plus la gemme dessous. « simulate » : les
+ * repères testent un tir sur les gemmes posées par le joueur.
  */
-export type Tool = 'pencil' | 'line' | 'eraser' | 'empty' | 'simulate';
+export type Tool = 'fire' | 'pencil' | 'line' | 'eraser' | 'empty' | 'simulate';
 
 /** Outils qui dessinent sur la grille (les gemmes posées n'interceptent alors plus le pointeur). */
 export function isDrawingTool(tool: Tool | null): tool is 'pencil' | 'line' | 'eraser' | 'empty' {
-  return tool !== null && tool !== 'simulate';
+  return tool !== null && tool !== 'simulate' && tool !== 'fire';
 }
+
+/** Pictogramme de gomme, à droite des couleurs. */
+const ERASER_ICON =
+  '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>';
 
 const INKS: readonly Ink[] = ['ink', 'black', 'red', 'yellow', 'blue'];
 
@@ -32,8 +38,8 @@ export interface ToolsView {
  */
 export function toolsHtml({ tool, ink }: ToolsView): string {
   const pressed = (name: Tool): string => `aria-pressed="${tool === name}"`;
-  const button = (name: Tool, label: string, content = label): string =>
-    `<button type="button" class="tool" data-tool="${name}" ${pressed(name)} aria-label="${label}" title="${label}">${content}</button>`;
+  const button = (name: Tool, label: string, content = label, extraClass = ''): string =>
+    `<button type="button" class="tool${extraClass}" data-tool="${name}" ${pressed(name)} aria-label="${label}" title="${label}">${content}</button>`;
   const inks = INKS.map((name) => {
     const swatch =
       name === 'ink'
@@ -42,8 +48,8 @@ export function toolsHtml({ tool, ink }: ToolsView): string {
     return `<button type="button" class="ink" data-ink="${name}" aria-pressed="${ink === name}" aria-label="Encre ${INK_LABEL[name]}" title="Encre ${INK_LABEL[name]}">${swatch}</button>`;
   }).join('');
   return `<div class="tools" role="toolbar" aria-label="${t.tools.label}">
-      <div class="tool-row"><button type="button" class="tool" data-mode="gems" aria-pressed="${tool === null}" title="${t.actions.showGems}">${t.actions.showGems}</button>${button('pencil', t.tools.pencil)}${button('line', t.tools.line)}${button('eraser', t.tools.eraser)}</div>
-      <div class="tool-row ink-row" role="group" aria-label="${t.tools.inks}">${inks}</div>
+      <div class="tool-row">${button('fire', t.tools.fire)}<button type="button" class="tool" data-mode="gems" aria-pressed="${tool === null}" title="${t.actions.showGems}">${t.actions.showGems}</button>${button('pencil', t.tools.pencil)}${button('line', t.tools.line)}</div>
+      <div class="tool-row ink-row" role="group" aria-label="${t.tools.inks}">${inks}${button('eraser', t.tools.eraser, ERASER_ICON, ' eraser-btn')}</div>
       <div class="tool-row">${button('empty', t.tools.empty, `<span class="empty-swatch" aria-hidden="true"></span>${t.tools.empty}`)}${button('simulate', t.tools.simulate)}</div>
     </div>`;
 }

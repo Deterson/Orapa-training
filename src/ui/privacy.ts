@@ -36,6 +36,7 @@ export function privacyPage(model: PrivacyModel): string {
       <li>La partie en cours, pour la reprendre.</li>
       <li>Les parties terminées pas encore envoyées, si vous êtes connecté.</li>
       <li>Votre session de connexion, si vous êtes connecté.</li>
+      <li>Votre choix de thème, jour ou nuit.</li>
     </ul>
     <p>Rien d'autre : pas de suivi, pas de publicité.</p>`;
   const remote = model.backend

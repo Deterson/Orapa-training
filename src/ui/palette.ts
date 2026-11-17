@@ -8,7 +8,7 @@ export const GEM_FILL: Record<GemPaint, string> = {
   blue: '#2f6fb5',
   white: '#f4f4f4',
   // Diamant : verre bleuté, dessiné creux (voir gemPolygons) ; corps noir : presque noir.
-  clear: '#3d97d6',
+  clear: '#a3ccec',
   black: '#1f1f25',
 };
 
@@ -137,7 +137,9 @@ export function gemPolygons(polygon: Polygon, color: GemPaint, className = '', t
     .map(([[x1, y1], [x2, y2]]) => `M${x1} ${y1}L${x2} ${y2}`)
     .join('');
   const grid = path ? `<path class="gem-grid" d="${path}" stroke="${GEM_GRID_COLOR[color]}"/>` : '';
-  return `<polygon${cls} points="${points}" fill="${GEM_FILL[color]}"${opacity}>${label}</polygon>${grid}`;
+  // Trois calques : le fond, le quadrillage, puis la bordure par-dessus (elle ne passe pas sous le quadrillage).
+  const edge = `<polygon class="gem-edge${hollow ? ' gem-edge-clear' : ''}" points="${points}" fill="none"/>`;
+  return `<polygon${cls} points="${points}" fill="${GEM_FILL[color]}"${opacity}>${label}</polygon>${grid}${edge}`;
 }
 
 /** Couleur de texte lisible (sombre ou claire) sur un fond donné en #rrggbb. */

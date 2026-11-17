@@ -3,7 +3,7 @@
  * l'historique des tirs à gauche et les outils, les gemmes et « Soumettre » à droite. L'état de
  * l'interface est petit : la partie, la solution du joueur, l'outil actif et la sélection.
  */
-import { RESULT_COLOR_LABELS, componentColors } from '../game/colors';
+import { RESULT_COLOR_LABELS } from '../game/colors';
 import { cellLabel } from '../game/board';
 import { GRID_COLS, GRID_ROWS } from '../game/constants';
 import {
@@ -29,6 +29,7 @@ import {
   nudgeGem,
   placedGems,
   removeGem,
+  resetSolution,
   rotateGem,
   solutionIssues,
 } from '../game/solution';
@@ -49,13 +50,16 @@ import {
 import { type Tool, footerHtml, isDrawingTool, toolsHtml } from './notesBoard';
 import { notesLayerSvg } from './notesLayer';
 import type { Pending } from './board';
+import { currentTheme, toggleTheme } from './theme';
 import { playBoardSvg } from './playBoard';
-import { INK_COLOR, INK_LABEL, RAY_COLOR, lostSignalHtml } from './palette';
+import { INK_COLOR, INK_LABEL, lostSignalHtml } from './palette';
 import { diffLine, resultBoardSvg } from './resultBoard';
 import type { AccountUser } from '../backend/auth';
 import type { Backend } from '../backend';
 import type { HistoryFilter, HistorySort } from '../backend/games';
 import { type ProgressSync, createProgressSync } from '../backend/sync';
+import { installScrollbars, refreshScrollbars } from './scrollbar';
+import { chips, probeCardHtml, shotCardHtml } from './historyCards';
 import {
   type GameRecord,
   MAX_PLAYING,
@@ -83,11 +87,10 @@ import { type ImmersiveTool, immersiveBoardSvg } from './immersiveBoard';
 import { gemOrigin, gemSize, trayHtml } from './solutionBoard';
 
 type Phase = 'idle' | 'loading' | 'options' | 'ready' | 'error';
-type Ask =
-  /** « Nouvelle partie » sans compte alors qu'une partie est en cours : elle serait perdue. */
-  | { kind: 'replace' }
-  /** Résumé d'un tir déjà fait (numéro du tir) : aucune action, il se ferme d'un clic. */
-  | { kind: 'recap'; n: number };
+/** Fenêtre modale ouverte : « Nouvelle partie » sans compte alors qu'une partie est en cours (elle serait perdue). */
+type Ask = { kind: 'replace' };
+/** Infobulle temporaire, en bas de l'écran : « signal perdu », ou résumé d'un tir déjà fait (son numéro). */
+type Toast = { kind: 'lost' } | { kind: 'recap'; n: number };
 
 interface State {
   phase: Phase;
@@ -95,7 +98,10 @@ interface State {
   view: View;
   session: GameSession | null;
   /** Tir mis en avant dans l'historique. */
+  /** Tir au laser sélectionné dans l'historique (reste en avant jusqu'à ce qu'on le reclique). */
   selected: number | null;
+  /** Sonde sélectionnée dans l'historique (exclusive avec `selected`). */
+  selectedProbe: string | null;
   solution: Solution;
   selectedGem: GemId | null;
   /** Tir simulé sur la grille du joueur. */
@@ -126,8 +132,8 @@ interface State {
   confirm: 'submit' | null;
   /** Choix des extensions en cours (fenêtre de début de partie) ; null quand elle est fermée. */
   choose: Extensions | null;
-  /** Message « signal perdu » affiché un instant. */
-  toast: boolean;
+  /** Infobulle affichée un instant ; null sinon. */
+  toast: Toast | null;
   notice: string;
   /** Backend branché (v2) ; null tant qu'il n'est pas chargé ou si le site n'est pas configuré. */
   backend: Backend | null;
@@ -242,22 +248,6 @@ function clearSeedFromUrl(): void {
   }
 }
 
-/**
- * Pastilles d'un résultat : une par couleur de gemme qui le compose, séparées par un « + »
- * (violet clair = rouge + bleu + blanc). « Transparent » : une pastille au simple contour blanc.
- * Le nom de la couleur n'est pas écrit : il apparaît au survol de la souris.
- */
-function chips(color: ShotRecord['color']): string {
-  const parts = componentColors(color);
-  const dots =
-    parts.length === 0
-      ? '<span class="chip chip-clear"></span>'
-      : parts
-          .map((part) => `<span class="chip" style="background:${RAY_COLOR[part]}"></span>`)
-          .join('<span class="plus">+</span>');
-  return `<span class="chips" aria-hidden="true" title="${RESULT_COLOR_LABELS[color]}">${dots}</span>`;
-}
-
 /** Résultat d'un tir en toutes lettres : « E → 4, bleu » ou « E → signal perdu ». */
 function outcomeText(outcome: Pick<ShotRecord, 'entry' | 'exit' | 'color'>): string {
   return isAbsorbed(outcome)
@@ -327,6 +317,7 @@ export function startApp(
     view: viewFromHash(),
     session: null,
     selected: null,
+    selectedProbe: null,
     solution: emptySolution(),
     selectedGem: null,
     hypothesis: null,
@@ -344,7 +335,7 @@ export function startApp(
     itool: 'move',
     confirm: null,
     choose: null,
-    toast: false,
+    toast: null,
     notice: '',
     backend: null,
     account: null,
@@ -365,26 +356,30 @@ export function startApp(
   const historyPanel = (session: GameSession | null): string => {
     const shots = session?.shots ?? [];
     const count = session?.shotCount ?? 0;
-    const list = shots.length
-      ? `<ol class="history" aria-label="Tirs">${shots
-          .map(
-            (shot) =>
-              `<li${state.fresh.shot === shot.n ? ' class="is-new"' : ''}><button type="button" class="shot${state.selected === shot.n ? ' is-selected' : ''}" data-shot="${shot.n}" aria-label="${describe(shot)}"><span class="n">${shot.n}</span><span class="path"><b>${shot.entry}</b> → ${isAbsorbed(shot) ? lostSignalHtml() : `<b>${shot.exit}</b>`}</span>${isAbsorbed(shot) ? '' : chips(shot.color)}</button></li>`,
-          )
-          .join('')}</ol>`
-      : '';
-    const probes = session?.probes.length
-      ? `<ul class="probe-list" aria-label="Sondages">${session.probes
-          .map(
-            (probe) =>
-              `<li${state.fresh.probe === probe.cell ? ' class="is-new"' : ''}><b>${probe.cell}</b> · ${probe.content === 'black' ? `${lostSignalHtml()} ` : ''}${t.probe[probe.content]}</li>`,
-          )
-          .join('')}</ul>`
-      : '';
-    return `<aside class="play-history">
-        <div class="counter"><span class="count">${count}</span><span class="count-label">tir${plural(count, '', 's')}</span></div>
-        ${list}
-        ${probes}
+    // Lasers puis sondes, dans la même liste de cartes.
+    const cards = [
+      ...shots.map((shot) =>
+        shotCardHtml(
+          shot,
+          { selected: state.selected === shot.n, fresh: state.fresh.shot === shot.n },
+          describe(shot),
+        ),
+      ),
+      ...(session?.probes ?? []).map((probe) =>
+        probeCardHtml(probe, {
+          selected: state.selectedProbe === probe.cell,
+          fresh: state.fresh.probe === probe.cell,
+        }),
+      ),
+    ];
+    const list = cards.length ? `<ol class="history" aria-label="Tirs">${cards.join('')}</ol>` : '';
+    // La liste défile dans `.scroll-body` (barre du navigateur cachée) ; la barre légère est en surimpression.
+    return `<aside class="play-history scroll-area">
+        <div class="scroll-body">
+          <div class="counter"><span class="count">${count}</span><span class="count-label">tir${plural(count, '', 's')}</span></div>
+          ${list}
+        </div>
+        <div class="scrollbar" aria-hidden="true" hidden><div class="scrollbar-thumb"></div></div>
       </aside>`;
   };
 
@@ -402,13 +397,9 @@ export function startApp(
     return `<aside class="play-side">
         ${toolsHtml({ tool: state.tool, ink: state.ink })}
         ${trayHtml({ solution: state.solution, selected: state.selectedGem, issues })}
+        <button type="button" class="ghost reset-btn" data-action="reset-gems"${placed ? '' : ' disabled'}>${t.actions.reset}</button>
         <p class="status">${status}</p>
         ${hypothesis}
-        ${
-          issues.length
-            ? `<ul class="issues">${issues.map((issue) => `<li>${issue.message}</li>`).join('')}</ul>`
-            : ''
-        }
         ${actionsPanel(session)}
       </aside>`;
   };
@@ -442,22 +433,42 @@ export function startApp(
     return `<button type="button" class="submit-btn" data-action="ask-submit"${ready ? '' : ' disabled title="Toutes les gemmes, bien placées"'}>${t.actions.submit}</button>`;
   };
 
-  /** Message « signal perdu », quelques secondes, quand le Corps noir absorbe un rayon ou une sonde. */
-  const toastHtml = (): string =>
-    state.toast
-      ? `<div class="toast" role="status">${lostSignalHtml()}<span>${t.lostSignal}</span></div>`
-      : '';
+  /** Résumé d'un tir : « E → F » et les pastilles de la couleur obtenue (ou « signal perdu »). */
+  const recapToast = (n: number): string => {
+    const shot = state.session?.shots.find((candidate) => candidate.n === n);
+    if (!shot) return '';
+    const lost = isAbsorbed(shot);
+    const route = lost ? `${shot.entry} → ${lostSignalHtml()}` : `${shot.entry} → ${shot.exit}`;
+    const result = lost
+      ? t.lostSignal
+      : shot.color === 'transparent'
+        ? RESULT_COLOR_LABELS[shot.color]
+        : chips(shot.color);
+    return `<div class="toast toast-recap" role="status" aria-label="${outcomeText(shot)}"><span class="toast-route">${route}</span><span class="toast-result">${result}</span></div>`;
+  };
+
+  /**
+   * Infobulle en bas de l'écran, quelques secondes : « signal perdu » quand le Corps noir absorbe un rayon ou
+   * une sonde, ou résumé d'un tir déjà fait.
+   */
+  const toastHtml = (): string => {
+    if (!state.toast) return '';
+    return state.toast.kind === 'recap'
+      ? recapToast(state.toast.n)
+      : `<div class="toast" role="status">${lostSignalHtml()}<span>${t.lostSignal}</span></div>`;
+  };
 
   let toastTimer: number | undefined;
-  /** Affiche le message sans refaire l'affichage au moment de le retirer. */
-  const showLostSignal = (): void => {
-    state.toast = true;
+  /** Retient l'infobulle puis la retire sans refaire l'affichage. L'appelant réaffiche la page pour la montrer. */
+  const showToast = (toast: Toast): void => {
+    state.toast = toast;
     window.clearTimeout(toastTimer);
     toastTimer = window.setTimeout(() => {
-      state.toast = false;
+      state.toast = null;
       root.querySelector('.toast')?.remove();
     }, 2600);
   };
+  const showLostSignal = (): void => showToast({ kind: 'lost' });
 
   /** Fenêtre de début de partie : quelles extensions jouer ? */
   const optionsModal = (choose: Extensions): string => {
@@ -469,7 +480,7 @@ export function startApp(
     const { ask } = state;
     if (state.choose) return optionsModal(state.choose);
     if (!ask) return '';
-    return ask.kind === 'recap' ? recapModal(ask.n) : replaceModal();
+    return replaceModal();
   };
 
   /** Sans compte, une nouvelle partie efface la partie en cours : confirmation (et invitation à se connecter). */
@@ -479,20 +490,6 @@ export function startApp(
       ? `<button type="button" class="ghost" data-action="sign-in">${t.account.signIn}</button>`
       : '';
     return `<div class="modal-backdrop" data-modal-backdrop><div class="modal" role="alertdialog" aria-modal="true" aria-label="${t.modal.replaceTitle}"><p class="modal-title">${t.modal.replaceTitle}</p><p>${canSignIn ? t.modal.replaceSignIn : t.modal.replaceText}</p><div class="actions"><button type="button" data-action="modal-confirm">${t.modal.replaceConfirm}</button>${signIn}<button type="button" class="ghost" data-action="modal-cancel">${t.modal.cancel}</button></div></div></div>`;
-  };
-
-  /** Résumé d'un tir déjà fait : « E → F » et les pastilles de la couleur obtenue. Un clic n'importe où le ferme. */
-  const recapModal = (n: number): string => {
-    const shot = state.session?.shots.find((candidate) => candidate.n === n);
-    if (!shot) return '';
-    const lost = isAbsorbed(shot);
-    const route = lost ? `${shot.entry} → ${lostSignalHtml()}` : `${shot.entry} → ${shot.exit}`;
-    const result = lost
-      ? t.lostSignal
-      : shot.color === 'transparent'
-        ? RESULT_COLOR_LABELS[shot.color]
-        : chips(shot.color);
-    return `<div class="modal-backdrop" data-modal-backdrop data-recap><div class="modal recap" role="dialog" aria-modal="true" aria-label="${outcomeText(shot)}"><button type="button" class="modal-close" data-action="modal-cancel" aria-label="${t.modal.close}">×</button><p class="modal-title">${route}</p><p class="recap-result">${result}</p></div></div>`;
   };
 
   let sync: ProgressSync | null = null;
@@ -620,6 +617,7 @@ export function startApp(
     newGameBlocked: newGameBlocked(),
     accountReady: state.backend !== null && state.authReady,
     user: state.account,
+    theme: currentTheme(),
   })}
       <main class="app${wide ? ' is-play' : ''}">${body}</main>
       <p class="sr-only" aria-live="polite">${state.notice}</p>
@@ -728,6 +726,7 @@ export function startApp(
             issues: solutionIssues(state.solution),
             shots: session.shots,
             selectedShot: state.selected,
+            selectedProbe: state.selectedProbe,
             probes: session.probes,
             notes: state.showNotes ? state.notes.present : null,
             showGems: state.showGems,
@@ -756,6 +755,8 @@ export function startApp(
           <button type="button" class="ghost icon-btn fs-btn" data-action="enter-immersive" aria-label="${t.actions.fullscreen}" title="${t.actions.fullscreen}"${session && !session.finished ? '' : ' disabled'}>${FULLSCREEN_ICON}</button>
         </div>`;
     const playing = state.phase === 'ready' && session !== null && !session.finished;
+    // Le réaffichage remplace tout : on garde la position de l'historique, sauf pour montrer un nouveau tir.
+    const keptScroll = root.querySelector<HTMLElement>('.scroll-body')?.scrollTop ?? 0;
     root.innerHTML = page(
       `${gameBar}
         ${store.available ? '' : `<p class="warning" role="status">${t.hints.storageOff}</p>`}
@@ -770,6 +771,12 @@ export function startApp(
       `<a class="skip-link" href="#plateau" data-action="skip">${t.skipToContent}</a>`,
       true,
     );
+    const history = root.querySelector<HTMLElement>('.scroll-body');
+    if (history) {
+      const showingNew = state.fresh.shot !== null || state.fresh.probe !== null;
+      history.scrollTop = showingNew ? history.scrollHeight : keptScroll;
+      refreshScrollbars(root);
+    }
     persist();
   };
 
@@ -808,6 +815,7 @@ export function startApp(
     };
     state.recorded = null;
     state.selected = null;
+    state.selectedProbe = null;
     state.selectedGem = null;
     state.hypothesis = null;
     state.explored = null;
@@ -823,12 +831,13 @@ export function startApp(
   const startGame = (seed: string, extensions: Readonly<Extensions> = NO_EXTENSIONS): void => {
     store.clear();
     state.choose = null;
-    state.toast = false;
+    state.toast = null;
     state.phase = 'loading';
     state.session = null;
     state.game = null;
     state.recorded = null;
     state.selected = null;
+    state.selectedProbe = null;
     state.solution = emptySolution(gemsFor(extensions));
     state.selectedGem = null;
     state.hypothesis = null;
@@ -897,7 +906,6 @@ export function startApp(
     state.pending = null;
     if (!state.session || state.session.finished) return;
     const shot = state.session.fire(label);
-    state.selected = shot.n;
     state.notice = describe(shot);
     markFresh({ shot: shot.n, probe: null });
     if (isAbsorbed(shot)) showLostSignal();
@@ -1213,18 +1221,22 @@ export function startApp(
 
   /**
    * Tir au laser en deux clics : le premier sur un repère affiche la bulle verte « Tirer en E ? », le
-   * second sur le même repère tire. Un tir déjà fait est gratuit : on en montre le résumé à la place.
+   * second sur le même repère tire. Un tir déjà fait, ou dont le repère est l'arrivée d'un tir précédent, est
+   * gratuit : on en montre le résumé à la place.
    */
   const askFire = (label: string): void => {
     const session = state.session;
     if (!session || session.finished) return;
-    const known = session.shots.find((shot) => shot.entry === label);
+    // Un repère déjà tiré, ou qui est la sortie d'un tir précédent (le trajet est réversible : de x vers y
+    // ou de y vers x, c'est le même rayon), ne coûte rien : on en montre le résumé, en infobulle.
+    const known = session.shots.find((shot) => shot.entry === label || shot.exit === label);
     if (known) {
       state.pending = null;
+      // Le tir est aussi sélectionné : ses repères de départ et d'arrivée sont surlignés sur la grille.
       state.selected = known.n;
-      state.ask = { kind: 'recap', n: known.n };
+      state.selectedProbe = null;
+      showToast({ kind: 'recap', n: known.n });
       render();
-      root.querySelector<HTMLElement>('.modal-close')?.focus();
       return;
     }
     if (state.pending?.kind === 'fire' && state.pending.label === label) return doFire(label);
@@ -1242,11 +1254,11 @@ export function startApp(
     render();
   };
 
-  /** Annule le tir ou la sonde annoncé : la bulle disparaît sans réafficher la page. */
+  /** Annule le tir ou la sonde annoncé : la bulle et le contour vert disparaissent sans réafficher la page. */
   const cancelPending = (): void => {
     if (!state.pending) return;
     state.pending = null;
-    root.querySelectorAll('.shot-bubble').forEach((element) => element.remove());
+    root.querySelectorAll('.shot-bubble, .pending-ring').forEach((element) => element.remove());
   };
 
   /** Ferme la fenêtre modale ; « Continuer » (remplacement de la partie en cours) ouvre le choix des extensions. */
@@ -1330,8 +1342,12 @@ export function startApp(
     const onMove = (e: PointerEvent): void => {
       const [dx, dy] = delta(e);
       if (Math.hypot(dx, dy) / boardScale > 0.2) moved = true;
+      if (!element.classList.contains('is-dragging')) {
+        // Au dernier plan du dessin : la gemme glissée passe au-dessus des repères du bord et des autres calques.
+        svg.appendChild(element);
+        element.classList.add('is-dragging');
+      }
       element.setAttribute('transform', `translate(${dx / elementScale} ${dy / elementScale})`);
-      element.classList.add('is-dragging');
     };
     const finish = (e: PointerEvent, cancelled: boolean): void => {
       window.removeEventListener('pointermove', onMove);
@@ -1449,6 +1465,46 @@ export function startApp(
 
   // ---------- Événements ----------
 
+  installScrollbars(root);
+
+  /**
+   * Aperçu au survol d'une carte de l'historique : tant que rien n'est sélectionné, la carte et ses repères (ou
+   * la case de la sonde) sont mis en avant provisoirement. Directement dans le DOM, sans réafficher la page
+   * (elle remplacerait la carte sous le pointeur).
+   */
+  const previewCard = (card: HTMLElement | null): void => {
+    root
+      .querySelectorAll('.is-preview')
+      .forEach((element) => element.classList.remove('is-preview'));
+    if (!card) return;
+    card.classList.add('is-preview');
+    const n = card.dataset['shot'];
+    const cell = card.dataset['probeCard'];
+    if (n) {
+      const shot = state.session?.shots.find((candidate) => candidate.n === Number(n));
+      if (!shot) return;
+      for (const label of [shot.entry, shot.exit]) {
+        root
+          .querySelector(
+            `.entry[data-fire="${label}"], .entry[data-hypo="${label}"], .entry[data-explore="${label}"]`,
+          )
+          ?.classList.add('is-preview');
+      }
+    } else if (cell) {
+      root.querySelector(`.probe-ring[data-cell="${cell}"]`)?.classList.add('is-preview');
+    }
+  };
+  const CARD = '[data-shot], [data-probe-card]';
+  root.addEventListener('mouseover', (event) => {
+    if (state.selected !== null || state.selectedProbe !== null) return;
+    const card = (event.target as Element).closest<HTMLElement>(CARD);
+    if (card) previewCard(card);
+  });
+  root.addEventListener('mouseout', (event) => {
+    if (!(event.target as Element).closest(CARD)) return;
+    if (!(event.relatedTarget as Element | null)?.closest?.(CARD)) previewCard(null);
+  });
+
   root.addEventListener('pointerdown', (event) => {
     if (event.button > 0) return;
     // Prendre une gemme ou dessiner annule le tir annoncé par la bulle (le clic final peut ne pas arriver).
@@ -1475,7 +1531,7 @@ export function startApp(
     if (element && gem) {
       // Une gemme de la réserve se prend hors de la grille : retour au mode gemmes. Pas d'affichage
       // ici (la gemme saisie disparaîtrait) : la fin du geste le refait.
-      if (isDrawingTool(state.tool)) state.tool = null;
+      if (isDrawingTool(state.tool) || state.tool === 'fire') state.tool = null;
       return beginDrag(event, element, gem);
     }
     if (isDrawingTool(state.tool) && target.closest('.notes-svg')) beginNotes(event, state.tool);
@@ -1514,7 +1570,6 @@ export function startApp(
       state.hypothesis = null;
       return render();
     }
-    if (target.closest('[data-recap]')) return closeAsk(false);
     if (target.hasAttribute('data-modal-backdrop')) return closeAsk(false);
     if (target.hasAttribute('data-options-backdrop')) {
       closeOptions(false);
@@ -1556,9 +1611,18 @@ export function startApp(
       state.hypothesis = null;
       return render();
     }
+    // Cliquer une carte de l'historique la sélectionne (elle reste en avant) ; la recliquer la désélectionne.
     const shot = target.closest<HTMLElement>('[data-shot]');
     if (shot?.dataset['shot']) {
-      state.selected = Number(shot.dataset['shot']);
+      const n = Number(shot.dataset['shot']);
+      state.selected = state.selected === n ? null : n;
+      state.selectedProbe = null;
+      return render();
+    }
+    const probeCard = target.closest<HTMLElement>('[data-probe-card]')?.dataset['probeCard'];
+    if (probeCard) {
+      state.selectedProbe = state.selectedProbe === probeCard ? null : probeCard;
+      state.selected = null;
       return render();
     }
     const hfilter = target.closest<HTMLElement>('[data-hfilter]')?.dataset['hfilter'];
@@ -1575,6 +1639,12 @@ export function startApp(
     }
     const action = target.closest<HTMLElement>('[data-action]')?.dataset['action'];
     switch (action) {
+      case 'reset-gems':
+        // Toutes les gemmes retournent dans la réserve ; aucune n'est plus sélectionnée.
+        return editSolution(resetSolution(state.solution), null);
+      case 'toggle-theme':
+        toggleTheme();
+        return render();
       case 'sign-in':
         // La page est quittée pour Google : on sauvegarde d'abord la partie en cours.
         state.ask = null;
@@ -1843,6 +1913,10 @@ export function startApp(
     void sync?.flush();
   };
   window.addEventListener('pagehide', saveAndSend);
+  // Un clic en dehors de l'application (marges de la page) annule aussi le tir annoncé par la bulle.
+  document.addEventListener('pointerdown', (event) => {
+    if (!root.contains(event.target as Node)) cancelPending();
+  });
   document.addEventListener('visibilitychange', () => {
     syncClock();
     if (document.visibilityState === 'hidden') saveAndSend();

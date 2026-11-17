@@ -4,8 +4,13 @@ import { generateMine } from '../src/game/generate';
 import { shoot } from '../src/game/laser';
 import { GameSession, MAX_ATTEMPTS } from '../src/game/session';
 import { BASE_GEM_IDS } from '../src/game/gems';
+import { independentEntries } from './helpers';
 
 const mine = generateMine('session');
+/** Un repère dont le rayon sort ailleurs (pas un rayon qui revient à son point de départ). */
+const travelling = ENTRY_POINTS.find(
+  ({ label }) => shoot(mine.placements, label).exit !== label,
+)!.label;
 
 describe('partie en cours : tirs', () => {
   it('annonce le point de sortie et la couleur du simulateur', () => {
@@ -18,9 +23,7 @@ describe('partie en cours : tirs', () => {
   it('numère les tirs et les compte', () => {
     const session = new GameSession(mine);
     expect(session.shotCount).toBe(0);
-    session.fire('1');
-    session.fire('I');
-    session.fire('A');
+    for (const label of independentEntries(mine.placements, 3)) session.fire(label);
     expect(session.shots.map((s) => s.n)).toEqual([1, 2, 3]);
     expect(session.shotCount).toBe(3);
   });
@@ -40,10 +43,41 @@ describe('partie en cours : tirs', () => {
     expect(session.shotCount).toBe(1);
   });
 
-  it('permet de tirer depuis les 36 repères', () => {
+  it('permet de tirer depuis les 36 repères, un tir et son trajet inverse ne comptant qu’une fois', () => {
     const session = new GameSession(mine);
-    for (const entry of ENTRY_POINTS) session.fire(entry.label);
-    expect(session.shotCount).toBe(36);
+    for (const entry of ENTRY_POINTS) {
+      const record = session.fire(entry.label);
+      expect([record.entry, record.exit]).toContain(entry.label);
+    }
+    // Un seul tir par trajet : {x, y} et {y, x} sont le même rayon.
+    const paths = new Set(
+      ENTRY_POINTS.map(({ label }) => [label, shoot(mine.placements, label).exit].sort().join('>')),
+    );
+    expect(session.shotCount).toBe(paths.size);
+    expect(paths.size).toBeLessThan(36);
+  });
+
+  it('tirer depuis la sortie d’un tir précédent est gratuit et renvoie ce tir', () => {
+    const session = new GameSession(mine);
+    const first = session.fire(travelling);
+    expect(first.exit).not.toBe(travelling);
+    const reverse = session.fire(first.exit);
+    expect(reverse).toBe(first);
+    expect(session.shotCount).toBe(1);
+    // Le suivant continue la numérotation.
+    const other = independentEntries(mine.placements, 2).find((label) => label !== travelling)!;
+    expect(session.fire(other).n).toBe(2);
+  });
+
+  it('une ancienne sauvegarde qui contient un tir et son inverse se rejoue telle quelle', () => {
+    const session = new GameSession(mine);
+    const first = session.fire(travelling);
+    const snapshot = session.toSnapshot();
+    const restored = GameSession.fromSnapshot({
+      ...snapshot,
+      shots: [...snapshot.shots, first.exit],
+    });
+    expect(restored.shots.map((shot) => shot.entry)).toEqual([travelling, first.exit]);
   });
 
   it('ne laisse pas fuiter la mine', () => {
@@ -180,8 +214,7 @@ describe('partie en cours : chronomètre', () => {
   it('résume la partie', () => {
     let time = 0;
     const session = new GameSession(mine, { now: () => time });
-    session.fire('1');
-    session.fire('I');
+    for (const label of independentEntries(mine.placements, 2)) session.fire(label);
     session.probe('A1');
     time = 12_000;
     session.submit(mine.placements);

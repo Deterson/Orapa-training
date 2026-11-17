@@ -110,8 +110,9 @@ grille de solution du joueur :
     face), il **repart en sens inverse** ;
   - les sommets sont sur des coins de la grille et le rayon sur des demi-cases : il ne
     touche **jamais** un sommet exactement ;
-  - les réflexions sont réversibles : **aucune boucle**, le rayon sort toujours,
-    éventuellement par son point d'entrée.
+  - les réflexions sont réversibles : **aucune boucle**, le rayon sort toujours, éventuellement par son
+    point d'entrée ; un tir de x vers y est donc le même qu'un tir de y vers x (le site ne le recompte
+    pas : il rouvre le résumé du tir existant).
 - ✅ À chaque tir, le maître du jeu annonce deux choses : **(A)** le point de sortie et
   **(B)** la couleur résultante. Exemples du livret (schéma de la page 2) :
   - depuis **I** : « Le rayon ressort rouge en I » ;

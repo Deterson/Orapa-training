@@ -14,6 +14,7 @@ const baseView = {
   issues: [],
   shots: [],
   selectedShot: null,
+  selectedProbe: null as string | null,
   probes: [],
   notes: null,
   showGems: true,
@@ -26,15 +27,42 @@ const baseView = {
 };
 
 describe('outils de notes', () => {
-  it('propose crayon, ligne droite, gomme, vide et simulation, sans les anciennes marques', () => {
+  it('propose tir, crayon, ligne droite, gomme, vide et simulation, sans les anciennes marques', () => {
     const html = toolsHtml({ tool: null, ink: 'ink' });
-    for (const tool of ['pencil', 'line', 'eraser', 'empty', 'simulate']) {
+    for (const tool of ['fire', 'pencil', 'line', 'eraser', 'empty', 'simulate']) {
       expect(html).toContain(`data-tool="${tool}"`);
     }
     for (const gone of ['red', 'yellow', 'blue', 'white', 'maybe']) {
       expect(html).not.toContain(`data-tool="${gone}"`);
     }
     expect(html).not.toContain('>?<');
+  });
+
+  it('le bouton « Tir » est à gauche de « Gemmes », « Crayon » et « Ligne droite »', () => {
+    const html = toolsHtml({ tool: null, ink: 'ink' });
+    const at = (needle: string): number => html.indexOf(needle);
+    expect(at('data-tool="fire"')).toBeLessThan(at('data-mode="gems"'));
+    expect(at('data-mode="gems"')).toBeLessThan(at('data-tool="pencil"'));
+    expect(at('data-tool="pencil"')).toBeLessThan(at('data-tool="line"'));
+    expect(toolsHtml({ tool: 'fire', ink: 'ink' })).toMatch(/data-tool="fire" aria-pressed="true"/);
+  });
+
+  it('la gomme n’est plus un bouton texte : une icône à droite des couleurs', () => {
+    const html = toolsHtml({ tool: null, ink: 'ink' });
+    expect(html).not.toContain('>Gomme<');
+    expect(html).toMatch(/data-tool="eraser"[^>]*aria-label="Gomme"[^>]*><svg/);
+    expect(html.indexOf('data-ink="blue"')).toBeLessThan(html.indexOf('data-tool="eraser"'));
+    // Dans la rangée des couleurs, après la dernière.
+    const inkRow = html.slice(html.indexOf('ink-row'), html.indexOf('data-tool="empty"'));
+    expect(inkRow).toContain('data-tool="eraser"');
+  });
+
+  it('la classe du bouton gomme n’entre pas en collision avec celle de la grille (tool-eraser)', () => {
+    // La grille porte « tool-<outil> » : un bouton qui réutiliserait « tool-eraser » recevrait les mêmes
+    // règles CSS que la grille, et inversement (la grille rétrécissait à la taille d'un bouton).
+    const tools = toolsHtml({ tool: 'eraser', ink: 'ink' });
+    expect(tools).not.toContain('tool-eraser');
+    expect(playBoardSvg({ ...baseView, tool: 'eraser' })).toContain('tool-eraser');
   });
 
   it('le bouton « Gemmes » précède « Crayon » et marque le mode gemmes', () => {
@@ -58,6 +86,7 @@ describe('outils de notes', () => {
   it('seuls crayon, ligne, gomme et vide dessinent', () => {
     expect(isDrawingTool(null)).toBe(false);
     expect(isDrawingTool('simulate')).toBe(false);
+    expect(isDrawingTool('fire')).toBe(false);
     for (const tool of ['pencil', 'line', 'eraser', 'empty'] as const) {
       expect(isDrawingTool(tool)).toBe(true);
     }
@@ -97,6 +126,14 @@ describe('grille de jeu unique', () => {
     expect(playBoardSvg({ ...baseView, tool: 'simulate' })).toContain('mode-gems');
   });
 
+  it('avec l’outil « Tir » : repères et cases tirent, en mode gemmes', () => {
+    const html = playBoardSvg({ ...baseView, tool: 'fire' });
+    expect(html).toContain('data-fire="1"');
+    expect(html).toContain('data-probe="A1"');
+    expect(html).toContain('tool-fire');
+    expect(html).toContain('mode-gems');
+  });
+
   it('en simulation : les repères testent sur les gemmes du joueur', () => {
     const html = playBoardSvg({ ...baseView, tool: 'simulate' });
     expect(html).toContain('data-hypo="1"');
@@ -109,10 +146,15 @@ describe('bulle de confirmation du tir', () => {
     expect(playBoardSvg(baseView)).not.toContain('shot-bubble');
   });
 
-  it('annonce un laser : « Tirer en E ? », bulle verte à l’intérieur de la grille', () => {
+  it('annonce un laser : « Tirer en E ? » au-dessus du repère, qui est entouré en vert', () => {
     const html = playBoardSvg({ ...baseView, pending: { kind: 'fire', label: 'E' } });
-    expect(html).toContain('class="shot-bubble from-left"');
+    // La queue est en bas : la bulle est au-dessus du repère.
+    expect(html).toContain('class="shot-bubble from-bottom"');
     expect(html).toContain('>Tirer en E ?<');
+    expect(html).toContain('class="pending-ring"');
+    // Un repère du haut n'a pas de place au-dessus : la bulle passe au-dessous.
+    const top = playBoardSvg({ ...baseView, pending: { kind: 'fire', label: '3' } });
+    expect(top).toContain('class="shot-bubble from-top"');
     // Elle laisse passer le pointeur : le second clic tombe sur le repère.
     expect(html.indexOf('shot-bubble')).toBeGreaterThan(html.indexOf('data-fire="E"'));
   });
@@ -121,6 +163,7 @@ describe('bulle de confirmation du tir', () => {
     const middle = playBoardSvg({ ...baseView, pending: { kind: 'probe', cell: 'E4' } });
     expect(middle).toContain('>Tirer en E4 ?<');
     expect(middle).toContain('from-bottom');
+    expect(middle).toContain('class="pending-ring"');
     const top = playBoardSvg({ ...baseView, pending: { kind: 'probe', cell: 'A4' } });
     expect(top).toContain('from-top');
   });
@@ -147,7 +190,9 @@ describe('apparition animée des marques', () => {
 
   it("anime seulement les pastilles du dernier tir, pas celles d'avant", () => {
     const fresh = playBoardSvg({ ...baseView, shots: [shot], fresh: { shot: 1, probe: null } });
+    // Le tir (pastille d'entrée) apparaît d'abord, le résultat (pastille de sortie) 0,5 s plus tard.
     expect(fresh).toContain('class="pop"');
+    expect(fresh).toContain('class="pop pop-late"');
     const old = playBoardSvg({ ...baseView, shots: [shot] });
     expect(old).not.toContain('class="pop"');
   });
@@ -188,6 +233,26 @@ describe('boutons de la gemme sélectionnée', () => {
         solution = rotateGem(solution, gem);
         expect(rotateButtonCenter(solution, gem)).toEqual(first);
       }
+    }
+  });
+
+  it('le bouton se pose au coin haut-droit de la gemme (0,15 case vers l’extérieur), sans décalage', () => {
+    const expected: [GemId, [number, number]][] = [
+      // Boîte 4 × 2 en (3, 3) : coin haut-droit (7, 3).
+      ['blue-triangle', [7.15, 2.85]],
+      ['white-triangle', [7.15, 2.85]],
+      // Boîte 3 × 1 : coin (6, 3).
+      ['red-parallelogram', [6.15, 2.85]],
+      // Boîte 2 × 2 : coin (5, 3).
+      ['yellow-triangle', [5.15, 2.85]],
+      // Boîte 2 × 1, axe sur la case de droite : le bouton ne déborde pas d'une case vers la droite.
+      ['black-body', [5.15, 2.85]],
+      ['diamond', [5.15, 2.85]],
+    ];
+    for (const [gem, [x, y]] of expected) {
+      const [cx, cy] = rotateButtonCenter(place(gem, 0, 3, 3), gem) ?? [];
+      expect(cx).toBeCloseTo(x, 5);
+      expect(cy).toBeCloseTo(y, 5);
     }
   });
 

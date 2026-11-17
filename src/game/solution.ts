@@ -120,6 +120,11 @@ export function flipGem(solution: Solution, gem: GemId): Solution {
   return withPlacement(solution, clamped({ ...placement, orientation }), gem);
 }
 
+/** Remet toutes les gemmes dans la réserve (la partie garde les mêmes gemmes, extensions comprises). */
+export function resetSolution(solution: Solution): Solution {
+  return emptySolution(gemsOf(solution));
+}
+
 /** Remet la gemme dans la réserve. */
 export function removeGem(solution: Solution, gem: GemId): Solution {
   return withPlacement(solution, null, gem);
