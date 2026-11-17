@@ -3,6 +3,7 @@
  * déplacer, pivoter et retourner les gemmes, vérifier les règles de placement, et comparer sa
  * grille aux tirs déjà faits. Source : docs/regles.md.
  */
+import { parseCell } from './board';
 import { GRID_COLS, GRID_ROWS } from './constants';
 import {
   ALL_GEM_IDS,
@@ -19,7 +20,8 @@ import {
 import { boundingBox } from './geometry';
 import { shoot } from './laser';
 import { type Violation, validatePlacements } from './placement';
-import type { ShotRecord } from './session';
+import { probeCell } from './probe';
+import type { ProbeRecord, ShotRecord } from './session';
 import { visibilityViolations } from './visibility';
 
 /**
@@ -176,6 +178,23 @@ export function compareWithShots(
       // Pose invalide qui empêche de suivre le rayon : le tir ne correspond pas.
       result.set(shot.n, false);
     }
+  }
+  return result;
+}
+
+/**
+ * Pour chaque sonde déjà faite : la grille du joueur donne-t-elle la même réponse ? (Comme
+ * `compareWithShots` pour les lasers.) Clé : le libellé de la case.
+ */
+export function compareWithProbes(
+  solution: Solution,
+  probes: readonly ProbeRecord[],
+): Map<string, boolean> {
+  const placed = placedGems(solution);
+  const result = new Map<string, boolean>();
+  for (const probe of probes) {
+    const cell = parseCell(probe.cell);
+    result.set(probe.cell, cell !== null && probeCell(placed, cell) === probe.content);
   }
   return result;
 }

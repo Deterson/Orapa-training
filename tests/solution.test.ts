@@ -7,6 +7,7 @@ import { boundingBox } from '../src/game/geometry';
 import { GameSession } from '../src/game/session';
 import {
   type Solution,
+  compareWithProbes,
   compareWithShots,
   dropGem,
   emptySolution,
@@ -221,6 +222,26 @@ describe('solution : règles', () => {
       'yellow-triangle',
     );
     expect(solutionIssues(rotated).map((i) => i.rule)).toContain('d');
+  });
+});
+
+describe('solution : comparaison avec les sondes', () => {
+  const mine = generateMine('sondes');
+  const truth = fromLayout(mine.placements);
+  const session = new GameSession(mine);
+  for (const cell of ['A1', 'B2', 'C3', 'D4', 'E5', 'F6', 'G7', 'H8']) session.probe(cell);
+
+  it('la vraie solution reproduit toutes les sondes', () => {
+    const matches = compareWithProbes(truth, session.probes);
+    expect([...matches.values()].every(Boolean)).toBe(true);
+    expect(matches.size).toBe(session.probes.length);
+  });
+
+  it('une grille vide contredit les sondes qui ont touché une gemme', () => {
+    const matches = compareWithProbes(emptySolution(), session.probes);
+    for (const probe of session.probes) {
+      expect(matches.get(probe.cell)).toBe(probe.content === 'nothing');
+    }
   });
 });
 

@@ -25,9 +25,12 @@ export function chips(color: ShotRecord['color']): string {
   return `<span class="chips" aria-hidden="true" title="${RESULT_COLOR_LABELS[color]}">${dots}</span>`;
 }
 
-/** Le Diamant en miniature (demi-losange creux, comme sur la grille), pour la réponse « diamant » d'une sonde. */
+/**
+ * Le Diamant en miniature (demi-losange creux), pour la réponse « diamant » d'une sonde. Toujours le même
+ * dessin, pointe en haut (l'inverse de la réserve) : la sonde ne dit rien de son orientation réelle.
+ */
 function diamondMiniature(): string {
-  const polygon = orientedPolygon(GEM_SHAPES['diamond'], { rotation: 0, flipped: false });
+  const polygon = orientedPolygon(GEM_SHAPES['diamond'], { rotation: 2, flipped: false });
   return `<svg class="gem-mini" viewBox="-0.1 -0.1 2.2 1.2" aria-hidden="true" focusable="false">${gemPolygons(polygon, 'clear')}</svg>`;
 }
 
@@ -44,6 +47,15 @@ export interface CardState {
   selected: boolean;
   /** Dernier tir : ses éléments apparaissent avec une petite animation. */
   fresh: boolean;
+  /** Écran de résultat : la proposition du joueur ne reproduit pas ce tir (la carte est entourée de rouge). */
+  wrong?: boolean;
+}
+
+/** Classes d'une carte : sélectionnée, et (au résultat) en désaccord avec la proposition. */
+function cardClasses(state: CardState, extra = ''): string {
+  return ['shot', extra, state.selected ? 'is-selected' : '', state.wrong ? 'is-wrong' : '']
+    .filter(Boolean)
+    .join(' ');
 }
 
 /** Tir au laser : « 1   E → K   ● », le trajet à gauche, les pastilles à droite. */
@@ -52,11 +64,11 @@ export function shotCardHtml(shot: ShotRecord, state: CardState, label: string):
   const exit = lost
     ? `<span class="res">${lostSignalHtml()}</span>`
     : `<b class="res">${shot.exit}</b>`;
-  return `<li${state.fresh ? ' class="is-new"' : ''}><button type="button" class="shot${state.selected ? ' is-selected' : ''}" data-shot="${shot.n}" aria-label="${label}" aria-pressed="${state.selected}"><span class="n">${shot.n}</span><span class="path"><b>${shot.entry}</b> → ${exit}</span>${lost ? '' : chips(shot.color)}</button></li>`;
+  return `<li${state.fresh ? ' class="is-new"' : ''}><button type="button" class="${cardClasses(state)}" data-shot="${shot.n}" aria-label="${label}" aria-pressed="${state.selected}"><span class="n">${shot.n}</span><span class="path"><b>${shot.entry}</b> → ${exit}</span>${lost ? '' : chips(shot.color)}</button></li>`;
 }
 
 /** Sonde de case : « 5   B6   =   ● » (ou « rien », le signal perdu, le Diamant en miniature). */
 export function probeCardHtml(probe: ProbeRecord, state: CardState): string {
-  const label = `${probe.cell} : ${t.probe[probe.content]}`;
-  return `<li${state.fresh ? ' class="is-new"' : ''}><button type="button" class="shot is-probe${state.selected ? ' is-selected' : ''}" data-probe-card="${probe.cell}" aria-label="${label}" aria-pressed="${state.selected}"><span class="n">${probe.n}</span><span class="path"><b>${probe.cell}</b> = <span class="res">${probeResultHtml(probe.content)}</span></span></button></li>`;
+  const label = `${probe.cell} : ${t.probe[probe.content]}${state.wrong ? `, ${t.result.mismatch}` : ''}`;
+  return `<li${state.fresh ? ' class="is-new"' : ''}><button type="button" class="${cardClasses(state, 'is-probe')}" data-probe-card="${probe.cell}" aria-label="${label}" aria-pressed="${state.selected}"><span class="n">${probe.n}</span><span class="path"><b>${probe.cell}</b> = <span class="res">${probeResultHtml(probe.content)}</span></span></button></li>`;
 }

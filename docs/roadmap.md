@@ -370,6 +370,8 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
 - **v2.0.20** : toucher un repère déjà tiré sélectionne de nouveau ce tir : ses repères de départ et d'arrivée sont surlignés (comportement perdu en 2.0.19).
 - **v2.0.21** : bouton « Réinitialiser » sous la réserve de gemmes : remet toutes les gemmes dans la réserve (`resetSolution`).
 - **v2.0.22** : un clic ailleurs désélectionne le tir (ou la sonde) mis en avant, dans l'historique comme sur les repères et la grille.
+- **v2.0.23** : « Réinitialiser » passe sur la ligne « 4/7 · 5/13 tirs », tout à droite, pour ne plus faire descendre « Soumettre ».
+- **v2.0.24** : l'historique prend deux colonnes (grand écran) avant de défiler ; à la soumission, le détail passe dans l'historique (tirs en désaccord entourés de rouge, simulés sur la proposition au survol ou à la sélection) et la liste de texte du résumé disparaît ; l'aperçu du diamant est inversé (pointe en haut).
 
 ## Questions ouvertes
 

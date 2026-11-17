@@ -164,7 +164,10 @@ Zones :
    fait plus rien) ; **recliquer** la désélectionne, de même qu'**un clic ailleurs** (hors cartes, repères
    et barre de défilement) : la carte et les repères (ou la case) ne sont plus surlignés. Un tir n'est pas sélectionné d'office
    après avoir été tiré, mais **toucher un repère déjà tiré** (ou l'arrivée d'un tir) le sélectionne : ses
-   repères de départ et d'arrivée sont surlignés. Quand la liste dépasse la hauteur de la grille, elle défile **sans barre du navigateur** (elle
+   repères de départ et d'arrivée sont surlignés. Quand la liste dépasse la hauteur de la grille (grand écran, 88 rem et plus), elle
+   passe d'abord sur **deux colonnes** : la première, remplie d'abord, est **à droite** (au contact de la grille), la
+   seconde s'ouvre **à gauche**, à l'ancien emplacement de la colonne unique (`ui/historyLayout.ts`). Si deux
+   colonnes ne suffisent pas, elle défile **sans barre du navigateur** (elle
    prendrait de la place) : une **barre légère, en surimpression à droite, n'apparaît qu'au survol** et se
    glisse à la souris (`ui/scrollbar.ts`) ; la position est gardée d'un affichage à l'autre, et un nouveau tir
    fait défiler jusqu'à lui. **Pas d'horloge** : le temps n'est montré qu'au résultat.
@@ -205,12 +208,15 @@ Zones :
    modales). En mode gemmes les notes sont légèrement estompées, en mode notes ce sont les gemmes.
    Les notes n'ont aucun effet sur la correction.
 5. **Colonne de droite, en bas : gemmes à placer et « Soumettre ».** La réserve (les mêmes gemmes que celles
-   cachées) se glisse sur la grille ; **« Réinitialiser »**, sous la réserve, remet toutes les gemmes dans la réserve
-   (désactivé quand aucune n'est posée) ; **« Soumettre »** est **en vert**, sous les gemmes (activé quand toutes sont
+   cachées) se glisse sur la grille ; **« Réinitialiser »**, tout à droite de la ligne « 4/7 · 5/13 tirs » (sous la réserve, pour ne pas
+   faire descendre « Soumettre »), remet toutes les gemmes dans la réserve (désactivé quand aucune n'est posée) ; **« Soumettre »** est **en vert**, sous les gemmes (activé quand toutes sont
    bien placées), avec confirmation. **Pas de bouton « Abandonner ».**
 6. **Résultat** (fin de partie) : « Gagné » / « Perdu », le **nombre de tirs et le temps** (seul endroit où
    l'horloge apparaît), la vraie mine et la proposition ; les 36 repères restent cliquables pour tirer des
-   lasers libres dans la mine révélée (trajet tracé, hors compteur).
+   lasers libres dans la mine révélée (trajet tracé, hors compteur). **Le détail se lit dans l'historique, pas en
+   texte** : les tirs (lasers et sondes) que la proposition du joueur ne reproduit pas sont **entourés de rouge** ;
+   survolés ou sélectionnés, ils sont **simulés sur la proposition** (trajet tracé sur la grille, comme l'outil
+   « Simuler »).
 7. **Plein écran (téléphone, paysage)** : bouton à **pictogramme** (quatre coins) dans la barre de la partie, **affiché seulement sur écran tactile** (`pointer: coarse`) ; un seul plateau (`ui/immersiveBoard.ts`) avec réserve de gemmes à droite et colonne d'outils ; l'outil « Jouer » tire (repères), sonde (cases) et déplace les gemmes, les autres outils dessinent (les repères restent cliquables).
 8. **Barre de la partie** : graine, extensions ; l'adresse du navigateur porte `?seed=…&ext=…` pendant la partie et relance la même mine. Les **extensions** de la partie (« Sans extension », « Diamant », « Corps noir » ou les deux) s'affichent à côté de la graine, en haut de la vue de jeu. Les **tirs** (lasers et sondes de cases comptent pareil) sont dans la colonne de gauche.
 
@@ -230,8 +236,8 @@ compris la particularité de la gemme rouge retournable.
 - Fin de partie officielle : à deux joueurs, une proposition fausse fait perdre
   immédiatement. En entraînement, **une seule proposition** (`MAX_ATTEMPTS = 1` dans
   `game/session.ts`) ; la constante permet un mode plus indulgent.
-- Après soumission : afficher les différences (gemmes manquantes / mal placées /
-  en trop), la vraie mine, le nombre de tirs et le temps écoulé.
+- Après soumission : afficher la vraie mine et la proposition (gemmes en pointillés, vert ou rouge), le
+  nombre de tirs et le temps écoulé ; les tirs en désaccord avec la proposition sont repérés dans l'historique.
 
 ## Stack et conventions
 
@@ -289,6 +295,7 @@ src/
     profile.ts     # ✔ page « Profil » (nom, statistiques)
     privacy.ts     # ✔ page « Confidentialité », suppression du compte
     format.ts      # ✔ durées, dates
+    historyLayout.ts # ✔ historique sur une ou deux colonnes selon la place
     historyCards.ts # ✔ cartes de l'historique : tirs et sondes (« B6 = ● »), pastilles de couleur
     scrollbar.ts   # ✔ barre de défilement légère en surimpression (historique des tirs)
   backend/     # v2 : Supabase (chargé à la demande, absent sans configuration)

@@ -202,6 +202,38 @@ h2 {
     order: 1;
   }
 
+  /*
+   * Historique sur deux colonnes (grand écran, quand une colonne ne suffit pas : voir historyLayout.ts). La
+   * première, remplie d'abord, est à droite, au contact de la grille ; la seconde s'ouvre à sa gauche, à
+   * l'emplacement de l'ancienne colonne unique. La grille rétrécit un peu pour garder la même largeur de page.
+   */
+  .play[data-hist-cols='2'] {
+    --u: min(4.2rem, calc((100vw - 29rem) / 18.8), max(2.9rem, calc((100dvh - 11rem) / 10.2)));
+    grid-template-columns: calc(24rem + 6px) calc(12.2 * var(--u)) calc(6.6 * var(--u));
+  }
+
+  .play.is-result[data-hist-cols='2'] {
+    grid-template-columns: calc(24rem + 6px) minmax(0, 44rem);
+  }
+
+  .history[data-cols='2'] {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(var(--rows, 1), auto);
+    grid-template-columns: repeat(2, 12rem);
+    gap: 6px;
+    /* Sens inversé : la première colonne est celle de droite. Les cartes gardent le sens normal. */
+    direction: rtl;
+  }
+
+  .history[data-cols='2'] > li {
+    direction: ltr;
+  }
+
+  .play[data-hist-cols='2'] .counter {
+    align-self: flex-end;
+  }
+
   /* Au-delà de la hauteur de la grille, l'historique défile (la barre du navigateur est cachée). */
   .play-history .scroll-body {
     max-height: calc(10.2 * var(--u));
@@ -568,6 +600,18 @@ button.submit-btn {
   box-shadow: 0 0 0 1px var(--accent);
 }
 
+/* Écran de résultat : un tir que la proposition du joueur ne reproduit pas est entouré de rouge ; survolé ou
+   sélectionné, il est aussi teinté (le tir est alors simulé sur la proposition, voir resultBoard.ts). */
+.shot.is-wrong {
+  border-color: var(--bad);
+  box-shadow: 0 0 0 1px var(--bad);
+}
+
+.shot.is-wrong.is-selected,
+.shot.is-wrong.is-preview {
+  background: color-mix(in srgb, var(--bad) 14%, var(--surface));
+}
+
 .shot .n {
   min-width: 1.6rem;
   color: var(--muted);
@@ -668,6 +712,24 @@ button.submit-btn {
 .status,
 .hypo {
   margin: 6px 0;
+}
+
+/* « 4/7 · 5/13 tirs » à gauche, « Réinitialiser » tout à droite : même ligne, « Soumettre » ne descend pas. */
+.status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.status-row .status {
+  margin: 0;
+}
+
+.reset-btn {
+  min-height: 32px;
+  padding: 2px 10px;
+  font-size: 0.9rem;
 }
 
 .notes-svg {
@@ -842,24 +904,6 @@ button.submit-btn {
 
 .guess-gem.is-wrong {
   stroke: #d33a2c;
-}
-
-.diff {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.diff .correct {
-  color: var(--good);
-}
-
-.diff .wrong,
-.diff .missing {
-  color: var(--bad);
 }
 
 .resume {

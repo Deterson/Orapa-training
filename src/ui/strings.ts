@@ -67,6 +67,10 @@ export const fr = {
     fire: (label: string) => `Tirer en ${label} ?`,
     probe: (cell: string) => `Tirer en ${cell} ?`,
   },
+  /** Écran de résultat : étiquette (lecteurs d'écran) d'un tir que la proposition ne reproduit pas. */
+  result: {
+    mismatch: 'ne correspond pas à votre proposition',
+  },
   /** Bouton jour / nuit de la barre du haut. */
   theme: {
     toDark: 'Mode nuit',

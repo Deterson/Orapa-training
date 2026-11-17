@@ -21,6 +21,7 @@ import { SAVE_VERSION, type SaveData } from '../game/save';
 import { compareSolution } from '../game/verify';
 import {
   type Solution,
+  compareWithProbes,
   compareWithShots,
   dropGem,
   emptySolution,
@@ -53,12 +54,13 @@ import type { Pending } from './board';
 import { currentTheme, toggleTheme } from './theme';
 import { playBoardSvg } from './playBoard';
 import { INK_COLOR, INK_LABEL, lostSignalHtml } from './palette';
-import { diffLine, resultBoardSvg } from './resultBoard';
+import { resultBoardSvg, simulationRaySvg } from './resultBoard';
 import type { AccountUser } from '../backend/auth';
 import type { Backend } from '../backend';
 import type { HistoryFilter, HistorySort } from '../backend/games';
 import { type ProgressSync, createProgressSync } from '../backend/sync';
 import { installScrollbars, refreshScrollbars } from './scrollbar';
+import { layoutHistory } from './historyLayout';
 import { chips, probeCardHtml, shotCardHtml } from './historyCards';
 import {
   type GameRecord,
@@ -356,12 +358,23 @@ export function startApp(
   const historyPanel = (session: GameSession | null): string => {
     const shots = session?.shots ?? [];
     const count = session?.shotCount ?? 0;
+    // Au résultat, les tirs que la proposition du joueur ne reproduit pas sont entourés de rouge.
+    const verdict = session?.finished
+      ? {
+          shots: compareWithShots(state.solution, shots),
+          probes: compareWithProbes(state.solution, session.probes),
+        }
+      : null;
     // Lasers puis sondes, dans la même liste de cartes.
     const cards = [
       ...shots.map((shot) =>
         shotCardHtml(
           shot,
-          { selected: state.selected === shot.n, fresh: state.fresh.shot === shot.n },
+          {
+            selected: state.selected === shot.n,
+            fresh: state.fresh.shot === shot.n,
+            wrong: verdict?.shots.get(shot.n) === false,
+          },
           describe(shot),
         ),
       ),
@@ -369,6 +382,7 @@ export function startApp(
         probeCardHtml(probe, {
           selected: state.selectedProbe === probe.cell,
           fresh: state.fresh.probe === probe.cell,
+          wrong: verdict?.probes.get(probe.cell) === false,
         }),
       ),
     ];
@@ -397,25 +411,44 @@ export function startApp(
     return `<aside class="play-side">
         ${toolsHtml({ tool: state.tool, ink: state.ink })}
         ${trayHtml({ solution: state.solution, selected: state.selectedGem, issues })}
-        <button type="button" class="ghost reset-btn" data-action="reset-gems"${placed ? '' : ' disabled'}>${t.actions.reset}</button>
-        <p class="status">${status}</p>
+        <div class="status-row">
+          <p class="status">${status}</p>
+          <button type="button" class="ghost reset-btn" data-action="reset-gems"${placed ? '' : ' disabled'}>${t.actions.reset}</button>
+        </div>
         ${hypothesis}
         ${actionsPanel(session)}
       </aside>`;
   };
 
-  /** Résultat de la partie : la vraie mine, la proposition, le détail, et le temps (montré seulement ici). */
+  /** Trajet d'un tir depuis ce repère sur la proposition du joueur (null si elle empêche de suivre le rayon). */
+  const simulateOnProposal = (entry: string): ShotResult | null => {
+    try {
+      return shoot(placedGems(state.solution), entry);
+    } catch {
+      return null;
+    }
+  };
+
+  /** Résultat de la partie : la vraie mine, la proposition (détail dans l'historique), le temps (montré seulement ici). */
   const resultPanel = (session: GameSession): string => {
     const summary = session.summary;
     const diffs = compareSolution(session.reveal(), placedGems(state.solution));
+    // Le tir sélectionné dans l'historique est simulé sur la proposition du joueur : on voit où elle l'envoie.
+    const selectedShot = session.shots.find((shot) => shot.n === state.selected);
     return `
       <div class="result is-${summary.status}">
         <h2>${t.status[summary.status]}</h2>
         <p class="result-meta">${summary.shots} tir${plural(summary.shots, '', 's')} · ${formatTime(summary.elapsedMs)}</p>
         ${recordStatusHtml()}
-        ${resultBoardSvg(diffs, session.shots, state.explored)}
+        ${resultBoardSvg(diffs, {
+          shots: session.shots,
+          probes: session.probes,
+          explored: state.explored,
+          simulated: selectedShot ? simulateOnProposal(selectedShot.entry) : null,
+          selectedShot: state.selected,
+          selectedProbe: state.selectedProbe,
+        })}
         ${state.explored ? `<p class="hypo">${outcomeHtml(state.explored)}</p>` : ''}
-        <ul class="diff">${diffs.map((diff) => `<li class="${diff.status}">${diffLine(diff)}</li>`).join('')}</ul>
         <div class="actions">
           <button type="button" data-action="new-game">${t.actions.newGame}</button>
           <button type="button" class="ghost" data-action="replay">${t.actions.replay}</button>
@@ -774,6 +807,8 @@ export function startApp(
     const history = root.querySelector<HTMLElement>('.scroll-body');
     if (history) {
       const showingNew = state.fresh.shot !== null || state.fresh.probe !== null;
+      // Une ou deux colonnes selon la place, puis la barre légère si deux colonnes ne suffisent pas.
+      layoutHistory(root);
       history.scrollTop = showingNew ? history.scrollHeight : keptScroll;
       refreshScrollbars(root);
     }
@@ -1274,6 +1309,8 @@ export function startApp(
     root
       .querySelectorAll('.entry.is-selected, .probe-ring.is-selected')
       .forEach((element) => element.classList.remove('is-selected'));
+    // Au résultat, le tracé simulé du tir sélectionné disparaît avec lui.
+    root.querySelectorAll('.sim-ray').forEach((element) => element.remove());
   };
 
   /** Annule le tir ou la sonde annoncé : la bulle et le contour vert disparaissent sans réafficher la page. */
@@ -1488,6 +1525,11 @@ export function startApp(
   // ---------- Événements ----------
 
   installScrollbars(root);
+  window.addEventListener('resize', () => {
+    if (!root.querySelector('.play-history')) return;
+    layoutHistory(root);
+    refreshScrollbars(root);
+  });
 
   /**
    * Aperçu au survol d'une carte de l'historique : tant que rien n'est sélectionné, la carte et ses repères (ou
@@ -1495,6 +1537,7 @@ export function startApp(
    * (elle remplacerait la carte sous le pointeur).
    */
   const previewCard = (card: HTMLElement | null): void => {
+    root.querySelectorAll('.sim-ray.is-preview').forEach((element) => element.remove());
     root
       .querySelectorAll('.is-preview')
       .forEach((element) => element.classList.remove('is-preview'));
@@ -1505,6 +1548,13 @@ export function startApp(
     if (n) {
       const shot = state.session?.shots.find((candidate) => candidate.n === Number(n));
       if (!shot) return;
+      // Au résultat, le survol simule le tir sur la proposition du joueur (sous les repères du bord).
+      const simulated = state.session?.finished ? simulateOnProposal(shot.entry) : null;
+      if (simulated) {
+        root
+          .querySelector('.result-svg .entry')
+          ?.insertAdjacentHTML('beforebegin', simulationRaySvg(simulated, true));
+      }
       for (const label of [shot.entry, shot.exit]) {
         root
           .querySelector(

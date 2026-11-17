@@ -1,14 +1,14 @@
 /**
- * Écran de résultat : la vraie mine, avec les gemmes du joueur en pointillés (vert si bien
- * placée, rouge sinon), et le détail gemme par gemme.
+ * Écran de résultat : la vraie mine, avec les gemmes du joueur en pointillés (vert si bien placée, rouge
+ * sinon). Le détail se lit dans l'historique des tirs (cartes en rouge pour les tirs que la proposition ne
+ * reproduit pas) ; en survolant ou en sélectionnant une carte, le tir est simulé sur la proposition du joueur.
  */
-import { cellLabel } from '../game/board';
+import { parseEntryLabel } from '../game/board';
 import { GEM_SHAPES, placedPolygon } from '../game/gems';
 import type { ShotResult } from '../game/laser';
-import { parseEntryLabel } from '../game/board';
-import type { ShotRecord } from '../game/session';
+import type { ProbeRecord, ShotRecord } from '../game/session';
 import type { GemDiff } from '../game/verify';
-import { boardFrame, entryLabelsSvg, labelCenter } from './board';
+import { boardFrame, entryLabelsSvg, labelCenter, probeRingSvg } from './board';
 import { RAY_COLOR, gemPolygons } from './palette';
 
 function points(list: readonly (readonly [number, number])[]): string {
@@ -24,14 +24,30 @@ function ringSvg(label: string): string {
 }
 
 /**
+ * Trajet d'un tir simulé sur la proposition du joueur (le même tracé que l'outil « Simuler »). `preview` :
+ * tracé provisoire, posé par le survol d'une carte, que l'application retire en sortant.
+ */
+export function simulationRaySvg(result: ShotResult, preview = false): string {
+  const path = points(result.path);
+  return `<g class="sim-ray${preview ? ' is-preview' : ''}"><polyline class="ray-outline" points="${path}"/><polyline class="ray" points="${path}" stroke="${RAY_COLOR[result.color]}"/></g>`;
+}
+
+export interface ResultView {
+  shots: readonly ShotRecord[];
+  probes: readonly ProbeRecord[];
+  /** Laser libre tiré dans la vraie mine (clic sur un repère), avec son trajet. */
+  explored: ShotResult | null;
+  /** Tir sélectionné dans l'historique, simulé sur la proposition du joueur. */
+  simulated: ShotResult | null;
+  selectedShot: number | null;
+  selectedProbe: string | null;
+}
+
+/**
  * La vraie mine et la proposition du joueur. Les 36 repères restent cliquables : la partie est
  * finie, on peut donc tirer des lasers librement et en voir le trajet dans la mine révélée.
  */
-export function resultBoardSvg(
-  diffs: readonly GemDiff[],
-  shots: readonly ShotRecord[] = [],
-  explored: ShotResult | null = null,
-): string {
+export function resultBoardSvg(diffs: readonly GemDiff[], view: ResultView): string {
   const actual = diffs
     .map(({ actual: placement }) => {
       const shape = GEM_SHAPES[placement.gem];
@@ -45,29 +61,14 @@ export function resultBoardSvg(
         `<polygon class="guess-gem ${diff.status === 'correct' ? 'is-correct' : 'is-wrong'}" points="${points(placedPolygon(diff.guess!))}"/>`,
     )
     .join('');
-  const path = explored ? points(explored.path) : '';
+  const { explored, simulated } = view;
   const ray = explored
-    ? `<polyline class="ray-outline" points="${path}"/><polyline class="ray" points="${path}" stroke="${RAY_COLOR[explored.color]}"/>${ringSvg(explored.entry)}${ringSvg(explored.exit)}`
+    ? `<polyline class="ray-outline" points="${points(explored.path)}"/><polyline class="ray" points="${points(explored.path)}" stroke="${RAY_COLOR[explored.color]}"/>${ringSvg(explored.entry)}${ringSvg(explored.exit)}`
     : '';
+  const rings = view.probes.map((probe) => probeRingSvg(probe.cell, view.selectedProbe)).join('');
   return boardFrame(
     'La vraie mine et votre proposition : touchez un repère pour tirer un laser',
-    `${actual}${guesses}${ray}${entryLabelsSvg({ shots, selected: null }, 'explore')}`,
+    `${actual}${guesses}${rings}${ray}${simulated ? simulationRaySvg(simulated) : ''}${entryLabelsSvg({ shots: view.shots, selected: view.selectedShot }, 'explore')}`,
     'result-svg',
   );
-}
-
-function whereIs(placement: GemDiff['actual']): string {
-  return cellLabel({ row: placement.row, col: placement.col });
-}
-
-/** Ligne de détail pour une gemme, la plus courte possible. */
-export function diffLine(diff: GemDiff): string {
-  const label = GEM_SHAPES[diff.gem].label;
-  if (diff.status === 'correct') return `✔ ${label} · ${whereIs(diff.actual)}`;
-  if (diff.guess === null) return `✘ ${label} · ${whereIs(diff.actual)}`;
-  const guess = whereIs(diff.guess);
-  const actual = whereIs(diff.actual);
-  return guess === actual
-    ? `✘ ${label} · ${actual}, orientation`
-    : `✘ ${label} · ${guess} → ${actual}`;
 }

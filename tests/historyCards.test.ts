@@ -46,6 +46,32 @@ describe('cartes de l’historique', () => {
     expect(html).toContain('<polygon');
   });
 
+  it('au résultat, un tir que la proposition ne reproduit pas est marqué en rouge', () => {
+    const shot = { n: 1, entry: 'E', exit: 'K', color: 'blue' } as ShotRecord;
+    const wrong = shotCardHtml(shot, { selected: false, fresh: false, wrong: true }, 'E → K');
+    expect(wrong).toContain('class="shot is-wrong"');
+    const fine = shotCardHtml(shot, { selected: false, fresh: false, wrong: false }, 'E → K');
+    expect(fine).not.toContain('is-wrong');
+    const probeWrong = probeCardHtml(probe('B6', 'red'), {
+      selected: true,
+      fresh: false,
+      wrong: true,
+    });
+    expect(probeWrong).toContain('class="shot is-probe is-selected is-wrong"');
+    expect(probeWrong).toContain('ne correspond pas à votre proposition');
+  });
+
+  it('l’aperçu du diamant est toujours le même dessin, pointe en haut', () => {
+    const html = probeResultHtml('clear');
+    // Demi-losange à l'envers de la réserve : une pointe en haut (y = 0), deux sommets de base en bas (y = 1).
+    const points = /<polygon[^>]*points="([^"]+)"/.exec(html)?.[1] ?? '';
+    const ys = points.split(' ').map((point) => Number(point.split(',')[1]));
+    expect(ys.filter((y) => y === 0)).toHaveLength(1);
+    expect(ys.filter((y) => y === 1)).toHaveLength(2);
+    expect(probeCardHtml(probe('A1', 'clear', 1), idle)).toContain(html);
+    expect(probeCardHtml(probe('H9', 'clear', 7), idle)).toContain(html);
+  });
+
   it('la sélection et le dernier tir se marquent, avec l’état pour les lecteurs d’écran', () => {
     const selected = probeCardHtml(probe('B6', 'nothing'), { selected: true, fresh: true });
     expect(selected).toContain('is-selected');

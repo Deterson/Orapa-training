@@ -131,6 +131,13 @@ export function boardFrame(
     </svg>`;
 }
 
+/** Contour d'une case sondée : caché, sauf sélectionné ou survolé dans l'historique (voir `.probe-ring`). */
+export function probeRingSvg(cell: string, selected: string | null): string {
+  const position = parseCell(cell);
+  if (position === null) return '';
+  return `<rect class="probe-ring${cell === selected ? ' is-selected' : ''}" data-cell="${cell}" x="${position.col + 0.06}" y="${position.row + 0.06}" width="0.88" height="0.88" rx="0.12"/>`;
+}
+
 /**
  * `fresh` : la case qui vient d'être sondée, dont la marque apparaît avec une petite animation.
  * `selected` : la case de la sonde sélectionnée dans l'historique. Chaque sonde porte aussi un contour
@@ -145,7 +152,7 @@ export function probeMarksSvg(
     .map((probe) => {
       const cell = parseCell(probe.cell);
       if (cell === null) return '';
-      const ring = `<rect class="probe-ring${probe.cell === selected ? ' is-selected' : ''}" data-cell="${probe.cell}" x="${cell.col + 0.06}" y="${cell.row + 0.06}" width="0.88" height="0.88" rx="0.12"/>`;
+      const ring = probeRingSvg(probe.cell, selected);
       const cx = cell.col + 0.5;
       const cy = cell.row + 0.5;
       const pop = probe.cell === fresh ? ' pop pop-late' : '';
