@@ -1239,6 +1239,8 @@ export function startApp(
       render();
       return;
     }
+    // Un repère pas encore tiré n'est pas un tir déjà fait : la sélection éventuelle s'efface.
+    clearHistorySelection();
     if (state.pending?.kind === 'fire' && state.pending.label === label) return doFire(label);
     state.pending = { kind: 'fire', label };
     render();
@@ -1252,6 +1254,26 @@ export function startApp(
     if (state.pending?.kind === 'probe' && state.pending.cell === cell) return doProbe(cell);
     state.pending = { kind: 'probe', cell };
     render();
+  };
+
+  /** Éléments sur lesquels un clic garde (ou change) la sélection de l'historique : cartes, repères, barre de défilement. */
+  const KEEPS_SELECTION = '[data-shot], [data-probe-card], [data-fire], .scrollbar';
+
+  /**
+   * Désélectionne le tir ou la sonde mis en avant (carte de l'historique, repères de départ et d'arrivée, case
+   * sondée) quand on clique ailleurs ; sans réafficher la page.
+   */
+  const clearHistorySelection = (): void => {
+    if (state.selected === null && state.selectedProbe === null) return;
+    state.selected = null;
+    state.selectedProbe = null;
+    root.querySelectorAll('.shot.is-selected').forEach((element) => {
+      element.classList.remove('is-selected');
+      element.setAttribute('aria-pressed', 'false');
+    });
+    root
+      .querySelectorAll('.entry.is-selected, .probe-ring.is-selected')
+      .forEach((element) => element.classList.remove('is-selected'));
   };
 
   /** Annule le tir ou la sonde annoncé : la bulle et le contour vert disparaissent sans réafficher la page. */
@@ -1511,6 +1533,7 @@ export function startApp(
     if (!(event.target as Element).closest('[data-fire], [data-probe], [data-cursor]')) {
       cancelPending();
     }
+    if (!(event.target as Element).closest(KEEPS_SELECTION)) clearHistorySelection();
     if (state.immersive) {
       const target = event.target as Element;
       if (state.itool === 'move') {
@@ -1541,6 +1564,8 @@ export function startApp(
     const target = event.target as Element;
     // Un clic ailleurs que sur un repère ou une case annule le tir annoncé par la bulle.
     if (!target.closest('[data-fire], [data-probe], [data-cursor]')) cancelPending();
+    // Un clic ailleurs désélectionne aussi le tir mis en avant (historique et repères).
+    if (!target.closest(KEEPS_SELECTION)) clearHistorySelection();
     // Un clic ailleurs que sur une gemme ou ses boutons ronds désélectionne la gemme : les boutons
     // disparaissent aussitôt (retirés du DOM sans refaire l'affichage, pour ne pas perdre le clic).
     if (

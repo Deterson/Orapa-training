@@ -369,6 +369,7 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
 - **v2.0.19** : historique : les sondes sont des cartes comme les tirs (« 5 B6 = ● », « rien », signal perdu, Diamant en miniature, `ui/historyCards.ts`) ; survoler une carte la met en avant provisoirement tant que rien n'est sélectionné, un clic la sélectionne, un reclic la désélectionne ; un tir n'est plus sélectionné d'office.
 - **v2.0.20** : toucher un repère déjà tiré sélectionne de nouveau ce tir : ses repères de départ et d'arrivée sont surlignés (comportement perdu en 2.0.19).
 - **v2.0.21** : bouton « Réinitialiser » sous la réserve de gemmes : remet toutes les gemmes dans la réserve (`resetSolution`).
+- **v2.0.22** : un clic ailleurs désélectionne le tir (ou la sonde) mis en avant, dans l'historique comme sur les repères et la grille.
 
 ## Questions ouvertes
 

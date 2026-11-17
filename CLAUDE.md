@@ -161,7 +161,8 @@ Zones :
    « B6 = » + pictogramme du signal perdu, ou « B6 = » + le **Diamant en miniature** (`ui/historyCards.ts`).
    **Sélection :** tant que rien n'est sélectionné, **survoler** une carte la met en avant provisoirement (ses repères
    sur la grille, ou le contour de la case sondée) ; **cliquer** la sélectionne (elle reste en avant, le survol ne
-   fait plus rien) ; **recliquer** la désélectionne. Un tir n'est pas sélectionné d'office
+   fait plus rien) ; **recliquer** la désélectionne, de même qu'**un clic ailleurs** (hors cartes, repères
+   et barre de défilement) : la carte et les repères (ou la case) ne sont plus surlignés. Un tir n'est pas sélectionné d'office
    après avoir été tiré, mais **toucher un repère déjà tiré** (ou l'arrivée d'un tir) le sélectionne : ses
    repères de départ et d'arrivée sont surlignés. Quand la liste dépasse la hauteur de la grille, elle défile **sans barre du navigateur** (elle
    prendrait de la place) : une **barre légère, en surimpression à droite, n'apparaît qu'au survol** et se
