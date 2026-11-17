@@ -164,10 +164,11 @@ Zones :
    fait plus rien) ; **recliquer** la désélectionne, de même qu'**un clic ailleurs** (hors cartes, repères
    et barre de défilement) : la carte et les repères (ou la case) ne sont plus surlignés. Un tir n'est pas sélectionné d'office
    après avoir été tiré, mais **toucher un repère déjà tiré** (ou l'arrivée d'un tir) le sélectionne : ses
-   repères de départ et d'arrivée sont surlignés. Quand la liste dépasse la hauteur de la grille (grand écran, 88 rem et plus), elle
-   passe d'abord sur **deux colonnes** : la première, remplie d'abord, est **à droite** (au contact de la grille), la
-   seconde s'ouvre **à gauche**, à l'ancien emplacement de la colonne unique (`ui/historyLayout.ts`). Si deux
-   colonnes ne suffisent pas, elle défile **sans barre du navigateur** (elle
+   repères de départ et d'arrivée sont surlignés. Quand la liste dépasse la hauteur de la grille, elle passe d'abord sur
+   **deux colonnes** : la première, remplie d'abord, est **à gauche**, la seconde **à droite**, à l'emplacement de la
+   colonne unique, au contact de la grille (`ui/historyLayout.ts`). La colonne en plus s'ouvre **dans la marge à
+   gauche** de la page quand elle y tient (rien d'autre ne bouge) ; sinon, sur grand écran (88 rem et plus), la page
+   s'élargit d'une colonne et la grille rétrécit un peu. Si deux colonnes ne suffisent pas, elle défile **sans barre du navigateur** (elle
    prendrait de la place) : une **barre légère, en surimpression à droite, n'apparaît qu'au survol** et se
    glisse à la souris (`ui/scrollbar.ts`) ; la position est gardée d'un affichage à l'autre, et un nouveau tir
    fait défiler jusqu'à lui. **Pas d'horloge** : le temps n'est montré qu'au résultat.

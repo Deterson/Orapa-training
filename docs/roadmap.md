@@ -372,6 +372,7 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
 - **v2.0.22** : un clic ailleurs désélectionne le tir (ou la sonde) mis en avant, dans l'historique comme sur les repères et la grille.
 - **v2.0.23** : « Réinitialiser » passe sur la ligne « 4/7 · 5/13 tirs », tout à droite, pour ne plus faire descendre « Soumettre ».
 - **v2.0.24** : l'historique prend deux colonnes (grand écran) avant de défiler ; à la soumission, le détail passe dans l'historique (tirs en désaccord entourés de rouge, simulés sur la proposition au survol ou à la sélection) et la liste de texte du résumé disparaît ; l'aperçu du diamant est inversé (pointe en haut).
+- **v2.0.25** : historique sur deux colonnes : la colonne de gauche est la première, celle de droite la seconde ; la colonne en plus s'ouvre dans la marge à gauche sans déplacer la grille (la page ne s'élargit que s'il n'y a pas assez de marge).
 
 ## Questions ouvertes
 

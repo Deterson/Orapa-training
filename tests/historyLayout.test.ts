@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { capacity, planHistory } from '../src/ui/historyLayout';
+import { capacity, chooseFit, planHistory } from '../src/ui/historyLayout';
 
 describe('disposition de l’historique', () => {
   it('capacité d’une colonne : au moins une carte', () => {
@@ -26,7 +26,19 @@ describe('disposition de l’historique', () => {
     expect(planHistory(89, 13, 11, true)).toEqual({ cols: 2, rows: 45 });
   });
 
-  it('écran étroit : toujours une colonne, qui défile', () => {
+  it('deux colonnes impossibles : une colonne, qui défile', () => {
     expect(planHistory(89, 13, 11, false).cols).toBe(1);
+  });
+
+  it('la seconde colonne s’ouvre dans la marge à gauche quand elle y tient', () => {
+    // Une colonne et son écart : 198 px. Avec le bord de sécurité de 8 px, il faut 206 px de marge.
+    expect(chooseFit(212, 198, true)).toBe('margin');
+    expect(chooseFit(206, 198, false)).toBe('margin');
+    expect(chooseFit(205, 198, false)).toBeNull();
+  });
+
+  it('sans assez de marge : on élargit la page sur grand écran seulement', () => {
+    expect(chooseFit(60, 198, true)).toBe('shift');
+    expect(chooseFit(60, 198, false)).toBeNull();
   });
 });

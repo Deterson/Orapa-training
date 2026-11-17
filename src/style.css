@@ -203,16 +203,24 @@ h2 {
   }
 
   /*
-   * Historique sur deux colonnes (grand écran, quand une colonne ne suffit pas : voir historyLayout.ts). La
-   * première, remplie d'abord, est à droite, au contact de la grille ; la seconde s'ouvre à sa gauche, à
-   * l'emplacement de l'ancienne colonne unique. La grille rétrécit un peu pour garder la même largeur de page.
+   * Historique sur deux colonnes quand une colonne ne suffit pas (voir historyLayout.ts). La première, remplie
+   * d'abord, est à gauche ; la seconde est à droite, à l'emplacement de la colonne unique, au contact de la
+   * grille.
+   *  - data-hist-fit='margin' : la colonne en plus s'ouvre dans la marge à gauche de la page ; rien d'autre ne
+   *    bouge (la zone de l'historique déborde à gauche de sa colonne de 12 rem).
+   *  - data-hist-fit='shift' : pas assez de marge : la page s'élargit d'une colonne et la grille rétrécit un peu.
    */
-  .play[data-hist-cols='2'] {
-    --u: min(4.2rem, calc((100vw - 29rem) / 18.8), max(2.9rem, calc((100dvh - 11rem) / 10.2)));
+  .play[data-hist-fit='margin'] .play-history {
+    width: calc(24rem + 6px);
+    margin-left: calc(-12rem - 6px);
+  }
+
+  .play[data-hist-fit='shift'] {
+    --u: min(4.2rem, calc((100vw - 30rem) / 18.8), max(2.9rem, calc((100dvh - 11rem) / 10.2)));
     grid-template-columns: calc(24rem + 6px) calc(12.2 * var(--u)) calc(6.6 * var(--u));
   }
 
-  .play.is-result[data-hist-cols='2'] {
+  .play.is-result[data-hist-fit='shift'] {
     grid-template-columns: calc(24rem + 6px) minmax(0, 44rem);
   }
 
@@ -222,16 +230,6 @@ h2 {
     grid-template-rows: repeat(var(--rows, 1), auto);
     grid-template-columns: repeat(2, 12rem);
     gap: 6px;
-    /* Sens inversé : la première colonne est celle de droite. Les cartes gardent le sens normal. */
-    direction: rtl;
-  }
-
-  .history[data-cols='2'] > li {
-    direction: ltr;
-  }
-
-  .play[data-hist-cols='2'] .counter {
-    align-self: flex-end;
   }
 
   /* Au-delà de la hauteur de la grille, l'historique défile (la barre du navigateur est cachée). */
