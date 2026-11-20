@@ -37,13 +37,13 @@ export const GAME_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 
 type Json = Record<string, unknown>;
 
-const isRecord = (value: unknown): value is Json =>
+export const isRecord = (value: unknown): value is Json =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
-const isInt = (value: unknown): value is number => Number.isInteger(value);
-const isFiniteNumber = (value: unknown): value is number =>
+export const isInt = (value: unknown): value is number => Number.isInteger(value);
+export const isFiniteNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value);
 
-function parsePlacement(value: unknown): Placement | null {
+export function parsePlacement(value: unknown): Placement | null {
   if (!isRecord(value) || !isRecord(value['orientation'])) return null;
   const { gem, col, row } = value;
   const { rotation, flipped } = value['orientation'];
@@ -83,7 +83,7 @@ function parseLabels(value: unknown, valid: (label: string) => boolean): string[
 
 const STATUSES: readonly GameStatus[] = ['playing', 'won', 'lost', 'abandoned'];
 
-function parseSnapshot(value: unknown): SessionSnapshot | null {
+export function parseSnapshot(value: unknown): SessionSnapshot | null {
   if (!isRecord(value)) return null;
   const mine = parseMine(value['mine']);
   const shots = parseLabels(value['shots'], (label) => parseEntryLabel(label) !== null);
@@ -97,7 +97,7 @@ function parseSnapshot(value: unknown): SessionSnapshot | null {
 }
 
 /** La solution doit porter exactement sur les gemmes de la partie (`gems`). */
-function parseSolution(value: unknown, gems: readonly GemId[]): Solution | null {
+export function parseSolution(value: unknown, gems: readonly GemId[]): Solution | null {
   if (!isRecord(value)) return null;
   const result: Partial<Record<GemId, Placement | null>> = {};
   for (const gem of gems) {
@@ -133,7 +133,7 @@ function parseStroke(value: unknown): Stroke | null {
   return { ink: ink as Ink, points: points as [number, number][] };
 }
 
-function parseNotes(value: unknown): Notes | null {
+export function parseNotes(value: unknown): Notes | null {
   if (!isRecord(value) || !isRecord(value['marks']) || !Array.isArray(value['strokes']))
     return null;
   const marks: Record<string, CellMark> = {};

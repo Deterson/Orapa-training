@@ -7,7 +7,8 @@
  * Deux façons de faire de la place, par ordre de préférence :
  *  - « margin » : la colonne en plus s'ouvre dans la marge à gauche de la page, sans rien déplacer ;
  *  - « shift » : pas assez de marge, mais un grand écran : la page s'élargit d'une colonne et la grille
- *    rétrécit un peu (voir le CSS, `data-hist-fit`).
+ *    rétrécit un peu (voir le CSS, `data-hist-fit`). Cette place est réservée dès le début (colonne vide),
+ *    pour que le passage à deux colonnes ne déplace rien.
  */
 
 /** Largeur de fenêtre à partir de laquelle on peut élargir la page pour une seconde colonne (en `rem`). */
@@ -89,25 +90,28 @@ export function layoutHistory(root: ParentNode, wide = matchMedia(WIDE_QUERY).ma
   const play = root.querySelector<HTMLElement>('.play');
   const aside = root.querySelector<HTMLElement>('.play-history');
   const body = aside?.querySelector<HTMLElement>('.scroll-body');
-  const list = body?.querySelector<HTMLElement>('.history');
-  if (!play || !aside || !body || !list) return;
+  const list = body?.querySelector<HTMLElement>('.history') ?? null;
+  if (!play || !aside || !body) return;
   // On repart d'une seule colonne pour mesurer.
   play.removeAttribute('data-hist-cols');
   play.removeAttribute('data-hist-fit');
-  list.removeAttribute('data-cols');
-  list.style.removeProperty('--rows');
+  list?.removeAttribute('data-cols');
+  list?.style.removeProperty('--rows');
+  const fit = chooseFit(aside.getBoundingClientRect().left, columnWidth(), wide);
+  if (fit === null) return;
+  // En mode « shift », la place de la seconde colonne est réservée dès le premier tir (vide, la colonne
+  // unique restant à sa place, au contact de la grille) : le passage à deux colonnes ne déplace rien.
+  if (fit === 'shift') play.setAttribute('data-hist-fit', fit);
+  if (!list) return;
   const count = list.children.length;
   const one = measure(body, list);
   if (!one || count === 0) return;
   const capacityOne = capacity(one.available, one.card, one.gap);
   if (count <= capacityOne) return;
-  const fit = chooseFit(aside.getBoundingClientRect().left, columnWidth(), wide);
-  if (fit === null) return;
   play.setAttribute('data-hist-cols', '2');
-  play.setAttribute('data-hist-fit', fit);
+  if (fit === 'margin') play.setAttribute('data-hist-fit', fit);
   list.setAttribute('data-cols', '2');
-  // En mode « shift » la grille rétrécit : on mesure de nouveau avant de répartir.
-  const two = fit === 'shift' ? (measure(body, list) ?? one) : one;
-  const plan = planHistory(count, capacityOne, capacity(two.available, two.card, two.gap), true);
+  // La grille a déjà sa taille définitive (en « shift », elle est réduite avant la mesure) : même capacité.
+  const plan = planHistory(count, capacityOne, capacityOne, true);
   list.style.setProperty('--rows', String(plan.rows));
 }

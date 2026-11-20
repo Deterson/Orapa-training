@@ -37,6 +37,19 @@ function card(label: string, value: string, hint = ''): string {
   return `<div class="p-card"><dt>${label}</dt><dd${hint ? ` aria-label="${hint}"` : ''}>${value}</dd></div>`;
 }
 
+/** Duels contre l'IA : une ligne par niveau joué (victoires, égalités, défaites, pourcentage de victoires). */
+export function duelsTable(stats: ProfileStats): string {
+  if (!stats.duels?.length) return '';
+  const rows = stats.duels
+    .map(
+      (duel) =>
+        `<tr><th scope="row">${t.duel.levels[duel.level]}</th><td>${duel.total}</td><td>${duel.wins}</td><td>${duel.draws}</td><td>${duel.losses}</td><td>${number(duel.winRate * 100, 1)} %</td></tr>`,
+    )
+    .join('');
+  return `<h3 class="p-sub">${t.profile.duels}</h3>
+    <table class="p-duels"><thead><tr><th scope="col">${t.profile.level}</th><th scope="col">${t.profile.games}</th><th scope="col">${t.profile.wins}</th><th scope="col">${t.profile.draws}</th><th scope="col">${t.profile.losses}</th><th scope="col">${t.profile.winRate}</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
 export function profilePage(model: ProfileModel): string {
   if (!model.user) {
     return `<article class="profile-page"><h2>${t.profile.title}</h2>
@@ -52,15 +65,20 @@ export function profilePage(model: ProfileModel): string {
     body = `<p class="warning" role="alert">${t.profile.error} <button type="button" class="ghost" data-action="retry-profile">${t.profile.retry}</button></p>`;
   } else if (model.status === 'loading' || stats === null) {
     body = `<p class="placeholder" role="status">${t.profile.loading}</p>`;
-  } else if (stats.total === 0) {
+  } else if (stats.total === 0 && !stats.duels?.length) {
     body = `<p class="placeholder">${t.profile.none}</p>`;
   } else {
-    body = `<dl class="p-stats">
+    // Les chiffres d'entraînement, puis (s'il y en a) les duels contre l'IA par niveau.
+    const training =
+      stats.total === 0
+        ? ''
+        : `<dl class="p-stats">
       ${card(t.profile.games, String(stats.total))}
       ${card(t.profile.wins, String(stats.wins))}
       ${card(t.profile.winRate, formatWinRate(stats))}
       ${card(t.profile.avgShots, formatAvgShots(stats), stats.avgShotsToWin === null ? t.profile.noWinLabel : '')}
     </dl>`;
+    body = `${training}${duelsTable(stats)}`;
   }
   return `<article class="profile-page">
     <h2>${t.profile.title}</h2>

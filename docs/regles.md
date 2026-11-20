@@ -186,6 +186,24 @@ site joue ce rôle).
 - Le score d'une partie est son **nombre de tirs** : un laser depuis un repère et la sonde d'une
   case comptent chacun pour un ; redemander une réponse déjà connue est gratuit.
 
+## Duel contre l'IA (v3)
+
+Le joueur **cache lui-même ses gemmes** (son plateau) et affronte une IA qui cherche le sien pendant
+qu'il cherche celui de l'IA. La machine joue le maître du jeu des deux côtés ; chaque camp ne reçoit que
+les réponses à ses propres questions.
+
+- **Plateau du joueur** : les 5 gemmes (plus les extensions choisies), règles de placement a à e comme pour
+  la mine générée (la règle e : chaque gemme est atteignable en ligne droite depuis un bord). Tiré au hasard,
+  construit à la main ou importé par un **code de partage** (le même code redonne le même plateau).
+- **Tours alternés** : un tour = une question (un laser ou la sonde d'une case) **ou** la proposition. Le premier
+  à jouer est tiré à pile ou face. Redemander une réponse déjà connue est gratuit et ne passe pas le tour.
+- **Fin** (livret) : une proposition **fausse fait perdre aussitôt**. Si celui qui jouait **en premier** propose
+  juste, l'autre a un **dernier tour** (une proposition) : s'il réussit aussi, **égalité** ; sinon le premier gagne.
+  Si c'est celui qui jouait en second qui trouve, il gagne tout de suite (même nombre de tours).
+- **Niveaux de l'IA** : débutant, intermédiaire, expert (nombre de plateaux envisagés, qualité des questions,
+  prudence avant de proposer). L'IA ne reçoit jamais le plateau du joueur, seulement les réponses à ses questions.
+- Pas de rythme « course » (chacun à son rythme) : il se réduisait à qui répond le plus vite.
+
 ## Points à valider
 
 - Dimensions exactes des gemmes (surtout : grand triangle identique en bleu et en blanc ?

@@ -8,6 +8,8 @@ const game = (over: Partial<GameRecord> = {}): GameRecord => ({
   generatorVersion: 1,
   extensions: '',
   status: 'won',
+  mode: 'training',
+  level: null,
   lasersCount: 7,
   probesCount: 2,
   startedAt: '2026-03-01T10:00:00.000Z',

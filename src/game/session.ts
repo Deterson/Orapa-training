@@ -281,6 +281,15 @@ export class GameSession {
     };
   }
 
+  /**
+   * Duel : l'autre camp a mis fin à la partie (sa proposition était juste, ou celle-ci était fausse).
+   * La partie est close sans proposition de plus. Sans effet si elle est déjà terminée.
+   */
+  conclude(status: 'won' | 'lost'): void {
+    if (this.finished) return;
+    this.#finish(status);
+  }
+
   /** La vraie mine : réservée aux parties terminées. */
   reveal(): readonly Placement[] {
     if (!this.finished) {

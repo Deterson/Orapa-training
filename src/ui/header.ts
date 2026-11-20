@@ -19,6 +19,8 @@ export interface HeaderModel {
   user: AccountUser | null;
   /** Thème affiché : le bouton propose l'autre (lune en mode jour, soleil en mode nuit). */
   theme: Theme;
+  /** Mode daltonien actif (le bouton à l'œil est alors enfoncé). */
+  colorblind?: boolean;
 }
 
 const PERSON_ICON =
@@ -39,6 +41,14 @@ const SUN_ICON =
 function themeButton(theme: Theme): string {
   const label = theme === 'dark' ? t.theme.toLight : t.theme.toDark;
   return `<button type="button" class="ghost theme-btn" data-action="toggle-theme" aria-label="${label}" title="${label}">${theme === 'dark' ? SUN_ICON : MOON_ICON}</button>`;
+}
+
+const EYE_ICON =
+  '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+
+/** Bouton du mode daltonien : un œil, enfoncé quand le mode est actif. */
+function colorblindButton(on: boolean): string {
+  return `<button type="button" class="ghost theme-btn colorblind-btn" data-action="toggle-colorblind" aria-pressed="${on}" aria-label="${t.colorblind.label}" title="${t.colorblind.label}">${EYE_ICON}</button>`;
 }
 
 function link(view: View, current: View, label: string, content = label): string {
@@ -62,5 +72,5 @@ export function headerHtml(model: HeaderModel): string {
          <button type="button" class="ghost" data-action="sign-out">${t.account.signOut}</button>`
       : `<button type="button" class="ghost" data-action="sign-in">${t.account.signIn}</button>`;
   }
-  return `<header class="topbar"><nav class="tb-left" aria-label="Navigation">${left}</nav><div class="tb-right">${themeButton(model.theme)}${right}</div></header>`;
+  return `<header class="topbar"><nav class="tb-left" aria-label="Navigation">${left}</nav><div class="tb-right">${themeButton(model.theme)}${colorblindButton(model.colorblind === true)}${right}</div></header>`;
 }

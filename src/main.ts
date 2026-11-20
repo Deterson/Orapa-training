@@ -2,6 +2,7 @@ import './style.css';
 import { connectBackend } from './backend';
 import { readConfig } from './backend/config';
 import { startApp } from './ui/app';
+import { initColorblind } from './ui/colorblind';
 import { initTheme } from './ui/theme';
 
 const root = document.getElementById('app');
@@ -11,6 +12,8 @@ if (!root) {
 
 // Le thème choisi s'applique avant le premier affichage (pas de clignotement).
 initTheme();
+// Le mode daltonien (palette et motifs) aussi : avant que la première grille ne soit dessinée.
+initColorblind();
 
 const app = startApp(root, __APP_VERSION__, {
   accountsConfigured: readConfig(import.meta.env) !== null,

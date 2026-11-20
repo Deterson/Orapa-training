@@ -6,3 +6,8 @@ coverage/
 .env
 .env.*
 !.env.example
+
+# Config de l'IDE (JetBrains) et du Supabase CLI, propre à chaque poste
+.idea/
+supabase/config.toml
+supabase/.gitignore

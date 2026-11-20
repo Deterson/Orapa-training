@@ -1,8 +1,8 @@
 import type { GemPaint, ResultColor } from '../game/colors';
 import { type Polygon, gridSegments } from '../game/geometry';
 
-/** Remplissage des gemmes. */
-export const GEM_FILL: Record<GemPaint, string> = {
+/** Remplissage des gemmes (palette normale). */
+const GEM_FILL_NORMAL: Record<GemPaint, string> = {
   red: '#c0392b',
   yellow: '#e8b100',
   blue: '#2f6fb5',
@@ -12,8 +12,8 @@ export const GEM_FILL: Record<GemPaint, string> = {
   black: '#1f1f25',
 };
 
-/** Couleur d'affichage de chaque couleur de rayon annoncée. */
-export const RAY_COLOR: Record<ResultColor, string> = {
+/** Couleur d'affichage de chaque couleur de rayon annoncée (palette normale). */
+const RAY_COLOR_NORMAL: Record<ResultColor, string> = {
   transparent: '#9aa3b2',
   red: '#e74c3c',
   yellow: '#f1c40f',
@@ -34,8 +34,8 @@ export const RAY_COLOR: Record<ResultColor, string> = {
 
 import type { CellMark, Ink } from '../game/notes';
 
-/** Couleur de l'encre du crayon. */
-export const INK_COLOR: Record<Ink, string> = {
+/** Couleur de l'encre du crayon (palette normale). */
+const INK_COLOR_NORMAL: Record<Ink, string> = {
   // S'adapte au thème : sombre en clair, clair en sombre.
   ink: 'var(--fg)',
   black: '#000000',
@@ -43,6 +43,56 @@ export const INK_COLOR: Record<Ink, string> = {
   yellow: '#e8b100',
   blue: '#2f6fb5',
 };
+
+/*
+ * Mode daltonien : palette d'Okabe et Ito, conçue pour rester distincte avec les formes courantes de
+ * daltonisme (rouge et vert confondus, bleu et jaune). Elle ne suffit pas seule : en plus, chaque gemme
+ * colorée porte un motif (hachures, points, quadrillage fin) et les pastilles de l'historique une lettre.
+ */
+const GEM_FILL_CB: Record<GemPaint, string> = {
+  red: '#d55e00',
+  yellow: '#f0e442',
+  blue: '#0072b2',
+  white: '#f4f4f4',
+  clear: '#a3ccec',
+  black: '#1f1f25',
+};
+
+const RAY_COLOR_CB: Record<ResultColor, string> = {
+  transparent: '#9aa3b2',
+  red: '#d55e00',
+  yellow: '#f0e442',
+  blue: '#0072b2',
+  white: '#ffffff',
+  orange: '#e69f00',
+  violet: '#cc79a7',
+  green: '#009e73',
+  pink: '#f7c6d9',
+  'light-yellow': '#f8f2a8',
+  'light-blue': '#56b4e9',
+  'light-violet': '#e6bdd6',
+  black: '#222222',
+  'light-green': '#7fd3b8',
+  'light-orange': '#f5cf86',
+  gray: '#8a8a8a',
+};
+
+const INK_COLOR_CB: Record<Ink, string> = {
+  ink: 'var(--fg)',
+  black: '#000000',
+  red: '#d55e00',
+  yellow: '#e69f00',
+  blue: '#0072b2',
+};
+
+/** Remplissage des gemmes. */
+export const GEM_FILL: Record<GemPaint, string> = { ...GEM_FILL_NORMAL };
+
+/** Couleur d'affichage de chaque couleur de rayon annoncée. */
+export const RAY_COLOR: Record<ResultColor, string> = { ...RAY_COLOR_NORMAL };
+
+/** Couleur de l'encre du crayon. */
+export const INK_COLOR: Record<Ink, string> = { ...INK_COLOR_NORMAL };
 
 export const INK_LABEL: Record<Ink, string> = {
   ink: 'auto',
@@ -72,6 +122,9 @@ export const MARK_LABEL: Record<CellMark, string> = {
 /** Motif des cases « vides » dans les notes : stries diagonales grises, transparentes. */
 export const PATTERN_DEFS = `<defs>
   <pattern id="pat-empty" width="0.24" height="0.24" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="0.24" stroke="#6b7280" stroke-opacity="0.5" stroke-width="0.07"/></pattern>
+  <pattern id="pat-red" width="0.26" height="0.26" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="0.26" stroke="#000" stroke-opacity="0.42" stroke-width="0.07"/></pattern>
+  <pattern id="pat-yellow" width="0.3" height="0.3" patternUnits="userSpaceOnUse"><circle cx="0.15" cy="0.15" r="0.055" fill="#000" fill-opacity="0.5"/></pattern>
+  <pattern id="pat-blue" width="0.26" height="0.26" patternUnits="userSpaceOnUse"><path d="M0 0.13H0.26M0.13 0V0.26" stroke="#fff" stroke-opacity="0.55" stroke-width="0.05"/></pattern>
 </defs>`;
 
 /** Opacité du centre du Diamant : sa bordure est pleine, son intérieur seulement teinté. */
@@ -87,14 +140,44 @@ function darken(hex: string, factor: number): string {
 }
 
 /** Couleur du quadrillage de chaque gemme : un peu plus foncée que la gemme elle-même. */
-export const GEM_GRID_COLOR: Record<GemPaint, string> = {
-  red: darken(GEM_FILL.red, 0.78),
-  yellow: darken(GEM_FILL.yellow, 0.78),
-  blue: darken(GEM_FILL.blue, 0.78),
-  white: darken(GEM_FILL.white, 0.8),
-  clear: darken(GEM_FILL.clear, 0.8),
-  // Sur le noir, un quadrillage plus foncé ne se verrait pas : plus clair.
-  black: '#4a4a55',
+function gridColors(fill: Record<GemPaint, string>): Record<GemPaint, string> {
+  return {
+    red: darken(fill.red, 0.78),
+    yellow: darken(fill.yellow, 0.78),
+    blue: darken(fill.blue, 0.78),
+    white: darken(fill.white, 0.8),
+    clear: darken(fill.clear, 0.8),
+    // Sur le noir, un quadrillage plus foncé ne se verrait pas : plus clair.
+    black: '#4a4a55',
+  };
+}
+
+export const GEM_GRID_COLOR: Record<GemPaint, string> = gridColors(GEM_FILL);
+
+let colorblindMode = false;
+
+/** Le mode daltonien est-il actif ? */
+export function isColorblind(): boolean {
+  return colorblindMode;
+}
+
+/**
+ * Active ou désactive le mode daltonien : palette adaptée, motifs sur les gemmes, lettres sur les pastilles.
+ * Les règles du jeu ne changent pas. À appeler avant d'afficher : tout le dessin relit ces tables.
+ */
+export function setColorblind(on: boolean): void {
+  colorblindMode = on;
+  Object.assign(GEM_FILL, on ? GEM_FILL_CB : GEM_FILL_NORMAL);
+  Object.assign(RAY_COLOR, on ? RAY_COLOR_CB : RAY_COLOR_NORMAL);
+  Object.assign(INK_COLOR, on ? INK_COLOR_CB : INK_COLOR_NORMAL);
+  Object.assign(GEM_GRID_COLOR, gridColors(GEM_FILL));
+}
+
+/** Motif de chaque gemme colorée en mode daltonien (la blanche, le Diamant et le Corps noir n'en ont pas). */
+export const GEM_PATTERN: Partial<Record<GemPaint, string>> = {
+  red: 'pat-red',
+  yellow: 'pat-yellow',
+  blue: 'pat-blue',
 };
 
 /** Lettre affichée sur la marque d'une sonde, en plus de la couleur. */
@@ -137,9 +220,15 @@ export function gemPolygons(polygon: Polygon, color: GemPaint, className = '', t
     .map(([[x1, y1], [x2, y2]]) => `M${x1} ${y1}L${x2} ${y2}`)
     .join('');
   const grid = path ? `<path class="gem-grid" d="${path}" stroke="${GEM_GRID_COLOR[color]}"/>` : '';
+  // Mode daltonien : un motif par gemme colorée, en plus de la couleur.
+  const pattern = GEM_PATTERN[color];
+  const hatch =
+    colorblindMode && pattern
+      ? `<polygon class="gem-pattern" points="${points}" fill="url(#${pattern})" pointer-events="none"/>`
+      : '';
   // Trois calques : le fond, le quadrillage, puis la bordure par-dessus (elle ne passe pas sous le quadrillage).
   const edge = `<polygon class="gem-edge${hollow ? ' gem-edge-clear' : ''}" points="${points}" fill="none"/>`;
-  return `<polygon${cls} points="${points}" fill="${GEM_FILL[color]}"${opacity}>${label}</polygon>${grid}${edge}`;
+  return `<polygon${cls} points="${points}" fill="${GEM_FILL[color]}"${opacity}>${label}</polygon>${hatch}${grid}${edge}`;
 }
 
 /** Couleur de texte lisible (sombre ou claire) sur un fond donné en #rrggbb. */

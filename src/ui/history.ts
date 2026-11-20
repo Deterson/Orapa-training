@@ -46,12 +46,17 @@ function row(game: GameRecord): string {
   // Depuis la v1.0.17, un laser et la sonde d'une case comptent chacun pour un tir.
   const shots = game.lasersCount + game.probesCount;
   const count = `${shots} tir${plural(shots, '', 's')}`;
+  // Un duel ne se rejoue pas (le plateau de l'IA se joue contre elle) : il porte son niveau à la place du lien.
+  const last =
+    game.mode === 'duel' && game.level
+      ? `<span class="h-mode">${t.duel.chip} · ${t.duel.levels[game.level]}</span>`
+      : `<a class="h-replay nav-link" href="${escapeHtml(replayHref(game))}" title="${escapeHtml(game.seed)}">${t.history.replay}</a>`;
   return `<li class="h-row is-${game.status}">
     <span class="h-date">${escapeHtml(formatDate(game.endedAt))}</span>
     <span class="h-status">${t.status[game.status]}</span>
     <span class="h-lasers">${count}</span>
     <span class="h-time">${formatTime(game.durationS * 1000)}</span>
-    <a class="h-replay nav-link" href="${escapeHtml(replayHref(game))}" title="${escapeHtml(game.seed)}">${t.history.replay}</a>
+    ${last}
   </li>`;
 }
 

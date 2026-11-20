@@ -11,6 +11,7 @@ import {
   parsePlayingSummary,
   parseProgressSnapshot,
   parseRow,
+  parseDuelStats,
   parseStats,
   progressToPatch,
   progressToRow,
@@ -83,7 +84,7 @@ export function statusesFor(filter: HistoryFilter): FinishedStatus[] {
     case 'lost':
       return ['lost', 'abandoned'];
     default:
-      return ['won', 'lost', 'abandoned'];
+      return ['won', 'lost', 'abandoned', 'draw'];
   }
 }
 
@@ -121,7 +122,7 @@ export interface GamesClientLike {
     update(values: unknown): GamesQuery;
     select(columns: string, options?: { count: 'exact' }): GamesQuery;
   };
-  rpc(fn: 'profile_stats'): PromiseLike<{ data: unknown; error: DbError }>;
+  rpc(fn: 'profile_stats' | 'duel_stats'): PromiseLike<{ data: unknown; error: DbError }>;
 }
 
 const networkError = (error: unknown): GamesError =>
@@ -257,6 +258,14 @@ export function createGamesService(client: GamesClientLike): GamesService {
       if (result.error) throw new GamesError(result.error.message, false);
       const stats = parseStats(result.data);
       if (stats === null) throw new GamesError('Statistiques illisibles', false);
+      // Les duels sont à part : leur échec ne doit pas priver le profil de ses chiffres d'entraînement.
+      try {
+        const duels = await client.rpc('duel_stats');
+        const levels = duels.error ? null : parseDuelStats(duels.data);
+        if (levels && levels.length > 0) return { ...stats, duels: levels };
+      } catch {
+        // Réseau coupé ou fonction absente (base pas encore migrée) : pas de statistiques de duel.
+      }
       return stats;
     },
   };

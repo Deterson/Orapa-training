@@ -17,6 +17,22 @@ phrases (le détail vit dans le code, les tests et le dépôt git).
 Les règles de référence sont dans [`regles.md`](regles.md). Les spécifications de la
 génération, de l'interface et de la soumission sont dans [`../CLAUDE.md`](../CLAUDE.md).
 
+## État d'avancement
+
+**Fait**
+
+- **v1 livrée (v1.0.0)** : le jeu complet (règles, générateur à graine, tirs, sondes, gemmes, notes, soumission, sauvegarde locale, page Règles) ; ses évolutions v1.0.1 à v1.0.17 sont listées plus bas.
+- **v2 complète côté code (v2.0.0)** : connexion Google, parties en cours et terminées sur le compte, historique, profil, confidentialité et suppression du compte (Supabase) ; l'interface de jeu a été refondue de la v2.0.1 à la v2.0.27.
+- **v3 livrée (v3.0.0)** : le joueur cache ses gemmes et affronte une IA à trois niveaux (tours alternés, règle du livret), éditeur de plateau avec code de partage, duels sauvegardés en local et, une fois terminés, dans l'historique et le profil (migration SQL), mode daltonien.
+
+**Reste à faire**
+
+- **Mise en service de la v2** : projet Supabase, identifiant Google, variables du dépôt, essai réel de la connexion et d'une partie complète ; contact et mentions légales si la loi l'exige.
+- **Restes des versions livrées** : essayer le site sur un vrai téléphone, confirmer les dimensions des gemmes sur les pièces, revoir une partie terminée case par case (non fait en v1.4).
+- **Mise en service de la v3** : appliquer la migration `20261120000001_duels.sql` (et lancer `npm run test:db`, non exécuté faute de Postgres), régler les niveaux de l'IA sur de vraies parties, valider le mode daltonien avec des joueurs concernés.
+- **v4** (étapes v3.1 à v3.7) : duel en direct contre un autre joueur.
+- Les décisions en attente sont dans « Questions ouvertes », en bas de page.
+
 ---
 
 ## Vers la v1 : le jeu complet, sauvegarde locale (étapes v0.1 à v0.11) : livrée (v1.0.0)
@@ -171,91 +187,44 @@ Confidentialité si la loi l'exige.
 
 ---
 
-## Vers la v3 : plateau personnalisé et duel contre une IA (étapes v2.1 à v2.7)
+## Vers la v3 : plateau personnalisé et duel contre une IA (étapes v2.1 à v2.7) : livrée (v3.0.0)
 
 **Objectif :** sortir du mode entraînement. Le joueur **cache lui-même ses gemmes** (son plateau) et
 affronte une **IA** qui cherche son plateau pendant qu'il cherche celui de l'IA : le premier qui
-identifie toutes les gemmes adverses gagne, comme au jeu à deux. Les modes d'entraînement
-(v1) restent disponibles.
+identifie toutes les gemmes adverses gagne, comme au jeu à deux. Les modes d'entraînement (v1) restent
+disponibles. Règles du duel : [`regles.md`](regles.md) (« Duel contre l'IA »).
 
-**Dépend de :** v1 (tout le moteur). La v2 (comptes) est souhaitable pour l'historique et les
-statistiques contre l'IA, mais le duel peut d'abord se jouer sans compte.
+### v2.1 Éditeur de plateau (M) : fait
 
-### v2.1 Éditeur de plateau (M)
+Page « Plateau » (`#/duel`) : on place ses gemmes comme dans la vue de jeu (glisser-déposer, pivoter, retourner la rouge), règles a à e en direct, « Au hasard » (`randomVisibleLayout`), « Valider » et **code de partage** (`game/boardCode.ts`, 18 caractères pour la partie de base, importable). Extensions au choix.
 
-- Le joueur place ses 5 gemmes sur son plateau en réutilisant la grille « Gemmes » (glisser-déposer,
-  pivoter, retourner la rouge), avec les règles de placement a à e vérifiées en direct.
-- Boutons « Au hasard » (réutilise `randomLayout`) et « Valider ».
-- Code de partage d'un plateau (position des gemmes encodée) pour le rejouer ou le proposer en défi.
-- **Fini quand :** on peut construire, valider et exporter son plateau.
+### v2.2 Modèle du duel (M) : fait
 
-### v2.2 Modèle du duel (M)
+`game/duel.ts` : deux `GameSession` croisées (chaque camp cherche le plateau de l'autre, champ privé), **tours alternés** et règle du livret (proposition fausse = défaite, dernier tour au second si le premier trouve, égalité) ; chaque camp ne reçoit que `knowledge(camp)`, testé. Le rythme « course » prévu au départ est abandonné (décision du propriétaire : il se réduisait à qui répond le plus vite).
 
-- `game/duel.ts` (logique pure, sans DOM) : deux plateaux cachés, une liste de questions par joueur
-  (laser ou sonde), réponses données par la machine qui joue le maître du jeu pour les deux côtés.
-- Règles de fin de partie du jeu à deux joueurs (livret) : proposition juste = victoire ; fausse =
-  défaite immédiate ; si le premier joueur propose juste, l'autre a un dernier tour, et si lui aussi
-  réussit, égalité et manche à rejouer. Variantes (essais multiples) via des constantes.
-- **Cloisonnement** : chaque camp ne reçoit que les réponses à ses propres questions. Test : aucune
-  structure renvoyée à un camp ne contient le plateau de l'autre.
-- Deux rythmes, au choix : **tours alternés** (livret) ou **course** (chacun joue à son rythme, sans
-  attendre l'autre).
-- **Fini quand :** une partie complète joueur contre joueur simulé se déroule dans les tests.
+### v2.3 IA : connaissance du plateau adverse (L, risque) : fait
 
-### v2.3 IA : connaissance du plateau adverse (L, risque)
+`game/ai/belief.ts` : un **échantillon de plateaux compatibles** avec les réponses reçues, réparé par un échantillonnage de Gibbs (on réévalue toutes les poses d'une gemme), renouvelé et exploré par redémarrages ; budget en **tirs simulés** (reproductible à graine égale), exécution dans un **Web Worker** (`ui/aiWorker.ts`, repli dans la page). Retrouve le plateau exact quand l'information suffit (testé avec les 36 lasers et les 80 sondes).
 
-- L'IA ne voit **que les réponses** à ses questions. Elle en déduit l'ensemble des plateaux encore
-  possibles.
-- Elle ne dispose que d'une information **partielle** (quelques tirs et sondes). Au début, les
-  plateaux possibles se comptent en millions : l'IA travaille sur un **échantillon** de plateaux
-  compatibles (tirage par le générateur, filtré par les réponses).
-- Exécution dans un **Web Worker** pour ne jamais bloquer l'interface ; budget visé : moins de
-  500 ms par question.
-- **Fini quand :** après chaque réponse, l'IA sait quels plateaux restent possibles, et trouve le
-  plateau exact quand l'information suffit.
+### v2.4 IA : stratégie et niveaux (M) : fait
 
-### v2.4 IA : stratégie et niveaux (M)
+Question choisie par **gain d'information** (entropie des réponses sur l'échantillon, laser et sonde comparés), niveaux réglés par des données (`ai/levels.ts`) : débutant (propose trop tôt, ~6 % de réussite), intermédiaire (~80 %, 13 questions), expert (~86 %, 10 questions, vérifie qu'aucun autre plateau n'est compatible avant de proposer). L'IA ne reçoit jamais le plateau (test qui lit ses sources) et joue les mêmes coups à graine égale.
 
-- Choix de la prochaine question par **gain d'information** : celle qui partage le mieux les
-  plateaux encore possibles (laser ou sonde).
-- Moment de la proposition : quand un seul plateau reste compatible (ou, aux niveaux faibles, avec
-  une marge de risque).
-- **Niveaux** : débutant (questions peu informatives, propose trop tôt), intermédiaire, expert.
-  Délai de réflexion simulé pour que l'IA ait un rythme humain en mode course.
-- Tests : simulations IA contre IA (nombre moyen de questions par niveau), l'IA ne triche jamais
-  (le module ne reçoit pas le plateau adverse), jamais de question illégale.
-- **Fini quand :** trois niveaux jouables, mesurés et reproductibles (graine).
+### v2.5 Interface du duel (L) : fait
 
-### v2.5 Interface du duel (L)
+Même vue de jeu que l'entraînement : la grille de jeu est celle du plateau de l'IA, le plateau du joueur s'affiche en petit avec les questions de l'IA, indication du tour, « L'IA joue… » (délai de réflexion simulé), dernier tour, résultat Gagné / Perdu / Égalité avec les deux plateaux révélés. Un seul duel à la fois, qui remplace la partie en cours après confirmation ; la graine d'un duel n'est jamais montrée (elle donne le plateau de l'IA).
 
-- Écran de duel : son propre plateau (gemmes visibles, questions de l'IA marquées dessus) et le
-  plateau de l'adversaire (tirs, sondes, notes, gemmes supposées), réutilisant les composants
-  existants ; compatible avec le mode plein écran.
-- Indication du tour (ou de l'activité de l'IA en mode course), historique des questions des deux
-  camps, proposition finale avec confirmation, écran de résultat avec les deux plateaux révélés.
-- **Fini quand :** une partie contre l'IA se joue de l'éditeur de plateau au résultat, sur
-  ordinateur et téléphone.
+### v2.6 Sauvegarde et historique (S à M) : fait
 
-### v2.6 Sauvegarde et historique (S à M)
+Sauvegarde locale du duel (`game/duelSave.ts`, validation stricte, clé séparée) reprise au rechargement, y compris quand c'était à l'IA de jouer ; duels terminés dans l'historique du compte (colonnes `mode` et `level`, issue `draw`, migration `20261120000001_duels.sql`, test SQL non exécuté ici) et, au profil, victoires, égalités et défaites **par niveau** (`duel_stats()`) ; les statistiques d'entraînement ne comptent pas les duels.
 
-- Sauvegarde locale de la partie de duel en cours (même mécanisme que la v1, format versionné).
-- Si la v2 est livrée : les parties de duel entrent dans l'historique (champs `mode` et `level`),
-  et le profil affiche le pourcentage de victoires contre l'IA par niveau.
+### v2.7 Équilibrage et finitions (S) : fait
 
-### v2.7 Équilibrage et finitions (S)
-
-- Parties d'essai à chaque niveau, réglage des niveaux, accessibilité, page Règles complétée
-  (règles du duel), textes courts.
-- **Mode « daltonien »** : option de l'interface (mémorisée) qui ne repose plus sur la seule teinte.
-  Palette adaptée aux daltoniens pour les gemmes, les rayons, les pastilles de l'historique et les
-  encres, et motifs ou lettres en plus de la couleur (par exemple des hachures par gemme, comme les
-  stries du « vide »). À valider avec des joueurs concernés ; les règles du jeu ne changent pas.
+Niveaux mesurés par simulations IA contre IA (voir v2.4), page Règles complétée, **mode daltonien** (œil de la barre du haut, mémorisé) : palette d'Okabe et Ito, un motif par gemme colorée (hachures, points, quadrillage), lettres sur les pastilles de l'historique. Reste : valider avec des joueurs daltoniens et régler les niveaux sur de vraies parties.
 
 ### Critères de sortie : livraison de la v3
 
-- Un joueur construit son plateau et joue une partie complète contre l'IA, aux trois niveaux.
-- L'IA ne dispose d'aucune information interdite (test automatisé).
-- Aucune régression du mode entraînement ni de la sauvegarde.
+Un joueur construit son plateau et joue une partie complète contre l'IA aux trois niveaux, l'IA ne dispose d'aucune information interdite (test automatisé), aucune régression de l'entraînement ni de la sauvegarde : atteints (v3.0.0).
 
 ---
 
@@ -325,10 +294,12 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
 
 ## Évolutions depuis la v1.0.0
 
+Une ligne par version, dans l'ordre.
+
 - **v1.0.1** : texte minimal dans toute l'interface.
 - **v1.0.2** : onglet « Gemmes », gemmes et notes en transparence sur les tirs, case « Notes ».
 - **v1.0.3** : une pastille par couleur de gemme dans l'historique des tirs.
-- **v1.0.4** : sonder en touchant une case, confirmation par modale (remplacée en 2.0.6), « transparent » sans pastille.
+- **v1.0.4** : sonder en touchant une case (confirmation par modale, remplacée en 2.0.6), « transparent » sans pastille.
 - **v1.0.5** : numéro du tir sur les repères, boutons ronds ↻ ⇋ sur la gemme sélectionnée.
 - **v1.0.6** : marque « Vide » (stries grises), 36 repères cliquables au résultat pour des lasers libres.
 - **v1.0.7** : quadrillage des vraies pièces sur les gemmes (`gridSegments`).
@@ -338,50 +309,46 @@ aux lasers de l'autre sans révéler le plateau. Deux approches :
 - **v1.0.11** : boutons ronds de la gemme masqués quand on touche ailleurs.
 - **v1.0.12** : encre verte supprimée.
 - **v1.0.13** : extensions Diamant et Corps noir (choix au début de partie, `?ext=`, « signal perdu »).
-- **v1.0.14** : modale de résumé d'un tir déjà fait, réserve du plein écran élargie.
+- **v1.0.14** : modale de résumé d'un tir déjà fait (remplacée en 2.0.15), réserve du plein écran élargie.
 - **v1.0.15** : Diamant affiché creux.
 - **v1.0.16** : génération instantanée, `GENERATOR_VERSION` passée à 2.
-- **v1.0.17** : sondes comptées comme des tirs (compteur unique), extensions nommées « Diamant » et « Corps noir »
-  partout, sonder un corps noir répond « signal perdu » et un diamant « diamant ».
-- **v2.0.0** : livraison de la v2 (étapes v1.1 à v1.6), fusionnée avec la v1.0.17 ; les numéros v2.1 à v2.7
-  désignent des **étapes** de la v3, pas des versions du site.
-- **v2.0.1** : vue de jeu en une seule grille (outils Crayon, Ligne droite, Gomme, Vide, Simuler, réserve de
-  gemmes, « Soumettre » en vert) ; abandon et horloge retirés ; mode daltonien ajouté à la roadmap (v3).
+- **v1.0.17** : sondes comptées comme des tirs (compteur unique), extensions nommées « Diamant » et « Corps noir », sonder un corps noir répond « signal perdu ».
+- **v2.0.0** : livraison de la v2 (étapes v1.1 à v1.6) fusionnée avec la v1.0.17 ; les v2.1 à v2.7 sont des **étapes** de la v3, pas des versions du site.
+- **v2.0.1** : vue de jeu en une seule grille (Crayon, Ligne droite, Gomme, Vide, Simuler, réserve, « Soumettre » vert), abandon et horloge retirés.
 - **v2.0.2** : annuler ↶ et rétablir ↷ avec symboles, modes cachés *notes* et *gemmes*, bouton « Gemmes ».
 - **v2.0.3** : cases « Notes » et « Gemmes » l'une au-dessus de l'autre.
 - **v2.0.4** : « Nouvelle partie » active sans compte, avec modale de confirmation de la perte de la partie en cours.
 - **v2.0.5** : plus de confirmation de laser à la souris (remplacé en 2.0.6).
-- **v2.0.6** : rotation des gemmes autour de leur axe (centre de la boîte, case de droite du Corps noir et du
-  Diamant), bouton ↻ fixe et absent sur le losange, tir en deux clics avec bulle verte, animations de l'historique et des pastilles.
-- **v2.0.7** : bulle de tir plus petite à la souris et au-dessus de la cible, cible entourée en vert, résultat
-  affiché 0,5 s après le tir dans l'animation.
-- **v2.0.8** : la bordure des gemmes passe au-dessus de leur quadrillage, et une gemme glissée au bord de la grille passe au-dessus des repères de tir.
-- **v2.0.9** : bouton jour / nuit à gauche des boutons de droite de la barre du haut (`ui/theme.ts`, choix mémorisé).
-- **v2.0.10** : plus de liste de règles enfreintes sous les gemmes : seuls le contour rouge des gemmes et « Soumettre » désactivé le signalent.
-- **v2.0.11** : bouton de rotation recalé : une case plus bas pour toutes les gemmes, et une case moins à droite pour le Diamant et le Corps noir.
-- **v2.0.12** : bouton « Tir » à gauche de « Gemmes » (repères et cases tirent sans sélectionner la gemme dessous), « Gomme » devient une icône à droite des couleurs.
-- **v2.0.13** : tirer depuis le repère d'arrivée d'un tir précédent est interdit (trajet réversible) : le résumé de ce tir s'ouvre à la place, sans coût (`GameSession.fire`).
-- **v2.0.14** : correction : le contour vert de la cible disparaît avec la bulle quand on clique ailleurs (il restait affiché), y compris hors de l'application.
-- **v2.0.15** : le résumé d'un tir déjà fait n'est plus une modale mais une infobulle temporaire en bas de l'écran, comme « signal perdu ».
-- **v2.0.16** : le numéro d'un résultat transparent, sur le repère de sortie, est blanc avec un contour noir de 1 px.
-- **v2.0.17** : l'infobulle de résumé d'un tir déjà fait est plus grande (texte et pastilles).
-- **v2.0.18** : l'historique des tirs défile sans barre du navigateur : une barre légère en surimpression, à droite, visible au survol seulement (`ui/scrollbar.ts`) ; sa position est conservée entre deux affichages.
-- **v2.0.19** : historique : les sondes sont des cartes comme les tirs (« 5 B6 = ● », « rien », signal perdu, Diamant en miniature, `ui/historyCards.ts`) ; survoler une carte la met en avant provisoirement tant que rien n'est sélectionné, un clic la sélectionne, un reclic la désélectionne ; un tir n'est plus sélectionné d'office.
-- **v2.0.20** : toucher un repère déjà tiré sélectionne de nouveau ce tir : ses repères de départ et d'arrivée sont surlignés (comportement perdu en 2.0.19).
-- **v2.0.21** : bouton « Réinitialiser » sous la réserve de gemmes : remet toutes les gemmes dans la réserve (`resetSolution`).
-- **v2.0.22** : un clic ailleurs désélectionne le tir (ou la sonde) mis en avant, dans l'historique comme sur les repères et la grille.
+- **v2.0.6** : rotation des gemmes autour de leur axe, tir en deux clics avec bulle verte, animations de l'historique et des pastilles.
+- **v2.0.7** : bulle de tir plus petite à la souris et au-dessus de la cible, cible entourée en vert, résultat 0,5 s après le tir.
+- **v2.0.8** : bordure des gemmes au-dessus de leur quadrillage, gemme glissée au-dessus des repères du bord.
+- **v2.0.9** : bouton jour / nuit dans la barre du haut (`ui/theme.ts`, choix mémorisé).
+- **v2.0.10** : plus de liste de règles enfreintes : seuls le contour rouge des gemmes et « Soumettre » désactivé le signalent.
+- **v2.0.11** : bouton de rotation recalé (une case plus bas, une case moins à droite pour le Diamant et le Corps noir).
+- **v2.0.12** : bouton « Tir » à gauche de « Gemmes », « Gomme » devient une icône à droite des couleurs.
+- **v2.0.13** : tirer depuis le repère d'arrivée d'un tir précédent ouvre le résumé de ce tir, sans coût (`GameSession.fire`).
+- **v2.0.14** : le contour vert de la cible disparaît avec la bulle quand on clique ailleurs.
+- **v2.0.15** : le résumé d'un tir déjà fait devient une infobulle temporaire en bas de l'écran, comme « signal perdu ».
+- **v2.0.16** : numéro d'un résultat transparent en blanc cerclé de noir (1 px) sur le repère de sortie.
+- **v2.0.17** : infobulle de résumé d'un tir déjà fait plus grande (texte et pastilles).
+- **v2.0.18** : l'historique défile sans barre du navigateur : barre légère en surimpression, visible au survol (`ui/scrollbar.ts`).
+- **v2.0.19** : sondes en cartes dans l'historique (`ui/historyCards.ts`) ; survol, clic et reclic mettent en avant ou désélectionnent une carte.
+- **v2.0.20** : toucher un repère déjà tiré sélectionne de nouveau ce tir (repères de départ et d'arrivée surlignés).
+- **v2.0.21** : bouton « Réinitialiser » sous la réserve : remet toutes les gemmes dans la réserve (`resetSolution`).
+- **v2.0.22** : un clic ailleurs désélectionne le tir (ou la sonde) mis en avant.
 - **v2.0.23** : « Réinitialiser » passe sur la ligne « 4/7 · 5/13 tirs », tout à droite, pour ne plus faire descendre « Soumettre ».
-- **v2.0.24** : l'historique prend deux colonnes (grand écran) avant de défiler ; à la soumission, le détail passe dans l'historique (tirs en désaccord entourés de rouge, simulés sur la proposition au survol ou à la sélection) et la liste de texte du résumé disparaît ; l'aperçu du diamant est inversé (pointe en haut).
-- **v2.0.25** : historique sur deux colonnes : la colonne de gauche est la première, celle de droite la seconde ; la colonne en plus s'ouvre dans la marge à gauche sans déplacer la grille (la page ne s'élargit que s'il n'y a pas assez de marge).
+- **v2.0.24** : historique sur deux colonnes avant de défiler, détail de la soumission dans l'historique (tirs en désaccord entourés de rouge, simulés au survol), aperçu du diamant inversé.
+- **v2.0.25** : première colonne de l'historique à gauche, seconde à droite ; la colonne en plus s'ouvre dans la marge à gauche sans déplacer la grille.
+- **v2.0.26** : survoler un repère déjà tiré met en avant son tir : repères de départ et d'arrivée, et carte de l'historique.
+- **v2.0.27** : sur grand écran, la place de la seconde colonne de l'historique est réservée (vide) dès le premier tir : rien ne bouge au passage à deux colonnes.
+- **v3.0.0** : livraison de la v3 (étapes v2.1 à v2.7) : duel contre l'IA à trois niveaux, éditeur de plateau et code de partage, sauvegarde et historique des duels, mode daltonien.
 
 ## Questions ouvertes
 
-- **Duel (v3) : « en même temps » ou tour par tour ?** Tu as écrit que l'IA joue en même temps que
-  toi : course où chacun joue à son rythme ? Le livret prévoit des tours alternés. Proposition :
-  prévoir les deux, avec la course par défaut ; à confirmer.
-- **Duel (v3) : règle de fin.** Livret (une erreur = défaite, dernier tour pour le second joueur)
-  ou règle plus indulgente (deux essais) ?
-- **IA (v3) :** exécutée dans le navigateur (gratuit, hors ligne) : proposition retenue.
+- ~~Duel (v3) : « en même temps » ou tour par tour ?~~ Décidé en v3.0.0 : **tours alternés** seulement (la « course » se réduisait à qui répond le plus vite).
+- ~~Duel (v3) : règle de fin.~~ Décidé en v3.0.0 : **règle du livret** (une erreur = défaite, dernier tour au second si le premier trouve, égalité) ; variante indulgente possible via des constantes (`DUEL_RULES`, `MAX_ATTEMPTS`).
+- ~~IA (v3) : exécutée dans le navigateur~~ Décidé en v3.0.0 : oui, dans un Web Worker.
+- Duel : extensions au choix (décidé), mais l'IA y est moins bien réglée : à mesurer.
 - **En direct (v4) :** arbitre serveur ou pair à pair avec engagement ? Compte obligatoire ou
   invités ? Chronomètre par tour ?
 - Soumission : une seule tentative (comme à deux joueurs, une erreur = défaite) ou

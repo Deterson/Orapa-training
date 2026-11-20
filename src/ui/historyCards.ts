@@ -6,7 +6,7 @@ import { RESULT_COLOR_LABELS, componentColors, isMixColor } from '../game/colors
 import { GEM_SHAPES, orientedPolygon } from '../game/gems';
 import { isAbsorbed } from '../game/laser';
 import type { ProbeRecord, ShotRecord } from '../game/session';
-import { RAY_COLOR, gemPolygons, lostSignalHtml } from './palette';
+import { PAINT_LETTER, RAY_COLOR, gemPolygons, lostSignalHtml } from './palette';
 import { t } from './strings';
 
 /**
@@ -20,7 +20,10 @@ export function chips(color: ShotRecord['color']): string {
     parts.length === 0
       ? '<span class="chip chip-clear"></span>'
       : parts
-          .map((part) => `<span class="chip" style="background:${RAY_COLOR[part]}"></span>`)
+          .map(
+            (part) =>
+              `<span class="chip" data-letter="${PAINT_LETTER[part]}" style="background:${RAY_COLOR[part]}"></span>`,
+          )
           .join('<span class="plus">+</span>');
   return `<span class="chips" aria-hidden="true" title="${RESULT_COLOR_LABELS[color]}">${dots}</span>`;
 }

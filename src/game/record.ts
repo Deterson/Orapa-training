@@ -5,12 +5,17 @@
  * bloquer la file d'envoi.
  */
 import { parseEntryLabel } from './board';
+import { AI_LEVELS, type AiLevel } from './duel';
 import { ALL_GEM_IDS, type Extensions, type GemId, type Placement, extensionsOf } from './gems';
 import { GAME_ID, type SaveData, parseSave } from './save';
 import type { GameSession, GameStatus } from './session';
 
-export type FinishedStatus = Exclude<GameStatus, 'playing'>;
-export const FINISHED_STATUSES: readonly FinishedStatus[] = ['won', 'lost', 'abandoned'];
+/** Issue d'une partie terminée. `draw` n'existe que pour un duel (égalité). */
+export type FinishedStatus = Exclude<GameStatus, 'playing'> | 'draw';
+export const FINISHED_STATUSES: readonly FinishedStatus[] = ['won', 'lost', 'abandoned', 'draw'];
+
+/** Entraînement seul, ou duel contre l'IA (v3). */
+export type GameMode = 'training' | 'duel';
 
 export interface GameRecord {
   /** Identifiant tiré au début de la partie : renvoyer la même partie ne crée pas de doublon. */
@@ -20,6 +25,10 @@ export interface GameRecord {
   /** Extensions comme dans l'adresse du site : '', 'd', 'n' ou 'dn'. */
   extensions: string;
   status: FinishedStatus;
+  /** Entraînement ou duel. */
+  mode: GameMode;
+  /** Niveau de l'IA pour un duel, null sinon. */
+  level: AiLevel | null;
   lasersCount: number;
   probesCount: number;
   /** Dates ISO 8601. */
@@ -28,7 +37,7 @@ export interface GameRecord {
   durationS: number;
   /** Repères tirés, dans l'ordre. */
   shots: string[];
-  /** Gemmes proposées ; null pour une partie abandonnée. */
+  /** Gemmes proposées ; null pour une partie abandonnée, ou un duel que le joueur n'a pas eu le temps de proposer. */
   submission: Placement[] | null;
 }
 
@@ -39,6 +48,8 @@ export interface GameRow {
   generator_version: number;
   extensions: string;
   status: FinishedStatus;
+  mode: GameMode;
+  level: AiLevel | null;
   lasers_count: number;
   probes_count: number;
   started_at: string;
@@ -66,6 +77,8 @@ export interface BuildInput {
   endedAt: number;
   /** Gemmes proposées à la soumission ; ignorées si la partie est abandonnée. */
   submission: readonly Placement[];
+  /** Duel contre l'IA : niveau et issue du duel (qui peut être une égalité, que la session ne connaît pas). */
+  duel?: { level: AiLevel; outcome: 'won' | 'lost' | 'draw' };
 }
 
 /** Enregistrement d'une partie terminée. Lève une erreur si la partie est encore en cours. */
@@ -73,7 +86,9 @@ export function buildRecord(input: BuildInput): GameRecord {
   const { session } = input;
   if (!session.finished) throw new Error('La partie doit être terminée pour être enregistrée.');
   const summary = session.summary;
-  const status = summary.status as FinishedStatus;
+  const status: FinishedStatus = input.duel
+    ? input.duel.outcome
+    : (summary.status as FinishedStatus);
   const startedAt = Math.min(input.startedAt, input.endedAt);
   return {
     id: input.id,
@@ -81,13 +96,19 @@ export function buildRecord(input: BuildInput): GameRecord {
     generatorVersion: session.generatorVersion,
     extensions: extensionsCode(input.extensions),
     status,
+    mode: input.duel ? 'duel' : 'training',
+    level: input.duel ? input.duel.level : null,
     lasersCount: session.shots.length,
     probesCount: session.probes.length,
     startedAt: new Date(startedAt).toISOString(),
     endedAt: new Date(input.endedAt).toISOString(),
     durationS: Math.max(0, Math.round(summary.elapsedMs / 1000)),
     shots: session.shots.map((shot) => shot.entry),
-    submission: status === 'abandoned' ? null : input.submission.map(cleanPlacement),
+    // Un duel peut finir sans que le joueur ait rien proposé (l'IA a trouvé la première) : pas de proposition.
+    submission:
+      status === 'abandoned' || (input.duel && input.submission.length === 0)
+        ? null
+        : input.submission.map(cleanPlacement),
   };
 }
 
@@ -111,6 +132,8 @@ export function recordToRow(record: GameRecord): GameRow {
     generator_version: record.generatorVersion,
     extensions: record.extensions,
     status: record.status,
+    mode: record.mode,
+    level: record.level,
     lasers_count: record.lasersCount,
     probes_count: record.probesCount,
     started_at: record.startedAt,
@@ -166,6 +189,12 @@ export function parseRow(value: unknown): GameRecord | null {
   if (typeof status !== 'string' || !FINISHED_STATUSES.includes(status as FinishedStatus)) {
     return null;
   }
+  // Une ligne sans mode (ancienne partie, ancienne file d'envoi) est une partie d'entraînement.
+  const mode = value['mode'] ?? 'training';
+  const rawLevel = value['level'] ?? null;
+  if (mode !== 'training' && mode !== 'duel') return null;
+  if (mode === 'duel' ? !AI_LEVELS.includes(rawLevel as AiLevel) : rawLevel !== null) return null;
+  if (status === 'draw' && mode !== 'duel') return null;
   if (!isInt(lasers, 0, 36) || !isInt(probes, 0, 80) || !isInt(duration, 0, 31_536_000)) {
     return null;
   }
@@ -181,7 +210,7 @@ export function parseRow(value: unknown): GameRecord | null {
   let submission: Placement[] | null = null;
   const rawSubmission = value['submission'];
   if (rawSubmission === null || rawSubmission === undefined) {
-    if (status !== 'abandoned') return null;
+    if (status !== 'abandoned' && mode !== 'duel') return null;
   } else {
     if (status === 'abandoned') return null;
     if (!Array.isArray(rawSubmission) || rawSubmission.length < 1 || rawSubmission.length > 7) {
@@ -197,6 +226,8 @@ export function parseRow(value: unknown): GameRecord | null {
     generatorVersion,
     extensions,
     status: status as FinishedStatus,
+    mode,
+    level: rawLevel as AiLevel | null,
     lasersCount: lasers,
     probesCount: probes,
     startedAt: new Date(started).toISOString(),
@@ -218,6 +249,19 @@ export interface ProfileStats {
   winRate: number | null;
   /** Moyenne de tirs (lasers et sondes) sur les parties gagnées ; null sans victoire (jamais 0 par défaut). */
   avgShotsToWin: number | null;
+  /** Duels contre l'IA, par niveau (absent sans duel). Ils ne comptent pas dans les chiffres ci-dessus. */
+  duels?: DuelLevelStats[];
+}
+
+/** Résultats des duels contre l'IA à un niveau (fonction `duel_stats`). */
+export interface DuelLevelStats {
+  level: AiLevel;
+  total: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  /** Part de victoires entre 0 et 1. */
+  winRate: number;
 }
 
 const count = (value: unknown): number | null => (isInt(value, 0, 1e9) ? value : null);
@@ -244,6 +288,25 @@ export function parseStats(value: unknown): ProfileStats | null {
   if ((total === 0) !== (winRate === null)) return null;
   if ((wins === 0) !== (avgShotsToWin === null)) return null;
   return { total, wins, losses, abandoned, winRate, avgShotsToWin };
+}
+
+/** Lit les lignes renvoyées par `duel_stats` : une par niveau joué, dans l'ordre débutant, intermédiaire, expert. */
+export function parseDuelStats(value: unknown): DuelLevelStats[] | null {
+  if (!Array.isArray(value)) return null;
+  const rows: DuelLevelStats[] = [];
+  for (const row of value) {
+    if (!isRecord(row)) return null;
+    const level = row['level'];
+    const total = count(row['total_games']);
+    const wins = count(row['wins']);
+    const draws = count(row['draws']);
+    const losses = count(row['losses']);
+    if (!AI_LEVELS.includes(level as AiLevel) || total === null || total === 0) return null;
+    if (wins === null || draws === null || losses === null) return null;
+    if (wins + draws + losses !== total) return null;
+    rows.push({ level: level as AiLevel, total, wins, draws, losses, winRate: wins / total });
+  }
+  return rows.sort((a, b) => AI_LEVELS.indexOf(a.level) - AI_LEVELS.indexOf(b.level));
 }
 
 // ---------- Parties en cours (côté serveur) ----------

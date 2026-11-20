@@ -16,7 +16,7 @@ import { BOOKLET_LAYOUT } from '../game/examples';
 import { boundingBox } from '../game/geometry';
 import { shoot } from '../game/laser';
 import { boardFrame, entryLabelsSvg } from './board';
-import { RAY_COLOR, gemPolygons, lostSignalHtml } from './palette';
+import { PATTERN_DEFS, RAY_COLOR, gemPolygons, lostSignalHtml } from './palette';
 
 const COLORS: readonly GemColor[] = ['red', 'yellow', 'blue', 'white'];
 
@@ -32,6 +32,7 @@ function gemFigure(id: GemId): string {
   const pad = 0.25;
   return `<figure class="gem-figure">
     <svg viewBox="${-pad} ${-pad} ${maxX + 2 * pad} ${maxY + 2 * pad}" role="img" aria-label="${shape.label}" style="width:${(maxX + 2 * pad) * 26}px">
+      ${PATTERN_DEFS}
       ${gemPolygons(polygon, shape.color, 'real-gem')}
     </svg>
     <figcaption><b>${shape.label}</b><br>${maxX} × ${maxY}${shape.flippable ? '<br><span class="flip-note">retournable</span>' : ''}</figcaption>
@@ -119,6 +120,16 @@ export function rulesPage(): string {
         <li><b>Gemmes</b> : posez les gemmes ; touchez un repère pour tester un tir sur votre grille.</li>
         <li><b>Soumettre</b> : une seule proposition.</li>
       </ul>
+      <h2>Duel contre l'IA</h2>
+      <ul class="rule-list">
+        <li><b>Plateau</b> : cachez vos gemmes (même placement, au hasard ou par code).</li>
+        <li><b>Tours</b> : chacun son tour, un laser, une sonde <b>ou</b> la proposition.</li>
+        <li><b>Fin</b> : proposition fausse = défaite. Si le premier à jouer trouve, l'autre a un dernier tour : égalité s'il trouve aussi.</li>
+        <li><b>Niveaux</b> : débutant, intermédiaire, expert.</li>
+      </ul>
+
+      <h2>Daltonisme</h2>
+      <p>L'œil de la barre du haut change la palette et ajoute des motifs et des lettres. Les règles ne changent pas.</p>
       <p class="hint">Orapa Mine : J. Choi et W. Gill (Gameology, Miraludo)</p>
     </article>`;
 }

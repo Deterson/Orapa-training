@@ -5,7 +5,7 @@ Gameology ; édition française Miraludo). Le site génère une « mine » aléa
 gemmes cachées) et le joueur doit la reconstituer par déduction, en tirant des lasers, en
 prenant des notes et en plaçant ses propres gemmes, puis en soumettant sa solution.
 
-> Statut : **v1 livrée (v1.0.0)** ; **v2 complète côté code (v2.0.0)** : connexion Google,
+> Statut : **v1 livrée (v1.0.0)** ; **v3 livrée (v3.0.0)** : duel contre une IA à trois niveaux, éditeur de plateau, mode daltonien (voir « Duel contre l'IA ») ; **v2 complète côté code (v2.0.0)** : connexion Google,
 > parties en cours et terminées enregistrées sur le compte, historique, profil, suppression du
 > compte (Supabase, [`docs/backend.md`](docs/backend.md)), barre du haut, routeur et accueil, une
 > seule partie à la fois sans compte. Reste la **mise en service** : projet Supabase, identifiant
@@ -24,7 +24,9 @@ prenant des notes et en plaçant ses propres gemmes, puis en soumettant sa solut
   **Tenue de la roadmap :** une fois une étape faite, la réduire à **une ou deux phrases** de
   description (ce qu'elle a livré, ce qui reste ou n'a pas été fait) ; le détail vit dans le code,
   les tests et l'historique git, pas dans la roadmap. Seules les étapes à venir gardent leur détail
-  (contenu, tailles, critères de fin). Idem pour l'entrée de chaque nouvelle version dans « Évolutions ».
+  (contenu, tailles, critères de fin). Chaque nouvelle version dans « Évolutions » tient en **une seule ligne** (une phrase,
+  sauf si vraiment impossible), pour que les améliorations se suivent ; la section « État d'avancement » en
+  tête de la roadmap résume ce qui est fait et ce qui reste, à tenir à jour.
 
 Ne pas dupliquer les règles dans ce fichier : y renvoyer.
 
@@ -53,8 +55,8 @@ Périmètre par version (détail dans `docs/roadmap.md`) :
   cours enregistrées dans le compte, **historique** des parties, **vue de profil** (nom Google,
   pourcentage de parties gagnées, moyenne de tirs avant de gagner). Demande un
   backend. Sans compte, le jeu reste jouable mais limité à **une seule partie à la fois**.
-- **v3** : le joueur **crée son plateau** (cache ses gemmes) et **joue contre une IA** qui cherche le
-  sien pendant qu'il cherche celui de l'IA (fini le simple entraînement) ; mode **daltonien**
+- **v3** (livrée) : le joueur **crée son plateau** (cache ses gemmes) et **joue contre une IA** qui cherche le
+  sien pendant qu'il cherche celui de l'IA (l'entraînement reste disponible) ; mode **daltonien**
   (palette et motifs qui ne reposent pas sur la seule teinte).
 - **v4** : **duel en direct** contre un autre joueur (arbitre serveur qui répond aux lasers sans
   révéler les plateaux).
@@ -99,7 +101,7 @@ Résumé ; le détail et les tableaux sont dans `docs/regles.md`.
 ## Vues du site (v2)
 
 Détail dans la section « Vues et compte » de [`docs/roadmap.md`](docs/roadmap.md). Navigation par
-l'adresse (`ui/router.ts`) : `#/` accueil (par défaut), `#/partie`, `#/regles`, `#/historique`,
+l'adresse (`ui/router.ts`) : `#/` accueil (par défaut), `#/partie`, `#/duel` (plateau du joueur avant un duel), `#/regles`, `#/historique`,
 `#/profil`, `#/confidentialite` ; les anciennes adresses (`#regles`, `#historique`…) restent
 comprises. Un lien `?seed=…` (avec `ext=`) lance cette mine directement.
 
@@ -107,16 +109,16 @@ comprises. Un lien `?seed=…` (avec `ext=`) lance cette mine directement.
 
 - à gauche : **« Orapa Training »** (ramène à l'accueil) suivi de la **version du build**, le bouton
   **« Nouvelle partie »** et **« Règles »** ;
-- à droite : un **bouton jour / nuit** en premier (lune en mode jour, soleil en mode nuit ; il force le thème,
-  mémorisé dans le navigateur, sinon le site suit le réglage du système, `ui/theme.ts`), puis **« Historique »**, **« Profil »** (avec l'**avatar** du compte sur le bouton, jamais le
+- à droite : un **bouton jour / nuit** en premier, puis un **œil** (mode daltonien, enfoncé quand actif ; mémorisé : palette d'Okabe et Ito, un motif par gemme colorée, une lettre sur les pastilles de l'historique, `ui/colorblind.ts` et `ui/palette.ts`) ; ensuite (lune en mode jour, soleil en mode nuit ; il force le thème,
+  mémorisé dans le navigateur, sinon le site suit le réglage du système, `ui/theme.ts`), **« Historique »**, **« Profil »** (avec l'**avatar** du compte sur le bouton, jamais le
   nom) et **« Déconnexion »** ; déconnecté : seulement **« Connexion »** (OAuth Google). Sans
   backend configuré, aucun bouton de compte.
 
 Pages :
 
 1. **Accueil** (`ui/home.ts`) : la partie en cours (Reprendre, Importer), la liste des
-   parties en cours du compte (connecté seulement, 10 au plus) et « Nouvelle partie » (fenêtre des extensions : Diamant, Corps
-   noir).
+   parties en cours du compte (connecté seulement, 10 au plus), « Nouvelle partie » (fenêtre des extensions : Diamant, Corps
+   noir) et « Duel contre l'IA » (niveau et extensions, puis la page Plateau).
 2. **Partie** : la vue décrite dans « Interface » ci-dessous. Sans partie, l'adresse retombe sur
    l'accueil.
 3. **Profil** (connecté) : nom Google, pourcentage de parties gagnées, moyenne de tirs avant victoire.
@@ -168,7 +170,7 @@ Zones :
    **deux colonnes** : la première, remplie d'abord, est **à gauche**, la seconde **à droite**, à l'emplacement de la
    colonne unique, au contact de la grille (`ui/historyLayout.ts`). La colonne en plus s'ouvre **dans la marge à
    gauche** de la page quand elle y tient (rien d'autre ne bouge) ; sinon, sur grand écran (88 rem et plus), la page
-   s'élargit d'une colonne et la grille rétrécit un peu. Si deux colonnes ne suffisent pas, elle défile **sans barre du navigateur** (elle
+   s'élargit d'une colonne et la grille rétrécit un peu, **cette place étant réservée (vide) dès le premier tir** pour que le passage à deux colonnes ne déplace rien. Si deux colonnes ne suffisent pas, elle défile **sans barre du navigateur** (elle
    prendrait de la place) : une **barre légère, en surimpression à droite, n'apparaît qu'au survol** et se
    glisse à la souris (`ui/scrollbar.ts`) ; la position est gardée d'un affichage à l'autre, et un nouveau tir
    fait défiler jusqu'à lui. **Pas d'horloge** : le temps n'est montré qu'au résultat.
@@ -226,6 +228,29 @@ La **simulation du laser doit pouvoir être affichée sur la grille du joueur** 
 Une page **« Règles »** du site expose les règles de `docs/regles.md` aux joueurs, y
 compris la particularité de la gemme rouge retournable.
 
+## Duel contre l'IA (v3)
+
+Règles : [`docs/regles.md`](docs/regles.md) (« Duel contre l'IA »). **Tours alternés** (pas de « course », décision du
+propriétaire), **règle du livret** (une erreur = défaite ; si le premier à jouer trouve, l'autre a un dernier tour ;
+égalité si lui aussi). Extensions au choix. Un seul duel à la fois, sauvegardé en local (`orapa-training:duel`).
+
+- **Parcours** : accueil → « Duel contre l'IA » (niveau Débutant / Intermédiaire / Expert, extensions) → page **Plateau**
+  (`#/duel`, `ui/duelPanel.ts`) : les gemmes se placent comme dans la vue de jeu (règles a à e en direct), « Au hasard »,
+  « Valider », **code de partage** (copier, importer) → vue de jeu.
+- **Vue de jeu du duel** : la même que l'entraînement ; la grille de jeu est le plateau de l'IA, **le plateau du joueur
+  s'affiche en petit au-dessus des outils**, avec les questions de l'IA marquées dessus. Pastille du tour (« À vous »,
+  « L'IA joue… », « Dernier tour : proposez ») ; on ne tire que pendant son tour (redemander une réponse connue reste
+  gratuit), on peut toujours noter et déplacer ses gemmes. **La graine d'un duel n'est jamais montrée** (elle donne le plateau
+  de l'IA). Résultat : Gagné / Perdu / Égalité, plateau de l'IA avec la proposition, plateau du joueur avec les questions et la
+  proposition de l'IA.
+- **Modèle** (`game/duel.ts`) : deux `GameSession` croisées ; l'IA ne reçoit que `knowledge('ai')` (réponses à ses
+  propres questions). **L'IA ne triche jamais** : `game/ai/` n'importe le duel que pour des types (test qui lit ses sources).
+- **IA** (`game/ai/`) : `belief.ts` (échantillon de plateaux compatibles, Gibbs, budget en tirs simulés, reproductible),
+  `strategy.ts` (gain d'information), `levels.ts` (trois niveaux, données), `player.ts`. Dans le navigateur elle tourne dans
+  un **Web Worker** (`ui/aiWorker.ts`, `ui/aiClient.ts` avec repli dans la page).
+- **Historique** : un duel terminé entre dans l'historique du compte (colonnes `mode`, `level`, issue `draw`) et le profil montre
+  ses résultats par niveau ; les statistiques d'entraînement ne comptent pas les duels. Un duel en cours n'est jamais envoyé.
+
 ## Soumission et correction
 
 - Comparaison exacte des gemmes (type, couleur, position, orientation, face de la rouge)
@@ -268,7 +293,11 @@ src/
     visibility.ts  # ✔ règle e : gemmes atteignables en ligne droite
     examples.ts    # ✔ disposition du schéma du livret (tests et banc d'essai)
     rng.ts         # ✔ PRNG à graine
-    generate.ts    # ✔ génération aléatoire à graine, version du générateur
+    generate.ts    # ✔ génération aléatoire à graine, version du générateur ; `randomVisibleLayout` (plateau valide a à e)
+    boardCode.ts   # ✔ code de partage d'un plateau (encodage, décodage validé)
+    duel.ts        # ✔ duel contre l'IA : deux plateaux cachés, tours, règle de fin du livret, cloisonnement
+    duelSave.ts    # ✔ sauvegarde locale du duel, validation stricte
+    ai/            # ✔ l'IA : poses.ts, belief.ts, strategy.ts, levels.ts, player.ts (ne reçoit jamais le plateau adverse)
     session.ts     # ✔ partie en cours : mine privée, tirs, sondes, soumission ; seule porte d'entrée de l'UI
     verify.ts      # ✔ correction par égalité stricte, détail gemme par gemme
     probe.ts       # ✔ « Qu'y a-t-il en E4 ? »
@@ -299,6 +328,9 @@ src/
     historyLayout.ts # ✔ historique sur une ou deux colonnes selon la place
     historyCards.ts # ✔ cartes de l'historique : tirs et sondes (« B6 = ● »), pastilles de couleur
     scrollbar.ts   # ✔ barre de défilement légère en surimpression (historique des tirs)
+    duelPanel.ts   # ✔ duel : fenêtre des options, page Plateau, plateau du joueur, indication du tour
+    aiClient.ts    # ✔ accès à l'IA : Web Worker (aiWorker.ts) ou calcul dans la page
+    colorblind.ts  # ✔ mode daltonien : choix mémorisé, palette et motifs (palette.ts)
   backend/     # v2 : Supabase (chargé à la demande, absent sans configuration)
     config.ts      # ✔ variables VITE_SUPABASE_*
     auth.ts        # ✔ connexion Google
@@ -383,10 +415,9 @@ v3.1 à v3.7 la **v4**.
 
 **Vers la v3 : plateau personnalisé et duel contre une IA**
 
-- v2.1 Éditeur de plateau. v2.2 Modèle du duel (règles à deux joueurs, cloisonnement). v2.3 IA :
-  connaissance du plateau adverse à partir d'informations partielles (**risque de performance**).
-  v2.4 IA : stratégie par gain d'information, niveaux. v2.5 Interface du duel. v2.6 Sauvegarde et
-  historique. v2.7 Équilibrage.
+- v2.1 Éditeur de plateau, v2.2 Modèle du duel, v2.3 IA : connaissance du plateau adverse, v2.4 IA :
+  stratégie et niveaux, v2.5 Interface du duel, v2.6 Sauvegarde et historique, v2.7 Équilibrage et mode
+  daltonien : **faits** (v3.0.0). Reste la mise en service (migration SQL, réglage des niveaux sur de vraies parties).
 
 **Vers la v4 : duel en direct**
 
@@ -408,5 +439,5 @@ v3.1 à v3.7 la **v4**.
   Décidé en v1.1 : oui. (L'abandon a depuis été retiré, 2.0.1 ; les anciennes parties comptent toujours.)
 - Limite de tirs imposée, ou simple compteur indicatif ?
 - ~~Supabase ou Firebase pour la v2 ?~~ Décidé en v1.1 : Supabase.
-- Duel (v3) : « en même temps » ou tour par tour ? règle de fin (livret ou indulgente) ? Voir `docs/roadmap.md`.
+- ~~Duel (v3) : « en même temps » ou tour par tour ? règle de fin ?~~ Décidé en v3.0.0 : tours alternés, règle du livret.
 - Faut-il un mode « tutoriel » expliquant les effets de chaque gemme ?

@@ -37,6 +37,16 @@ export function emptySolution(gems: readonly GemId[] = BASE_GEM_IDS): Solution {
   return Object.fromEntries(gems.map((gem) => [gem, null])) as Solution;
 }
 
+/** Solution dont les gemmes sont posées comme ce plateau (plateau tiré au hasard, importé ou repris d'une sauvegarde). */
+export function solutionFromPlacements(
+  placements: readonly Placement[],
+  gems: readonly GemId[] = BASE_GEM_IDS,
+): Solution {
+  return Object.fromEntries(
+    gems.map((gem) => [gem, placements.find((placement) => placement.gem === gem) ?? null]),
+  ) as Solution;
+}
+
 /** Les gemmes de la partie, dans l'ordre du jeu. */
 export function gemsOf(solution: Solution): GemId[] {
   return ALL_GEM_IDS.filter((gem) => solution[gem] !== undefined);

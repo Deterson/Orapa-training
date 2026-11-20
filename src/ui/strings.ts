@@ -43,7 +43,9 @@ export const fr = {
     lost: 'Perdu',
     // Ancienne partie abandonnée (l'abandon n'existe plus) : l'historique la montre encore.
     abandoned: 'Abandonné',
-  } satisfies Record<GameStatus, string>,
+    // Duel seulement.
+    draw: 'Égalité',
+  } satisfies Record<GameStatus | 'draw', string>,
   lostSignal: 'Signal perdu',
   probe: {
     nothing: 'rien',
@@ -75,6 +77,10 @@ export const fr = {
   theme: {
     toDark: 'Mode nuit',
     toLight: 'Mode jour',
+  },
+  /** Mode daltonien : palette adaptée, motifs sur les gemmes, lettres sur les pastilles. */
+  colorblind: {
+    label: 'Mode daltonien',
   },
   options: {
     title: 'Extensions',
@@ -128,6 +134,10 @@ export const fr = {
     none: 'Aucune partie jouée',
     noWin: '—',
     noWinLabel: 'Pas encore de victoire',
+    duels: "Duels contre l'IA",
+    level: 'Niveau',
+    draws: 'Égalités',
+    losses: 'Défaites',
     loading: 'Chargement…',
     error: 'Chargement impossible.',
     retry: 'Réessayer',
@@ -151,6 +161,39 @@ export const fr = {
   },
   hints: {
     storageOff: 'Sauvegarde indisponible.',
+  },
+  /** Duel contre l'IA : textes courts, les règles sont dans la page « Règles ». */
+  duel: {
+    start: "Duel contre l'IA",
+    chip: 'Duel',
+    optionsTitle: 'Duel',
+    level: 'Niveau',
+    levels: { beginner: 'Débutant', intermediate: 'Intermédiaire', expert: 'Expert' },
+    toBoard: 'Plateau',
+    setupTitle: 'Votre plateau',
+    random: 'Au hasard',
+    validate: 'Valider',
+    code: 'Code',
+    codeLabel: 'Code du plateau',
+    copy: 'Copier',
+    copied: 'Copié',
+    importCode: 'Importer',
+    importLabel: 'Coller un code',
+    importFailed: 'Code invalide',
+    yourTurn: 'À vous',
+    aiTurn: "L'IA joue…",
+    lastTurn: 'Dernier tour : proposez',
+    aiLastTurn: "Dernier tour de l'IA…",
+    ownBoard: 'Votre plateau',
+    aiBoard: "Plateau de l'IA",
+    won: 'Gagné',
+    lost: 'Perdu',
+    draw: 'Égalité',
+    aiFound: "L'IA a trouvé",
+    replaceTitle: 'Duel en cours',
+    replaceText: 'Vous allez perdre votre duel en cours.',
+    wait: "Ce n'est pas votre tour.",
+    resume: 'Reprendre le duel',
   },
 } as const;
 

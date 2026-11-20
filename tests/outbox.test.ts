@@ -9,6 +9,8 @@ const record = (n: number): GameRecord => ({
   generatorVersion: 1,
   extensions: '',
   status: 'won',
+  mode: 'training',
+  level: null,
   lasersCount: 1,
   probesCount: 0,
   startedAt: '2026-03-01T10:00:00.000Z',

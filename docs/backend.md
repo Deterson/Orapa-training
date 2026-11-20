@@ -59,6 +59,7 @@ Confidentialité (fonction SQL `delete_my_account()`). Texte destiné aux joueur
 | `…000005_playing_games.sql` | parties **en cours** côté serveur : colonnes `snapshot` et `updated_at`, modification permise au seul propriétaire tant que la partie est en cours, dix parties en cours au plus, statistiques sans les parties en cours |
 | `…000004_shots_count.sql` | colonne calculée `shots_count` (lasers + sondes, un seul compteur de tirs depuis la v1.0.17) ; `profile_stats()` recréée : la moyenne porte sur les tirs |
 | `…000003_delete_account.sql` | `delete_my_account()` : supprime le compte de l'appelant, ses parties partent en cascade |
+| `20261120000001_duels.sql` | duels contre l'IA (v3) : colonnes `mode` (entraînement ou duel) et `level` (niveau de l'IA), issue `draw` (égalité) réservée aux duels, proposition facultative pour un duel ; `profile_stats()` ne compte plus que l'entraînement ; `duel_stats()` : victoires, égalités et défaites par niveau. Un duel en cours reste local : il n'est enregistré qu'une fois terminé |
 
 Les nouvelles migrations s'ajoutent à la suite (jamais de modification d'une migration déjà
 appliquée en production) et viennent avec leurs tests dans `supabase/tests/`.

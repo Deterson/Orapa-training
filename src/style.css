@@ -224,6 +224,11 @@ h2 {
     grid-template-columns: calc(24rem + 6px) minmax(0, 44rem);
   }
 
+  /* La place de la seconde colonne est déjà prise : la colonne unique reste à droite, au contact de la grille. */
+  .play[data-hist-fit='shift'] .history:not([data-cols]) {
+    margin-left: calc(12rem + 6px);
+  }
+
   .history[data-cols='2'] {
     display: grid;
     grid-auto-flow: column;
@@ -1876,4 +1881,189 @@ button.big {
 
 .toast-recap .plus {
   font-size: 1em;
+}
+
+/* Duel contre l'IA */
+.duel-chip {
+  border-style: solid;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.turn-chip {
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.turn-chip.is-mine {
+  border-color: #1f8f4e;
+  color: #1f8f4e;
+  font-weight: 700;
+}
+
+.home-new {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+}
+
+.duel-levels {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+
+/* Son propre plateau, en petit, au-dessus des outils : les questions de l'IA s'y marquent. */
+.own-board {
+  display: grid;
+  gap: 2px;
+}
+
+.own-title {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.own-svg .entry {
+  pointer-events: none;
+}
+
+.own-svg .real-gem polygon {
+  fill-opacity: 0.92;
+}
+
+/* Page « Plateau » : la grille et, à droite, la réserve et les boutons. */
+@media (min-width: 56rem) {
+  .play.is-setup {
+    grid-template-columns: calc(12.2 * var(--u)) calc(6.6 * var(--u));
+  }
+
+  .play.is-setup .play-center {
+    order: 1;
+  }
+
+  .play.is-setup .play-side {
+    order: 2;
+  }
+}
+
+.code-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.code-row input[type='text'] {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+}
+
+.code-label {
+  display: flex;
+  flex: 1;
+  gap: 6px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* Résultat du duel : le plateau de l'IA et celui du joueur côte à côte. */
+.duel-boards {
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 40rem) {
+  .duel-boards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.result.is-draw h2 {
+  color: var(--muted);
+}
+
+/* Historique et profil : duels contre l'IA */
+.h-mode {
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.h-row.is-draw .h-status {
+  color: var(--muted);
+}
+
+.p-sub {
+  margin: 18px 0 6px;
+  font-size: 1rem;
+}
+
+.p-duels {
+  width: 100%;
+  max-width: 36rem;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.p-duels th,
+.p-duels td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+}
+
+.p-duels th:first-child {
+  text-align: left;
+}
+
+.p-duels thead th {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Mode daltonien : bouton de la barre, lettres sur les pastilles de couleur, motifs des gemmes */
+.colorblind-btn[aria-pressed='true'] {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.chip[data-letter] {
+  display: inline-grid;
+  place-items: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+  color: transparent;
+}
+
+:root[data-colorblind='1'] .chip[data-letter] {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #111;
+}
+
+:root[data-colorblind='1'] .chip[data-letter]::after {
+  content: attr(data-letter);
+}
+
+/* Bleu : le texte clair sur fond foncé reste lisible. */
+:root[data-colorblind='1'] .chip[data-letter='B']::after {
+  color: #fff;
 }

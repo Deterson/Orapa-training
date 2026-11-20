@@ -10,6 +10,8 @@ import { t } from './strings';
 /** Une partie non terminée, telle que l'accueil la montre. */
 export interface HomeGame {
   seed: string;
+  /** Niveau de l'IA quand c'est un duel (la graine, qui donne le plateau de l'IA, n'est alors jamais montrée). */
+  duel?: string;
   /** « Sans extension », « Diamant »… */
   extensions: string;
   shots: number;
@@ -42,7 +44,7 @@ function card(game: HomeGame, canImport: boolean): string {
   const actions = `<div class="actions"><button type="button" data-action="resume-game">${t.actions.resume}</button>${canImport ? `<button type="button" class="ghost" data-action="import-game">${t.home.import}</button>` : ''}</div>`;
   return `<section class="home-card" aria-label="${t.home.current}">
     <h2>${t.home.current}</h2>
-    <p class="hc-line"><code class="seed">${escapeHtml(game.seed)}</code> <span class="ext-chip">${escapeHtml(game.extensions)}</span> · ${shots}</p>
+    <p class="hc-line">${game.duel ? `<span class="ext-chip duel-chip">${t.duel.chip} · ${escapeHtml(game.duel)}</span>` : `<code class="seed">${escapeHtml(game.seed)}</code>`} <span class="ext-chip">${escapeHtml(game.extensions)}</span> · ${shots}</p>
     ${actions}
   </section>`;
 }
@@ -75,7 +77,7 @@ export function homePage(model: HomeModel): string {
   return `<div class="home">
     <h1 class="sr-only">${t.appName}</h1>
     ${model.current ? card(model.current, model.canImport) : ''}
-    <p class="home-new"><button type="button" class="big" data-action="new-game"${model.newGameBlocked ? ' disabled' : ''}>${t.actions.newGame}</button></p>
+    <p class="home-new"><button type="button" class="big" data-action="new-game"${model.newGameBlocked ? ' disabled' : ''}>${t.actions.newGame}</button> <button type="button" class="big ghost" data-action="new-duel">${t.duel.start}</button></p>
     ${hint}
     ${others(model)}
   </div>`;

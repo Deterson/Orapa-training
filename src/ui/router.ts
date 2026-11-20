@@ -1,13 +1,14 @@
 /**
- * Routeur par adresse (hash) : accueil, partie, règles, historique, profil, confidentialité.
+ * Routeur par adresse (hash) : accueil, partie, plateau du duel, règles, historique, profil, confidentialité.
  * Les anciennes adresses (`#regles`, `#historique`, `#profil`, `#confidentialite`, `#jeu`) restent
  * comprises : des liens déjà partagés continuent de marcher.
  */
-export type View = 'home' | 'game' | 'rules' | 'history' | 'profile' | 'privacy';
+export type View = 'home' | 'game' | 'duel' | 'rules' | 'history' | 'profile' | 'privacy';
 
 const ROUTES: Record<View, string> = {
   home: '#/',
   game: '#/partie',
+  duel: '#/duel',
   rules: '#/regles',
   history: '#/historique',
   profile: '#/profil',
@@ -21,6 +22,8 @@ export function parseRoute(hash: string): View {
     case 'partie':
     case 'jeu':
       return 'game';
+    case 'duel':
+      return 'duel';
     case 'regles':
       return 'rules';
     case 'historique':

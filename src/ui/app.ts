@@ -15,8 +15,12 @@ import {
   gemsFor,
 } from '../game/gems';
 import { type ShotResult, isAbsorbed, shoot } from '../game/laser';
-import { randomSeed } from '../game/rng';
-import { GameSession, type ShotRecord } from '../game/session';
+import { createRng, randomSeed } from '../game/rng';
+import { AI_LEVELS, type AiLevel, Duel } from '../game/duel';
+import { DUEL_SAVE_VERSION, type DuelSaveData } from '../game/duelSave';
+import { decodeBoard } from '../game/boardCode';
+import { randomVisibleLayout } from '../game/generate';
+import { GameSession, type ProbeRecord, type ShotRecord } from '../game/session';
 import { SAVE_VERSION, type SaveData } from '../game/save';
 import { compareSolution } from '../game/verify';
 import {
@@ -32,6 +36,7 @@ import {
   removeGem,
   resetSolution,
   rotateGem,
+  solutionFromPlacements,
   solutionIssues,
 } from '../game/solution';
 import {
@@ -52,8 +57,9 @@ import { type Tool, footerHtml, isDrawingTool, toolsHtml } from './notesBoard';
 import { notesLayerSvg } from './notesLayer';
 import type { Pending } from './board';
 import { currentTheme, toggleTheme } from './theme';
+import { toggleColorblind } from './colorblind';
 import { playBoardSvg } from './playBoard';
-import { INK_COLOR, INK_LABEL, lostSignalHtml } from './palette';
+import { INK_COLOR, INK_LABEL, isColorblind, lostSignalHtml } from './palette';
 import { resultBoardSvg, simulationRaySvg } from './resultBoard';
 import type { AccountUser } from '../backend/auth';
 import type { Backend } from '../backend';
@@ -83,16 +89,26 @@ import { privacyPage } from './privacy';
 import { profilePage } from './profile';
 import { historyPage, isHistoryFilter, isHistorySort, pageCount } from './history';
 import { rulesPage } from './rules';
-import { browserSaveStore } from './storage';
+import { browserDuelStore, browserSaveStore } from './storage';
 import { t } from './strings';
+import { type AiClient, createAiClient } from './aiClient';
+import {
+  type DuelChoice,
+  duelBarHtml,
+  duelOptionsModal,
+  duelOutcomeText,
+  duelSetupPage,
+  ownBoardHtml,
+  ownBoardSvg,
+} from './duelPanel';
 import { type ImmersiveTool, immersiveBoardSvg } from './immersiveBoard';
 import { gemOrigin, gemSize, trayHtml } from './solutionBoard';
 
 type Phase = 'idle' | 'loading' | 'options' | 'ready' | 'error';
 /** Fenêtre modale ouverte : « Nouvelle partie » sans compte alors qu'une partie est en cours (elle serait perdue). */
-type Ask = { kind: 'replace' };
+type Ask = { kind: 'replace'; next: 'training' | 'duel' };
 /** Infobulle temporaire, en bas de l'écran : « signal perdu », ou résumé d'un tir déjà fait (son numéro). */
-type Toast = { kind: 'lost' } | { kind: 'recap'; n: number };
+type Toast = { kind: 'lost' } | { kind: 'recap'; n: number } | { kind: 'wait' };
 
 interface State {
   phase: Phase;
@@ -134,6 +150,18 @@ interface State {
   confirm: 'submit' | null;
   /** Choix des extensions en cours (fenêtre de début de partie) ; null quand elle est fermée. */
   choose: Extensions | null;
+  /** Duel en cours (la session est alors celle du joueur : `duel.playerSession`) ; null en entraînement. */
+  duel: Duel | null;
+  /** IA du duel (Web Worker) ; arrêtée quand le duel se termine ou est remplacé. */
+  ai: AiClient | null;
+  /** L'IA réfléchit : le joueur attend son tour. */
+  aiThinking: boolean;
+  /** Fenêtre de début de duel (extensions et niveau) ; null quand elle est fermée. */
+  chooseDuel: DuelChoice | null;
+  /** Plateau du joueur en construction (page « Plateau ») ; null hors de cette page. */
+  setup: { extensions: Extensions; level: AiLevel; solution: Solution; notice: string } | null;
+  /** Dernière question de l'IA, pour animer sa marque sur le plateau du joueur. */
+  aiFresh: { shot: number | null; probe: string | null };
   /** Infobulle affichée un instant ; null sinon. */
   toast: Toast | null;
   notice: string;
@@ -337,6 +365,12 @@ export function startApp(
     itool: 'move',
     confirm: null,
     choose: null,
+    duel: null,
+    ai: null,
+    aiThinking: false,
+    chooseDuel: null,
+    setup: null,
+    aiFresh: { shot: null, probe: null },
     toast: null,
     notice: '',
     backend: null,
@@ -350,6 +384,7 @@ export function startApp(
     deletion: 'idle',
   };
   const store = browserSaveStore();
+  const duelStore = browserDuelStore();
   const outbox = browserOutbox();
 
   // ---------- Affichage ----------
@@ -397,6 +432,18 @@ export function startApp(
       </aside>`;
   };
 
+  /** Duel : le plateau du joueur, en petit, avec les questions de l'IA marquées dessus. */
+  const ownBoardPanel = (): string => {
+    const { duel } = state;
+    if (!duel) return '';
+    return ownBoardHtml({
+      board: duel.ownBoard,
+      shots: duel.aiQuestions.shots,
+      probes: duel.aiQuestions.probes,
+      fresh: state.aiFresh,
+    });
+  };
+
   /** Colonne de droite : outils, gemmes à placer, état de la solution et « Soumettre » (en vert). */
   const sidePanel = (session: GameSession): string => {
     const issues = solutionIssues(state.solution);
@@ -409,6 +456,7 @@ export function startApp(
       ? `<p class="hypo">${outcomeHtml(state.hypothesis)}</p>`
       : '';
     return `<aside class="play-side">
+        ${ownBoardPanel()}
         ${toolsHtml({ tool: state.tool, ink: state.ink })}
         ${trayHtml({ solution: state.solution, selected: state.selectedGem, issues })}
         <div class="status-row">
@@ -456,13 +504,58 @@ export function startApp(
       </div>`;
   };
 
+  /**
+   * Résultat du duel : Gagné, Perdu ou Égalité, le plateau de l'IA avec la proposition du joueur (détail dans
+   * l'historique), et le plateau du joueur avec les questions et la proposition de l'IA.
+   */
+  const duelResultPanel = (duel: Duel, session: GameSession): string => {
+    const revealed = duel.reveal();
+    const status = duel.status;
+    const proposal = revealed.guesses.player ?? placedGems(state.solution);
+    const diffs = compareSolution(revealed.ai, proposal);
+    const selectedShot = session.shots.find((shot) => shot.n === state.selected);
+    const aiShots = duel.aiQuestions.shots.length + duel.aiQuestions.probes.length;
+    return `
+      <div class="result is-${status}">
+        <h2>${duelOutcomeText(status)}</h2>
+        <p class="result-meta">${session.shotCount} tir${plural(session.shotCount, '', 's')} · IA ${aiShots} · ${formatTime(session.elapsedMs())}</p>
+        <div class="duel-boards">
+          <section aria-label="${t.duel.aiBoard}">
+            <p class="own-title">${t.duel.aiBoard}</p>
+            ${resultBoardSvg(diffs, {
+              shots: session.shots,
+              probes: session.probes,
+              explored: state.explored,
+              simulated: selectedShot ? simulateOnProposal(selectedShot.entry) : null,
+              selectedShot: state.selected,
+              selectedProbe: state.selectedProbe,
+            })}
+          </section>
+          <section aria-label="${t.duel.ownBoard}">
+            <p class="own-title">${t.duel.ownBoard}</p>
+            ${ownBoardSvg({
+              board: revealed.player,
+              shots: duel.aiQuestions.shots,
+              probes: duel.aiQuestions.probes,
+              fresh: { shot: null, probe: null },
+              guess: revealed.guesses.ai,
+            })}
+          </section>
+        </div>
+        ${state.explored ? `<p class="hypo">${outcomeHtml(state.explored)}</p>` : ''}
+        <div class="actions">
+          <button type="button" data-action="new-duel">${t.duel.start}</button>
+        </div>
+      </div>`;
+  };
+
   /** « Soumettre » (vert), avec confirmation car l'action est définitive. */
   const actionsPanel = (session: GameSession): string => {
     if (session.finished) return '';
     if (state.confirm === 'submit') {
       return `<div class="confirm" role="alertdialog" aria-label="Confirmer"><p>Soumettre ?</p><div class="actions"><button type="button" class="submit-btn" data-action="confirm-submit">${t.actions.submit}</button><button type="button" class="ghost" data-action="cancel-confirm">${t.modal.cancel}</button></div></div>`;
     }
-    const ready = isSubmittable(state.solution);
+    const ready = isSubmittable(state.solution) && canPlayerPropose();
     return `<button type="button" class="submit-btn" data-action="ask-submit"${ready ? '' : ' disabled title="Toutes les gemmes, bien placées"'}>${t.actions.submit}</button>`;
   };
 
@@ -486,9 +579,10 @@ export function startApp(
    */
   const toastHtml = (): string => {
     if (!state.toast) return '';
-    return state.toast.kind === 'recap'
-      ? recapToast(state.toast.n)
-      : `<div class="toast" role="status">${lostSignalHtml()}<span>${t.lostSignal}</span></div>`;
+    if (state.toast.kind === 'recap') return recapToast(state.toast.n);
+    if (state.toast.kind === 'wait')
+      return `<div class="toast" role="status"><span>${t.duel.wait}</span></div>`;
+    return `<div class="toast" role="status">${lostSignalHtml()}<span>${t.lostSignal}</span></div>`;
   };
 
   let toastTimer: number | undefined;
@@ -512,20 +606,56 @@ export function startApp(
   const modal = (): string => {
     const { ask } = state;
     if (state.choose) return optionsModal(state.choose);
+    if (state.chooseDuel) return duelOptionsModal(state.chooseDuel);
     if (!ask) return '';
     return replaceModal();
   };
 
-  /** Sans compte, une nouvelle partie efface la partie en cours : confirmation (et invitation à se connecter). */
+  /**
+   * Une nouvelle partie efface la partie en cours : confirmation (et, pour une partie d'entraînement sans
+   * compte, invitation à se connecter). Un duel en cours n'est jamais enregistré sur le compte.
+   */
   const replaceModal = (): string => {
-    const canSignIn = state.backend !== null && state.authReady;
+    const duelRunning = state.duel !== null;
+    const canSignIn = !duelRunning && state.backend !== null && state.authReady;
     const signIn = canSignIn
       ? `<button type="button" class="ghost" data-action="sign-in">${t.account.signIn}</button>`
       : '';
-    return `<div class="modal-backdrop" data-modal-backdrop><div class="modal" role="alertdialog" aria-modal="true" aria-label="${t.modal.replaceTitle}"><p class="modal-title">${t.modal.replaceTitle}</p><p>${canSignIn ? t.modal.replaceSignIn : t.modal.replaceText}</p><div class="actions"><button type="button" data-action="modal-confirm">${t.modal.replaceConfirm}</button>${signIn}<button type="button" class="ghost" data-action="modal-cancel">${t.modal.cancel}</button></div></div></div>`;
+    const title = duelRunning ? t.duel.replaceTitle : t.modal.replaceTitle;
+    const text = duelRunning
+      ? t.duel.replaceText
+      : canSignIn
+        ? t.modal.replaceSignIn
+        : t.modal.replaceText;
+    return `<div class="modal-backdrop" data-modal-backdrop><div class="modal" role="alertdialog" aria-modal="true" aria-label="${title}"><p class="modal-title">${title}</p><p>${text}</p><div class="actions"><button type="button" data-action="modal-confirm">${t.modal.replaceConfirm}</button>${signIn}<button type="button" class="ghost" data-action="modal-cancel">${t.modal.cancel}</button></div></div></div>`;
   };
 
   let sync: ProgressSync | null = null;
+
+  /** Abandonne le duel en cours (remplacé par une autre partie) : l'IA est arrêtée et la sauvegarde effacée. */
+  const stopDuel = (): void => {
+    state.ai?.dispose();
+    state.ai = null;
+    state.duel = null;
+    state.aiThinking = false;
+    state.aiFresh = { shot: null, probe: null };
+    duelStore.clear();
+  };
+
+  /** Sauvegarde locale du duel en cours : le duel (les deux plateaux, les questions), la proposition et les notes. */
+  const persistDuel = (): void => {
+    const { duel, game } = state;
+    if (state.phase !== 'ready' || !duel || duel.over) return;
+    const save: DuelSaveData = {
+      version: DUEL_SAVE_VERSION,
+      savedAt: Date.now(),
+      duel: duel.toSnapshot(),
+      solution: state.solution,
+      notes: state.notes.present,
+      ...(game ? { gameId: game.id, startedAt: game.startedAt } : {}),
+    };
+    duelStore.save(save);
+  };
 
   /**
    * Sauvegarde automatique de la partie en cours (rien à sauvegarder une fois terminée), et, si elle
@@ -533,6 +663,7 @@ export function startApp(
    * les envois et n'envoie que ce qui a changé).
    */
   const persist = (): void => {
+    if (state.duel) return persistDuel();
     const { session, game } = state;
     if (state.phase !== 'ready' || !session || session.finished) return;
     const synced = game?.synced === true && state.account !== null;
@@ -630,7 +761,8 @@ export function startApp(
    */
   const limitReached = (): boolean =>
     state.account !== null &&
-    state.playing.games.length + (inProgress() && state.game?.synced === false ? 1 : 0) >=
+    state.playing.games.length +
+      (inProgress() && state.duel === null && state.game?.synced === false ? 1 : 0) >=
       MAX_PLAYING;
 
   /**
@@ -651,6 +783,7 @@ export function startApp(
     accountReady: state.backend !== null && state.authReady,
     user: state.account,
     theme: currentTheme(),
+    colorblind: isColorblind(),
   })}
       <main class="app${wide ? ' is-play' : ''}">${body}</main>
       <p class="sr-only" aria-live="polite">${state.notice}</p>
@@ -661,7 +794,24 @@ export function startApp(
     seed: session.seed,
     extensions: extensionsLabel(session.gems),
     shots: session.shotCount,
+    // Le duel ne montre jamais sa graine : elle donne le plateau de l'IA.
+    ...(state.duel ? { duel: t.duel.levels[state.duel.level] } : {}),
   });
+
+  /** C'est au joueur de poser une question : pas de duel, ou son tour, l'IA n'est pas en train de jouer. */
+  const canPlayerAct = (): boolean => {
+    const { duel } = state;
+    return (
+      !duel ||
+      (duel.turn === 'player' && !state.aiThinking && !duel.over && duel.lastTurnOf !== 'player')
+    );
+  };
+
+  /** Le joueur peut proposer son plateau : en duel, seulement à son tour (dernier tour compris). */
+  const canPlayerPropose = (): boolean => {
+    const { duel } = state;
+    return !duel || (duel.turn === 'player' && !state.aiThinking && !duel.over);
+  };
 
   const render = (): void => {
     syncClock();
@@ -693,6 +843,23 @@ export function startApp(
         }),
       );
       return;
+    }
+    if (state.view === 'duel') {
+      if (state.setup) {
+        const { solution, notice } = state.setup;
+        root.innerHTML = page(
+          duelSetupPage({
+            solution,
+            selected: state.selectedGem,
+            issues: solutionIssues(solution),
+            valid: isSubmittable(solution),
+            notice,
+          }),
+        );
+        return;
+      }
+      // Pas de plateau en construction (adresse ouverte à froid) : on retombe sur l'accueil.
+      state.view = 'home';
     }
     if ((state.view === 'history' || state.view === 'profile') && !state.backend) {
       if (accountsExpected) {
@@ -730,7 +897,11 @@ export function startApp(
           newGameBlocked: newGameBlocked(),
           accounts: state.backend !== null,
           signedIn: state.account !== null,
-          canImport: current !== null && state.account !== null && state.game?.synced === false,
+          canImport:
+            current !== null &&
+            state.duel === null &&
+            state.account !== null &&
+            state.game?.synced === false,
           // La partie chargée dans cette fenêtre est déjà montrée en haut : pas de doublon dans la liste.
           others: state.playing.games
             .filter((game) => !(current && game.id === state.game?.id))
@@ -750,9 +921,17 @@ export function startApp(
     }
     const { session } = state;
     let center: string;
+    // En duel, la partie du joueur peut être finie (il a trouvé le premier) sans que le duel le soit : l'IA joue son dernier tour.
+    const showsResult =
+      state.phase === 'ready' &&
+      session !== null &&
+      session.finished &&
+      (state.duel === null || state.duel.over);
     if (state.phase === 'ready' && session) {
-      center = session.finished
-        ? resultPanel(session)
+      center = showsResult
+        ? state.duel
+          ? duelResultPanel(state.duel, session)
+          : resultPanel(session)
         : `${playBoardSvg({
             solution: state.solution,
             selected: state.selectedGem,
@@ -779,7 +958,18 @@ export function startApp(
     const extensions = session ? extensionsLabel(session.gems) : '';
     const gameBar = `
         <div class="gamebar">
-          <code class="seed" title="Graine">${session ? escapeHtml(session.seed) : '…'}</code>${
+          ${
+            state.duel
+              ? duelBarHtml({
+                  level: state.duel.level,
+                  turn: state.duel.turn,
+                  over: state.duel.over,
+                  playerLastTurn: state.duel.lastTurnOf === 'player',
+                  aiLastTurn: state.duel.lastTurnOf === 'ai',
+                  thinking: state.aiThinking,
+                })
+              : `<code class="seed" title="Graine">${session ? escapeHtml(session.seed) : '…'}</code>`
+          }${
             extensions
               ? `
           <span class="ext-chip" title="Extensions">${extensions}</span>`
@@ -793,7 +983,7 @@ export function startApp(
     root.innerHTML = page(
       `${gameBar}
         ${store.available ? '' : `<p class="warning" role="status">${t.hints.storageOff}</p>`}
-        <div class="play${session?.finished ? ' is-result' : ''}">
+        <div class="play${showsResult ? ' is-result' : ''}">
           ${historyPanel(session)}
           <section class="play-center" id="plateau" tabindex="-1" aria-label="Plateau">
             ${center}
@@ -838,6 +1028,7 @@ export function startApp(
 
   /** Remet une partie sauvegardée en mémoire (chronomètre en pause tant qu'on n'est pas sur la vue Partie). */
   const loadSave = (save: SaveData, id?: string): void => {
+    stopDuel();
     state.session = GameSession.fromSnapshot(save.session);
     state.solution = save.solution;
     state.notes = newHistory(save.notes);
@@ -865,6 +1056,8 @@ export function startApp(
 
   const startGame = (seed: string, extensions: Readonly<Extensions> = NO_EXTENSIONS): void => {
     store.clear();
+    stopDuel();
+    state.setup = null;
     state.choose = null;
     state.toast = null;
     state.phase = 'loading';
@@ -937,23 +1130,108 @@ export function startApp(
     }, 1000);
   };
 
+  /** Pose la question du joueur : en duel par le duel (qui fait passer le tour), sinon directement dans la partie. */
+  const ask = (
+    session: GameSession,
+    question: { kind: 'fire' | 'probe'; label: string },
+  ): ShotRecord | ProbeRecord =>
+    // Une question déjà posée ne coûte rien et ne passe pas le tour : la session redonne la même réponse.
+    state.duel && !state.duel.isFree('player', question)
+      ? state.duel.ask('player', question)
+      : question.kind === 'fire'
+        ? session.fire(question.label)
+        : session.probe(question.label);
+
+  let aiRun = 0;
+  let aiFreshTimer: number | undefined;
+
+  /**
+   * Le tour de l'IA : elle réfléchit dans un Web Worker, attend un délai de rythme humain, puis pose sa question ou
+   * fait sa proposition. Le joueur ne peut rien tirer en attendant (mais il peut placer ses gemmes et noter).
+   */
+  const playAi = async (retried = false): Promise<void> => {
+    const { duel, ai } = state;
+    if (!duel || !ai || duel.over || duel.turn !== 'ai' || (state.aiThinking && !retried)) return;
+    const run = ++aiRun;
+    state.aiThinking = true;
+    render();
+    const started = Date.now();
+    try {
+      const { move, delay } = await ai.decide(duel.knowledge('ai'));
+      const wait = Math.max(0, delay - (Date.now() - started));
+      if (wait > 0) await new Promise<void>((resolve) => window.setTimeout(resolve, wait));
+      // Duel remplacé ou quitté pendant la réflexion : ce coup n'a plus lieu d'être.
+      if (run !== aiRun || state.duel !== duel || duel.over) return;
+      if (move.kind === 'propose') {
+        duel.propose('ai', move.guess);
+        state.notice = duel.over ? duelOutcomeText(duel.status) : t.duel.lastTurn;
+      } else {
+        const record = duel.ask('ai', move);
+        const fresh =
+          'exit' in record ? { shot: record.n, probe: null } : { shot: null, probe: record.cell };
+        state.aiFresh = fresh;
+        window.clearTimeout(aiFreshTimer);
+        aiFreshTimer = window.setTimeout(() => {
+          state.aiFresh = { shot: null, probe: null };
+        }, 1000);
+        state.notice = `${t.duel.aiTurn.replace('…', '')} ${move.label}`;
+      }
+      state.aiThinking = false;
+      if (duel.over) return showResult();
+      render();
+      if (duel.turn === 'ai') void playAi();
+    } catch {
+      if (run !== aiRun || state.duel !== duel) return;
+      state.aiThinking = false;
+      if (!retried) {
+        // Le calcul a échoué (Worker indisponible…) : on le refait dans la page, une seule fois.
+        state.ai?.dispose();
+        state.ai = createAiClient({
+          level: duel.level,
+          seed: duel.seed,
+          gems: duel.gems,
+          worker: false,
+        });
+        return playAi(true);
+      }
+      // Toujours impossible : l'IA ne bloque pas le joueur, elle rend la main en s'avouant vaincue.
+      if (!duel.over && duel.turn === 'ai') duel.propose('ai', []);
+      if (duel.over) return showResult();
+      render();
+    }
+  };
+
+  /** Après la question du joueur : c'est le tour de l'IA. */
+  const afterPlayerQuestion = (): void => {
+    if (state.duel && !state.duel.over && state.duel.turn === 'ai') void playAi();
+  };
+
   const doFire = (label: string): void => {
     state.pending = null;
     if (!state.session || state.session.finished) return;
-    const shot = state.session.fire(label);
+    if (!canPlayerAct() && !state.duel?.isFree('player', { kind: 'fire', label })) {
+      showToast({ kind: 'wait' });
+      return render();
+    }
+    const shot = ask(state.session, { kind: 'fire', label }) as ShotRecord;
     state.notice = describe(shot);
     markFresh({ shot: shot.n, probe: null });
     if (isAbsorbed(shot)) showLostSignal();
     render();
+    afterPlayerQuestion();
   };
 
   const doProbe = (label: string): void => {
     state.pending = null;
     const { session } = state;
     if (!session || session.finished) return;
+    if (!canPlayerAct() && !state.duel?.isFree('player', { kind: 'probe', label })) {
+      showToast({ kind: 'wait' });
+      return render();
+    }
     try {
       const known = session.probes.some((probe) => probe.cell === label);
-      const record = session.probe(label);
+      const record = ask(session, { kind: 'probe', label }) as ProbeRecord;
       state.notice = `${record.cell} : ${t.probe[record.content]}`;
       if (!known) markFresh({ shot: null, probe: record.cell });
       if (record.content === 'black') showLostSignal();
@@ -961,6 +1239,7 @@ export function startApp(
       state.notice = `« ${label} » : case invalide (A1 à H10).`;
     }
     render();
+    afterPlayerQuestion();
   };
 
   /** Entre en plein écran : navigateur en plein écran et écran verrouillé en paysage quand c'est possible. */
@@ -1041,7 +1320,18 @@ export function startApp(
         extensions: extensionsOf(session.gems),
         startedAt: game.startedAt,
         endedAt: Date.now(),
-        submission: placedGems(state.solution),
+        // Duel : la proposition faite au moment du duel (aucune si l'IA a trouvé la première) et son issue.
+        submission: state.duel
+          ? [...(state.duel.reveal().guesses.player ?? [])]
+          : placedGems(state.solution),
+        ...(state.duel
+          ? {
+              duel: {
+                level: state.duel.level,
+                outcome: state.duel.status as 'won' | 'lost' | 'draw',
+              },
+            }
+          : {}),
       });
       // Une partie que la base refuserait ne doit pas rester bloquée en file.
       if (parseRow(recordToRow(record)) === null) return;
@@ -1146,7 +1436,8 @@ export function startApp(
    */
   const secureCurrent = async (): Promise<boolean> => {
     const { game, account, backend } = state;
-    if (!account || !backend || !sync || !game || !inProgress()) return true;
+    // Un duel en cours reste local : rien à mettre à l'abri.
+    if (!account || !backend || !sync || !game || !inProgress() || state.duel) return true;
     if (!game.synced) {
       game.synced = true;
       game.owner = account.id;
@@ -1207,7 +1498,7 @@ export function startApp(
   /** Ajoute au compte la partie locale en cours. */
   const importCurrent = async (): Promise<void> => {
     const { game, account } = state;
-    if (!account || !game || !inProgress() || game.synced) return;
+    if (!account || !game || !inProgress() || game.synced || state.duel) return;
     if (limitReached()) {
       state.notice = t.home.limit;
       return render();
@@ -1249,9 +1540,187 @@ export function startApp(
     state.confirm = null;
     state.ask = null;
     state.tool = null;
+    if (state.duel) {
+      // Duel terminé : plus rien à reprendre ; l'IA s'arrête.
+      duelStore.clear();
+      state.ai?.dispose();
+      state.ai = null;
+      state.aiThinking = false;
+      state.notice = duelOutcomeText(state.duel.status);
+      recordGame();
+      render();
+      return;
+    }
     state.notice = state.session ? t.status[state.session.status] : '';
     recordGame();
     render();
+  };
+
+  // ---------- Duel contre l'IA ----------
+
+  /** Ouvre la fenêtre du duel : niveau de l'IA et extensions. */
+  const openDuelOptions = (): void => {
+    state.chooseDuel = { extensions: { ...NO_EXTENSIONS }, level: 'intermediate' };
+    render();
+    root.querySelector<HTMLElement>('input[name="duel-level"]:checked')?.focus();
+  };
+
+  /** Page du plateau : le joueur construit son plateau avant le duel. */
+  const startSetup = (level: AiLevel, extensions: Readonly<Extensions>): void => {
+    state.chooseDuel = null;
+    state.selectedGem = null;
+    state.setup = {
+      level,
+      extensions: { ...extensions },
+      solution: emptySolution(gemsFor(extensions)),
+      notice: '',
+    };
+    navigate('duel');
+  };
+
+  /** Ferme la fenêtre du duel : « Plateau » passe à la construction du plateau. */
+  const closeDuelOptions = (go: boolean): void => {
+    if (!state.chooseDuel) return;
+    if (!go) {
+      state.chooseDuel = null;
+      return render();
+    }
+    const checked = (id: string): boolean =>
+      root.querySelector<HTMLInputElement>(`#${id}`)?.checked ?? false;
+    const picked = root.querySelector<HTMLInputElement>('input[name="duel-level"]:checked')?.value;
+    const level = AI_LEVELS.find((candidate) => candidate === picked) ?? 'intermediate';
+    startSetup(level, {
+      diamond: checked('duel-ext-diamond'),
+      blackBody: checked('duel-ext-black'),
+    });
+  };
+
+  /** Lance le duel : le plateau du joueur est validé, celui de l'IA est tiré de la graine. */
+  const beginDuel = async (): Promise<void> => {
+    const { setup } = state;
+    if (!setup || !isSubmittable(setup.solution) || starting) return;
+    starting = true;
+    try {
+      // Une partie d'entraînement en cours est d'abord mise à l'abri sur le compte.
+      if (state.account && !(await secureCurrent())) {
+        state.notice = t.home.syncFailed;
+        return render();
+      }
+      const seed = randomSeed();
+      const duel = Duel.start({
+        seed,
+        level: setup.level,
+        extensions: setup.extensions,
+        playerBoard: placedGems(setup.solution),
+      });
+      store.clear();
+      stopDuel();
+      clearSeedFromUrl();
+      state.setup = null;
+      state.duel = duel;
+      state.session = duel.playerSession;
+      state.game = { id: newGameId(), startedAt: Date.now(), synced: false };
+      state.recorded = null;
+      state.solution = emptySolution(duel.gems);
+      state.notes = newHistory();
+      state.selected = null;
+      state.selectedProbe = null;
+      state.selectedGem = null;
+      state.hypothesis = null;
+      state.explored = null;
+      state.ask = null;
+      state.pending = null;
+      state.fresh = { shot: null, probe: null };
+      state.aiFresh = { shot: null, probe: null };
+      state.confirm = null;
+      state.tool = null;
+      state.notice = '';
+      state.phase = 'ready';
+      state.ai = createAiClient({ level: duel.level, seed, gems: duel.gems });
+      navigate('game');
+      void playAi();
+    } catch {
+      state.notice = t.home.actionFailed;
+      render();
+    } finally {
+      starting = false;
+    }
+  };
+
+  /** Reprend le duel sauvegardé : les deux plateaux et les questions sont rejoués. */
+  const loadDuel = (save: DuelSaveData): void => {
+    stopDuel();
+    const duel = Duel.fromSnapshot(save.duel);
+    state.duel = duel;
+    state.session = duel.playerSession;
+    state.solution = save.solution;
+    state.notes = newHistory(save.notes);
+    state.game = {
+      id: save.gameId ?? newGameId(),
+      startedAt: save.startedAt ?? Math.max(0, save.savedAt - duel.playerSession.elapsedMs()),
+      synced: false,
+    };
+    state.recorded = null;
+    state.selected = null;
+    state.selectedProbe = null;
+    state.selectedGem = null;
+    state.hypothesis = null;
+    state.explored = null;
+    state.ask = null;
+    state.pending = null;
+    state.fresh = { shot: null, probe: null };
+    state.aiFresh = { shot: null, probe: null };
+    state.confirm = null;
+    state.tool = null;
+    state.phase = 'ready';
+    state.ai = createAiClient({ level: duel.level, seed: duel.seed, gems: duel.gems });
+  };
+
+  /** « Au hasard » : un plateau valide tiré au hasard. */
+  const randomBoard = (): void => {
+    const { setup } = state;
+    if (!setup) return;
+    const gems = gemsFor(setup.extensions);
+    setup.solution = solutionFromPlacements(
+      randomVisibleLayout(createRng(randomSeed()), gems),
+      gems,
+    );
+    setup.notice = '';
+    state.selectedGem = null;
+    render();
+  };
+
+  /** « Importer » : un code de partage décrit un plateau (et donc ses extensions). */
+  const importBoard = (): void => {
+    const { setup } = state;
+    if (!setup) return;
+    const text = root.querySelector<HTMLInputElement>('#import-code')?.value ?? '';
+    const placements = decodeBoard(text);
+    if (placements === null) {
+      setup.notice = t.duel.importFailed;
+      return render();
+    }
+    const gems = placements.map((placement) => placement.gem);
+    setup.extensions = extensionsOf(gems);
+    setup.solution = solutionFromPlacements(placements, gemsFor(setup.extensions));
+    setup.notice = '';
+    state.selectedGem = null;
+    render();
+  };
+
+  const copyBoardCode = (): void => {
+    const { setup } = state;
+    const input = root.querySelector<HTMLInputElement>('#board-code');
+    if (!setup || !input || !input.value) return;
+    const done = (): void => {
+      setup.notice = t.duel.copied;
+      render();
+    };
+    try {
+      void navigator.clipboard.writeText(input.value).then(done, () => input.select());
+    } catch {
+      input.select();
+    }
   };
 
   /**
@@ -1276,6 +1745,12 @@ export function startApp(
     }
     // Un repère pas encore tiré n'est pas un tir déjà fait : la sélection éventuelle s'efface.
     clearHistorySelection();
+    // Duel : pas de tir quand ce n'est pas le tour du joueur.
+    if (!canPlayerAct()) {
+      cancelPending();
+      showToast({ kind: 'wait' });
+      return render();
+    }
     if (state.pending?.kind === 'fire' && state.pending.label === label) return doFire(label);
     state.pending = { kind: 'fire', label };
     render();
@@ -1286,6 +1761,11 @@ export function startApp(
     const session = state.session;
     if (!session || session.finished) return;
     if (session.probes.some((probe) => probe.cell === cell)) return doProbe(cell);
+    if (!canPlayerAct()) {
+      cancelPending();
+      showToast({ kind: 'wait' });
+      return render();
+    }
     if (state.pending?.kind === 'probe' && state.pending.cell === cell) return doProbe(cell);
     state.pending = { kind: 'probe', cell };
     render();
@@ -1325,7 +1805,9 @@ export function startApp(
     const ask = state.ask;
     if (!ask) return;
     state.ask = null;
-    if (confirmed && ask.kind === 'replace') return openOptions();
+    if (confirmed && ask.kind === 'replace') {
+      return ask.next === 'duel' ? openDuelOptions() : openOptions();
+    }
     render();
   };
 
@@ -1353,6 +1835,13 @@ export function startApp(
 
   /** Applique une modification de la solution : le tir simulé n'est plus à jour. */
   const editSolution = (next: Solution, gem: GemId | null = state.selectedGem): void => {
+    if (state.view === 'duel' && state.setup) {
+      // Page du plateau : on construit le plateau du duel, pas la proposition de la partie.
+      state.setup.solution = next;
+      state.setup.notice = '';
+      state.selectedGem = gem;
+      return render();
+    }
     if (state.session?.finished) return;
     state.solution = next;
     // Une gemme posée doit se voir.
@@ -1362,9 +1851,16 @@ export function startApp(
     render();
   };
 
+  /** La solution que les gemmes déplacent : le plateau en construction (page « Plateau »), sinon la proposition. */
+  const solutionInUse = (): Solution =>
+    state.view === 'duel' && state.setup ? state.setup.solution : state.solution;
+
+  /** Les gemmes ne bougent plus : la partie est finie (sauf sur la page « Plateau »). */
+  const gemsLocked = (): boolean => state.view !== 'duel' && state.session?.finished === true;
+
   const withSelectedGem = (change: (solution: Solution, gem: GemId) => Solution): void => {
     const gem = state.selectedGem;
-    if (gem) editSolution(change(state.solution, gem));
+    if (gem) editSolution(change(solutionInUse(), gem));
   };
 
   /** Glisser-déposer d'une gemme, au pointeur (souris ou doigt). */
@@ -1372,13 +1868,13 @@ export function startApp(
   let lastGemGesture = 0;
 
   const beginDrag = (event: PointerEvent, element: SVGGElement, gem: GemId): void => {
-    if (state.session?.finished) return;
+    if (gemsLocked()) return;
     // La gemme vit dans la grille (posée) ou dans la réserve, deux grilles SVG à la même échelle.
     const svg = element.ownerSVGElement;
     const board = root.querySelector<SVGSVGElement>('.notes-svg');
     if (!svg || !board) return;
     event.preventDefault();
-    const [localX, localY] = gemOrigin(state.solution, gem, state.immersive ? 'side' : 'panel');
+    const [localX, localY] = gemOrigin(solutionInUse(), gem, state.immersive ? 'side' : 'panel');
     // Coin haut-gauche de la gemme, converti en coordonnées de la grille de jeu.
     const [screenX, screenY] = toScreenPoint(svg, localX, localY);
     const boardMatrix = board.getScreenCTM();
@@ -1388,7 +1884,7 @@ export function startApp(
           return [p.x, p.y] as const;
         })()
       : [localX, localY];
-    const { width, height } = gemSize(state.solution, gem);
+    const { width, height } = gemSize(solutionInUse(), gem);
     const boardScale = pixelsPerUnit(board);
     const elementScale = pixelsPerUnit(svg);
     let moved = false;
@@ -1426,10 +1922,10 @@ export function startApp(
       const onBoard =
         centerX > -0.5 && centerX < GRID_COLS + 0.5 && centerY > -0.5 && centerY < GRID_ROWS + 0.5;
       if (onBoard) {
-        editSolution(dropGem(state.solution, gem, x, y), gem);
+        editSolution(dropGem(solutionInUse(), gem, x, y), gem);
         state.notice = `${GEM_SHAPES[gem].label} posée`;
       } else {
-        editSolution(removeGem(state.solution, gem), null);
+        editSolution(removeGem(solutionInUse(), gem), null);
         state.notice = `${GEM_SHAPES[gem].label} retirée`;
       }
     };
@@ -1567,14 +2063,28 @@ export function startApp(
     }
   };
   const CARD = '[data-shot], [data-probe-card]';
+  // Survoler un repère déjà tiré (départ ou arrivée) met en avant son tir, comme la carte de l'historique.
+  const ENTRY = '.entry[data-fire]';
+  const cardOfEntry = (target: Element | null): HTMLElement | null => {
+    const label = target?.closest<HTMLElement>(ENTRY)?.dataset['fire'];
+    const shots = state.session?.shots;
+    if (!label || !shots) return null;
+    const shot =
+      shots.find((candidate) => candidate.entry === label) ??
+      shots.filter((candidate) => candidate.exit === label).at(-1);
+    return shot ? root.querySelector<HTMLElement>(`[data-shot="${shot.n}"]`) : null;
+  };
   root.addEventListener('mouseover', (event) => {
     if (state.selected !== null || state.selectedProbe !== null) return;
-    const card = (event.target as Element).closest<HTMLElement>(CARD);
+    const target = event.target as Element;
+    const card = target.closest<HTMLElement>(CARD) ?? cardOfEntry(target);
     if (card) previewCard(card);
   });
   root.addEventListener('mouseout', (event) => {
-    if (!(event.target as Element).closest(CARD)) return;
-    if (!(event.relatedTarget as Element | null)?.closest?.(CARD)) previewCard(null);
+    const target = event.target as Element;
+    if (!target.closest(CARD) && !target.closest(ENTRY)) return;
+    const next = event.relatedTarget as Element | null;
+    if (!next?.closest?.(CARD) && !cardOfEntry(next)) previewCard(null);
   });
 
   root.addEventListener('pointerdown', (event) => {
@@ -1595,7 +2105,7 @@ export function startApp(
       }
       return;
     }
-    if (state.session?.finished) return;
+    if (gemsLocked()) return;
     const target = event.target as Element;
     // Les gemmes posées ne reçoivent plus le pointeur quand un outil de dessin est actif (voir le CSS) :
     // seules celles de la réserve se déplacent alors.
@@ -1650,6 +2160,7 @@ export function startApp(
       closeOptions(false);
       return;
     }
+    if (target.hasAttribute('data-duel-options-backdrop')) return closeDuelOptions(false);
     const entry = target.closest<HTMLElement>('[data-fire]');
     if (entry?.dataset['fire']) return askFire(entry.dataset['fire']);
     const probeTarget = target.closest<HTMLElement>('[data-probe]');
@@ -1716,9 +2227,12 @@ export function startApp(
     switch (action) {
       case 'reset-gems':
         // Toutes les gemmes retournent dans la réserve ; aucune n'est plus sélectionnée.
-        return editSolution(resetSolution(state.solution), null);
+        return editSolution(resetSolution(solutionInUse()), null);
       case 'toggle-theme':
         toggleTheme();
+        return render();
+      case 'toggle-colorblind':
+        toggleColorblind();
         return render();
       case 'sign-in':
         // La page est quittée pour Google : on sauvegarde d'abord la partie en cours.
@@ -1769,14 +2283,36 @@ export function startApp(
         return render();
       case 'new-game':
         if (newGameBlocked()) return;
-        // Sans compte, la partie en cours serait perdue : on demande d'abord confirmation.
-        if (state.account === null && inProgress()) {
-          state.ask = { kind: 'replace' };
+        // Sans compte, la partie en cours serait perdue (et un duel en cours l'est toujours) : confirmation d'abord.
+        if ((state.account === null || state.duel !== null) && inProgress()) {
+          state.ask = { kind: 'replace', next: 'training' };
           render();
           root.querySelector<HTMLElement>('[data-action="modal-confirm"]')?.focus();
           return;
         }
         return openOptions();
+      case 'new-duel':
+        // Le duel en cours, ou la partie d'entraînement d'un joueur sans compte, serait perdu.
+        if ((state.account === null || state.duel !== null) && inProgress()) {
+          state.ask = { kind: 'replace', next: 'duel' };
+          render();
+          root.querySelector<HTMLElement>('[data-action="modal-confirm"]')?.focus();
+          return;
+        }
+        return openDuelOptions();
+      case 'duel-to-board':
+        return closeDuelOptions(true);
+      case 'cancel-duel-options':
+        return closeDuelOptions(false);
+      case 'random-board':
+        return randomBoard();
+      case 'validate-board':
+        void beginDuel();
+        return;
+      case 'import-code':
+        return importBoard();
+      case 'copy-code':
+        return copyBoardCode();
       case 'resume-game':
         if (state.session) {
           state.notice = 'Reprise';
@@ -1804,13 +2340,24 @@ export function startApp(
       case 'modal-cancel':
         return closeAsk(false);
       case 'ask-submit':
-        if (state.session && isSubmittable(state.solution)) state.confirm = 'submit';
+        if (state.session && isSubmittable(state.solution) && canPlayerPropose()) {
+          state.confirm = 'submit';
+        }
         return render();
       case 'cancel-confirm':
         state.confirm = null;
         return render();
       case 'confirm-submit':
-        if (state.session && isSubmittable(state.solution)) {
+        if (state.session && isSubmittable(state.solution) && canPlayerPropose()) {
+          state.confirm = null;
+          if (state.duel) {
+            // Duel : une proposition juste du premier à jouer donne un dernier tour à l'IA ; une fausse fait perdre.
+            state.duel.propose('player', placedGems(state.solution));
+            if (state.duel.over) return showResult();
+            render();
+            void playAi();
+            return;
+          }
           state.session.submit(placedGems(state.solution));
           return showResult();
         }
@@ -1856,6 +2403,13 @@ export function startApp(
       if (event.key === 'Escape') {
         event.preventDefault();
         closeOptions(false);
+      }
+      return;
+    }
+    if (state.chooseDuel) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeDuelOptions(false);
       }
       return;
     }
@@ -1914,10 +2468,10 @@ export function startApp(
       }
     }
     const gemElement = target.closest<HTMLElement>('[data-gem]');
-    if (gemElement?.dataset['gem'] && !state.session?.finished) {
+    if (gemElement?.dataset['gem'] && !gemsLocked()) {
       const gem = gemElement.dataset['gem'] as GemId;
       const move = (dCol: number, dRow: number): void => {
-        if (state.solution[gem]) editSolution(nudgeGem(state.solution, gem, dCol, dRow), gem);
+        if (solutionInUse()[gem]) editSolution(nudgeGem(solutionInUse(), gem, dCol, dRow), gem);
       };
       const handled = ((): boolean => {
         switch (event.key) {
@@ -1931,13 +2485,13 @@ export function startApp(
             return (move(0, 1), true);
           case 'r':
           case 'R':
-            return (editSolution(rotateGem(state.solution, gem), gem), true);
+            return (editSolution(rotateGem(solutionInUse(), gem), gem), true);
           case 'f':
           case 'F':
-            return (editSolution(flipGem(state.solution, gem), gem), true);
+            return (editSolution(flipGem(solutionInUse(), gem), gem), true);
           case 'Delete':
           case 'Backspace':
-            return (editSolution(removeGem(state.solution, gem), null), true);
+            return (editSolution(removeGem(solutionInUse(), gem), null), true);
           case 'Enter':
           case ' ':
             return ((state.selectedGem = state.selectedGem === gem ? null : gem), render(), true);
@@ -1972,6 +2526,7 @@ export function startApp(
     const next = viewFromHash();
     if (next === state.view) return;
     if (next === 'game' && !gameAvailable()) return navigate('home');
+    if (next === 'duel' && !state.setup) return navigate('home');
     state.view = next;
     state.confirm = null;
     enterView(next);
@@ -1999,9 +2554,19 @@ export function startApp(
 
   // Au chargement : une partie sauvegardée revient en mémoire (l'accueil la propose) ; sinon, un lien
   // avec une graine lance cette mine ; sinon on arrive sur l'accueil.
-  const saved = store.load();
+  const savedDuel = duelStore.load();
+  const duelRunning = savedDuel !== null && savedDuel.duel.phase !== 'over';
+  const saved = duelRunning ? null : store.load();
   const linkSeed = seedFromUrl();
-  if (saved && saved.session.status === 'playing') {
+  if (savedDuel && duelRunning) {
+    loadDuel(savedDuel);
+    // Un duel est en cours : une seule partie à la fois, le lien vers une mine est ignoré.
+    if (linkSeed) clearSeedFromUrl();
+    if (state.view === 'duel') state.view = 'home';
+    render();
+    // L'IA jouait quand la page s'est fermée : elle reprend son tour.
+    void playAi();
+  } else if (saved && saved.session.status === 'playing') {
     loadSave(saved);
     // Lien vers une autre mine alors qu'une partie est en cours : sans compte, une seule partie à la
     // fois, donc on garde la partie en cours et on oublie le lien.

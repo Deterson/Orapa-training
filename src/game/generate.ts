@@ -87,6 +87,22 @@ export function generateMineWithReport(
   throw new Error(`Aucune mine valide trouvée pour la graine « ${seed} » en ${maxAttempts} essais`);
 }
 
+/**
+ * Tire une disposition qui respecte toutes les règles (a à e) : pour le bouton « Au hasard » de
+ * l'éditeur de plateau, et pour le plateau de l'IA. N'affecte pas `generateMine` (même graine, même mine).
+ */
+export function randomVisibleLayout(
+  rng: Rng,
+  gems: readonly GemId[] = BASE_GEM_IDS,
+  maxAttempts = 1000,
+): Placement[] {
+  for (let attempts = 1; attempts <= maxAttempts; attempts++) {
+    const placements = randomLayout(rng, gems);
+    if (placements !== null && isVisible(placements)) return placements;
+  }
+  throw new Error(`Aucune disposition valide trouvée en ${maxAttempts} essais`);
+}
+
 /** Génère la mine de cette graine : toujours la même pour une graine et une version données. */
 export function generateMine(seed: string, extensions: Readonly<Extensions> = NO_EXTENSIONS): Mine {
   return generateMineWithReport(seed, extensions).mine;

@@ -18,7 +18,7 @@ import {
 import { translate } from '../game/geometry';
 import type { SolutionIssue } from '../game/solution';
 import { type Solution, gemsOf, sizeOf } from '../game/solution';
-import { gemPolygons } from './palette';
+import { PATTERN_DEFS, gemPolygons } from './palette';
 import { t } from './strings';
 
 /** Vrai si la partie compte le Diamant ou le Corps noir. */
@@ -159,5 +159,5 @@ export function trayHtml(view: GemsView): string {
     .filter((gem) => view.solution[gem] === null)
     .map((gem) => gemGroupSvg(view, gem, 'panel'))
     .join('');
-  return `<svg class="tray-svg" viewBox="0 0 ${PANEL_WIDTH} ${height}" role="group" aria-label="Gemmes à placer" style="--tray-h:${height}"><rect class="tray" x="0" y="0" width="${PANEL_WIDTH}" height="${height}" rx="0.3"/>${gems}</svg>`;
+  return `<svg class="tray-svg" viewBox="0 0 ${PANEL_WIDTH} ${height}" role="group" aria-label="Gemmes à placer" style="--tray-h:${height}">${PATTERN_DEFS}<rect class="tray" x="0" y="0" width="${PANEL_WIDTH}" height="${height}" rx="0.3"/>${gems}</svg>`;
 }

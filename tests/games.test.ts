@@ -24,6 +24,8 @@ const record: GameRecord = {
   generatorVersion: 1,
   extensions: 'dn',
   status: 'lost',
+  mode: 'training',
+  level: null,
   lasersCount: 2,
   probesCount: 1,
   startedAt: '2026-03-01T10:00:00.000Z',
@@ -304,7 +306,7 @@ describe('historique', () => {
     ] as const) {
       const { client, calls } = fakeClient([ok([], 0)]);
       await createGamesService(client).list({ filter: 'all', sort, page: 0, pageSize: 20 });
-      expect(calls).toContainEqual(['in', 'status', ['won', 'lost', 'abandoned']]);
+      expect(calls).toContainEqual(['in', 'status', ['won', 'lost', 'abandoned', 'draw']]);
       expect(calls).toContainEqual(['order', 'ended_at', { ascending }]);
     }
   });
@@ -334,7 +336,7 @@ describe('historique', () => {
     expect(pageRange(0, 20)).toEqual([0, 19]);
     expect(pageRange(3, 10)).toEqual([30, 39]);
     expect(pageRange(-2, 20)).toEqual([0, 19]);
-    expect(statusesFor('all')).toEqual(['won', 'lost', 'abandoned']);
+    expect(statusesFor('all')).toEqual(['won', 'lost', 'abandoned', 'draw']);
     expect(statusesFor('won')).toEqual(['won']);
     expect(statusesFor('lost')).toEqual(['lost', 'abandoned']);
     expect(isPermanentCode('23505')).toBe(true);
@@ -363,7 +365,32 @@ describe('statistiques', () => {
       winRate: 0.5,
       avgShotsToWin: 7.67,
     });
-    expect(calls).toEqual([['rpc', 'profile_stats']]);
+    // Les duels ont leur propre fonction ; ici elle ne répond rien : le profil n'en souffre pas.
+    expect(calls).toEqual([
+      ['rpc', 'profile_stats'],
+      ['rpc', 'duel_stats'],
+    ]);
+  });
+
+  it('ajoute les duels par niveau quand il y en a', async () => {
+    const duels = [
+      { level: 'beginner', total_games: 2, wins: 1, draws: 1, losses: 0 },
+      { level: 'expert', total_games: 1, wins: 0, draws: 0, losses: 1 },
+    ];
+    const { client } = fakeClient([ok([row]), ok(duels)]);
+    const stats = await createGamesService(client).stats();
+    expect(stats.total).toBe(6);
+    expect(stats.duels?.map((duel) => [duel.level, duel.wins, duel.draws, duel.losses])).toEqual([
+      ['beginner', 1, 1, 0],
+      ['expert', 0, 0, 1],
+    ]);
+  });
+
+  it("un échec des duels ne prive pas le profil de ses chiffres d'entraînement", async () => {
+    const { client } = fakeClient([ok([row]), { data: null, error: { message: 'absente' } }]);
+    const stats = await createGamesService(client).stats();
+    expect(stats.total).toBe(6);
+    expect(stats.duels).toBeUndefined();
   });
 
   it('échoue proprement sur une erreur, une coupure ou une réponse illisible', async () => {
