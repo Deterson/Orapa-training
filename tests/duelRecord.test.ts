@@ -270,6 +270,22 @@ describe('pièces du duel', () => {
     expect(html).toContain('probe-nothing');
   });
 
+  it('le plateau du joueur est petit et cliquable, en grand il n’a plus de bouton', () => {
+    const model = {
+      board: generateMine('taille').placements,
+      shots: [],
+      probes: [],
+      fresh: { shot: null, probe: null },
+    };
+    const small = ownBoardHtml(model);
+    expect(small).toContain('is-small');
+    expect(small).toContain('data-action="own-expand"');
+    const big = ownBoardHtml(model, true);
+    expect(big).toContain('is-big');
+    expect(big).not.toContain('<button');
+    expect(big).not.toContain('own-expand');
+  });
+
   it('l’accueil propose le duel, sans montrer la graine d’un duel en cours', () => {
     const html = homePage({
       current: { seed: 'secret-ia', extensions: 'Sans extension', shots: 3, duel: 'Expert' },

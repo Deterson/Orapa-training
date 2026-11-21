@@ -2074,3 +2074,42 @@ button.big {
   font-size: 1.4rem;
   letter-spacing: 0;
 }
+
+/*
+ * Duel : tout doit tenir sans défiler. Le plateau du joueur (au-dessus des outils) et la réserve de gemmes sont
+ * réduits ; le plateau et les gemmes se cliquent pour s'agrandir (le cliqué grandit, l'autre rétrécit).
+ */
+/* Plateau et gemmes côte à côte : le grand prend 4 cases, le petit 2,5. Celui qu'on clique s'agrandit. */
+.duel-row {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(0.1 * var(--u));
+}
+
+.own-board.is-big,
+.tray-wrap.is-big {
+  width: calc(4 * var(--u));
+}
+
+.own-board.is-small,
+.tray-wrap.is-small {
+  width: calc(2.5 * var(--u));
+}
+
+.play.is-duel .tray-svg {
+  width: 100%;
+}
+
+.tray-wrap.is-small {
+  cursor: zoom-in;
+}
+
+.own-expand {
+  cursor: zoom-in;
+  border-radius: 6px;
+}
+
+.own-expand:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

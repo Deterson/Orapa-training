@@ -122,9 +122,15 @@ export function ownBoardSvg(model: OwnBoardModel): string {
   );
 }
 
-/** Colonne du plateau du joueur : titre court et grille. */
-export function ownBoardHtml(model: OwnBoardModel): string {
-  return `<section class="own-board" aria-label="${t.duel.ownBoard}"><p class="own-title">${t.duel.ownBoard}</p>${ownBoardSvg(model)}</section>`;
+/**
+ * Colonne du plateau du joueur : titre court et grille. En petit (par défaut), toute la zone est cliquable pour
+ * l'agrandir (la réserve de gemmes, à côté, rétrécit) ; en grand, c'est la réserve qu'on clique pour la reprendre.
+ */
+export function ownBoardHtml(model: OwnBoardModel, big = false): string {
+  if (big) {
+    return `<section class="own-board is-big" aria-label="${t.duel.ownBoard}"><p class="own-title">${t.duel.ownBoard}</p>${ownBoardSvg(model)}</section>`;
+  }
+  return `<section class="own-board is-small" aria-label="${t.duel.ownBoard}"><div class="own-expand" data-action="own-expand" role="button" tabindex="0" aria-label="${t.duel.enlarge}" title="${t.duel.enlarge}"><p class="own-title">${t.duel.ownBoard}</p>${ownBoardSvg(model)}</div></section>`;
 }
 
 export interface DuelBarModel {

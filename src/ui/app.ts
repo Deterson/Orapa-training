@@ -162,6 +162,8 @@ interface State {
   setup: { extensions: Extensions; level: AiLevel; solution: Solution; notice: string } | null;
   /** Dernière question de l'IA, pour animer sa marque sur le plateau du joueur. */
   aiFresh: { shot: number | null; probe: string | null };
+  /** Duel : le plateau du joueur est affiché en grand (par défaut en petit, pour laisser la place aux gemmes). */
+  ownBig: boolean;
   /** Infobulle affichée un instant ; null sinon. */
   toast: Toast | null;
   notice: string;
@@ -371,6 +373,7 @@ export function startApp(
     chooseDuel: null,
     setup: null,
     aiFresh: { shot: null, probe: null },
+    ownBig: false,
     toast: null,
     notice: '',
     backend: null,
@@ -436,15 +439,32 @@ export function startApp(
   const ownBoardPanel = (): string => {
     const { duel } = state;
     if (!duel) return '';
-    return ownBoardHtml({
-      board: duel.ownBoard,
-      shots: duel.aiQuestions.shots,
-      probes: duel.aiQuestions.probes,
-      fresh: state.aiFresh,
-    });
+    return ownBoardHtml(
+      {
+        board: duel.ownBoard,
+        shots: duel.aiQuestions.shots,
+        probes: duel.aiQuestions.probes,
+        fresh: state.aiFresh,
+      },
+      state.ownBig,
+    );
   };
 
   /** Colonne de droite : outils, gemmes à placer, état de la solution et « Soumettre » (en vert). */
+  /**
+   * Colonne de droite : en duel, le plateau du joueur et les gemmes sont côte à côte ; celui qu'on clique (le petit)
+   * s'agrandit et fait rétrécir l'autre. Hors duel, seulement la réserve de gemmes.
+   */
+  const duelRow = (issues: ReturnType<typeof solutionIssues>): string => {
+    const tray = trayHtml({ solution: state.solution, selected: state.selectedGem, issues });
+    if (!state.duel) return tray;
+    const gemsBig = !state.ownBig;
+    const wrapped = gemsBig
+      ? `<div class="tray-wrap is-big">${tray}</div>`
+      : `<div class="tray-wrap is-small" data-action="tray-expand" title="${t.duel.enlargeGems}">${tray}</div>`;
+    return `<div class="duel-row">${ownBoardPanel()}${wrapped}</div>`;
+  };
+
   const sidePanel = (session: GameSession): string => {
     const issues = solutionIssues(state.solution);
     const matches = compareWithShots(state.solution, session.shots);
@@ -456,9 +476,8 @@ export function startApp(
       ? `<p class="hypo">${outcomeHtml(state.hypothesis)}</p>`
       : '';
     return `<aside class="play-side">
-        ${ownBoardPanel()}
         ${toolsHtml({ tool: state.tool, ink: state.ink })}
-        ${trayHtml({ solution: state.solution, selected: state.selectedGem, issues })}
+        ${duelRow(issues)}
         <div class="status-row">
           <p class="status">${status}</p>
           <button type="button" class="ghost reset-btn" data-action="reset-gems"${placed ? '' : ' disabled'}>${t.actions.reset}</button>
@@ -983,7 +1002,7 @@ export function startApp(
     root.innerHTML = page(
       `${gameBar}
         ${store.available ? '' : `<p class="warning" role="status">${t.hints.storageOff}</p>`}
-        <div class="play${showsResult ? ' is-result' : ''}">
+        <div class="play${showsResult ? ' is-result' : ''}${state.duel ? ' is-duel' : ''}">
           ${historyPanel(session)}
           <section class="play-center" id="plateau" tabindex="-1" aria-label="Plateau">
             ${center}
@@ -1912,6 +1931,8 @@ export function startApp(
       if (cancelled) return render();
       const [dx, dy] = delta(e);
       if (!moved) {
+        // Un toucher sur une gemme de la petite réserve l'agrandit (le plateau du joueur rétrécit).
+        if (element.closest('[data-action="tray-expand"]')) state.ownBig = false;
         state.selectedGem = state.selectedGem === gem ? null : gem;
         return render();
       }
@@ -2231,6 +2252,13 @@ export function startApp(
       case 'toggle-theme':
         toggleTheme();
         return render();
+      case 'own-expand':
+        state.ownBig = true;
+        return render();
+      case 'tray-expand':
+        // Un geste sur une gemme l'a déjà traité (voir beginDrag) : seul un clic dans la réserve, hors gemme, arrive ici.
+        state.ownBig = false;
+        return render();
       case 'toggle-colorblind':
         toggleColorblind();
         return render();
@@ -2447,6 +2475,15 @@ export function startApp(
         root.querySelector<SVGElement>('[data-cursor]')?.focus();
       }
       return;
+    }
+    // Plateau du joueur en petit : Entrée ou espace l'agrandit comme le clic.
+    if (
+      target.matches('[data-action="own-expand"]') &&
+      (event.key === 'Enter' || event.key === ' ')
+    ) {
+      event.preventDefault();
+      state.ownBig = true;
+      return render();
     }
     const gemButton = target.closest('.gem-btn');
     if (gemButton && (event.key === 'Enter' || event.key === ' ')) {

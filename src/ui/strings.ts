@@ -185,6 +185,8 @@ export const fr = {
     lastTurn: 'Dernier tour : proposez',
     aiLastTurn: "Dernier tour de l'IA…",
     ownBoard: 'Votre plateau',
+    enlarge: 'Agrandir votre plateau',
+    enlargeGems: 'Agrandir les gemmes',
     aiBoard: "Plateau de l'IA",
     won: 'Gagné',
     lost: 'Perdu',
