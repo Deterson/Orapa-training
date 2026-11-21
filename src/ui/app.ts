@@ -97,6 +97,7 @@ import {
   duelBarHtml,
   duelOptionsModal,
   duelOutcomeText,
+  duelStatusText,
   duelSetupPage,
   ownBoardHtml,
   ownBoardSvg,
@@ -162,6 +163,9 @@ interface State {
   setup: { extensions: Extensions; level: AiLevel; solution: Solution; notice: string } | null;
   /** Dernière question de l'IA, pour animer sa marque sur le plateau du joueur. */
   aiFresh: { shot: number | null; probe: string | null };
+  /** L'animation du dernier tir ou de la dernière sonde a déjà été dessinée : un nouvel affichage ne la rejoue pas. */
+  freshShown: boolean;
+  aiFreshShown: boolean;
   /** Duel : le plateau du joueur est affiché en grand (par défaut en petit, pour laisser la place aux gemmes). */
   ownBig: boolean;
   /** Infobulle affichée un instant ; null sinon. */
@@ -373,6 +377,8 @@ export function startApp(
     chooseDuel: null,
     setup: null,
     aiFresh: { shot: null, probe: null },
+    freshShown: true,
+    aiFreshShown: true,
     ownBig: false,
     toast: null,
     notice: '',
@@ -389,6 +395,20 @@ export function startApp(
   const store = browserSaveStore();
   const duelStore = browserDuelStore();
   const outbox = browserOutbox();
+
+  /**
+   * Dernier tir (ou sonde) de chaque camp, à animer : seulement au premier affichage. Un affichage suivant (clic sur
+   * une carte, tour de l'IA…) remplace tout le DOM et relancerait l'animation : on ne la rejoue pas.
+   */
+  const visibleFresh = (): State['fresh'] =>
+    state.freshShown ? { shot: null, probe: null } : state.fresh;
+  const visibleAiFresh = (): State['aiFresh'] =>
+    state.aiFreshShown ? { shot: null, probe: null } : state.aiFresh;
+  /** À appeler une fois l'affichage fait : les animations en attente ont été dessinées. */
+  const markFreshShown = (): void => {
+    if (state.fresh.shot !== null || state.fresh.probe !== null) state.freshShown = true;
+    if (state.aiFresh.shot !== null || state.aiFresh.probe !== null) state.aiFreshShown = true;
+  };
 
   // ---------- Affichage ----------
 
@@ -410,7 +430,7 @@ export function startApp(
           shot,
           {
             selected: state.selected === shot.n,
-            fresh: state.fresh.shot === shot.n,
+            fresh: visibleFresh().shot === shot.n,
             wrong: verdict?.shots.get(shot.n) === false,
           },
           describe(shot),
@@ -419,7 +439,7 @@ export function startApp(
       ...(session?.probes ?? []).map((probe) =>
         probeCardHtml(probe, {
           selected: state.selectedProbe === probe.cell,
-          fresh: state.fresh.probe === probe.cell,
+          fresh: visibleFresh().probe === probe.cell,
           wrong: verdict?.probes.get(probe.cell) === false,
         }),
       ),
@@ -444,7 +464,7 @@ export function startApp(
         board: duel.ownBoard,
         shots: duel.aiQuestions.shots,
         probes: duel.aiQuestions.probes,
-        fresh: state.aiFresh,
+        fresh: visibleAiFresh(),
       },
       state.ownBig,
     );
@@ -757,7 +777,7 @@ export function startApp(
       ink: state.ink,
       finished: session.finished,
       pending: state.pending,
-      fresh: state.fresh,
+      fresh: visibleFresh(),
     });
     root.innerHTML = `
       <div class="immersive" role="application" aria-label="Plein écran">
@@ -846,6 +866,7 @@ export function startApp(
       !state.session.finished
     ) {
       renderImmersive(state.session);
+      markFreshShown();
       persist();
       return;
     }
@@ -966,7 +987,7 @@ export function startApp(
             hypothesis: state.hypothesis,
             cursor: state.cursor,
             pending: state.pending,
-            fresh: state.fresh,
+            fresh: visibleFresh(),
           })}${footerHtml({ history: state.notes, showNotes: state.showNotes, showGems: state.showGems })}`;
     } else {
       center = `<p class="placeholder" role="status">${
@@ -1015,12 +1036,14 @@ export function startApp(
     );
     const history = root.querySelector<HTMLElement>('.scroll-body');
     if (history) {
-      const showingNew = state.fresh.shot !== null || state.fresh.probe !== null;
+      const fresh = visibleFresh();
+      const showingNew = fresh.shot !== null || fresh.probe !== null;
       // Une ou deux colonnes selon la place, puis la barre légère si deux colonnes ne suffisent pas.
       layoutHistory(root);
       history.scrollTop = showingNew ? history.scrollHeight : keptScroll;
       refreshScrollbars(root);
     }
+    markFreshShown();
     persist();
   };
 
@@ -1143,6 +1166,7 @@ export function startApp(
   /** Retient le dernier tir ou la dernière sonde le temps de leur animation (sans réafficher ensuite). */
   const markFresh = (fresh: State['fresh']): void => {
     state.fresh = fresh;
+    state.freshShown = false;
     window.clearTimeout(freshTimer);
     freshTimer = window.setTimeout(() => {
       state.fresh = { shot: null, probe: null };
@@ -1173,7 +1197,21 @@ export function startApp(
     if (!duel || !ai || duel.over || duel.turn !== 'ai' || (state.aiThinking && !retried)) return;
     const run = ++aiRun;
     state.aiThinking = true;
-    render();
+    // Seule la pastille du tour change : un affichage complet relancerait l'animation du tir qui vient d'être fait.
+    const chip = root.querySelector('.turn-chip');
+    if (chip) {
+      chip.textContent = duelStatusText({
+        level: duel.level,
+        turn: duel.turn,
+        over: duel.over,
+        playerLastTurn: duel.lastTurnOf === 'player',
+        aiLastTurn: duel.lastTurnOf === 'ai',
+        thinking: true,
+      });
+      chip.classList.remove('is-mine');
+    } else {
+      render();
+    }
     const started = Date.now();
     try {
       const { move, delay } = await ai.decide(duel.knowledge('ai'));
@@ -1189,6 +1227,7 @@ export function startApp(
         const fresh =
           'exit' in record ? { shot: record.n, probe: null } : { shot: null, probe: record.cell };
         state.aiFresh = fresh;
+        state.aiFreshShown = false;
         window.clearTimeout(aiFreshTimer);
         aiFreshTimer = window.setTimeout(() => {
           state.aiFresh = { shot: null, probe: null };
