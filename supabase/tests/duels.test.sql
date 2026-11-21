@@ -88,4 +88,4 @@ select tt.back_to_admin();
 
 rollback;
 
-echo ok : duels contre l'IA
+\echo ok : duels contre l'IA
