@@ -2,11 +2,11 @@
  * Cartes de l'historique des tirs (colonne de gauche) : un tir au laser (« 1   E → K   ● »), une sonde de case
  * (« 5   B6   =   ● ») ; même présentation, même sélection. Fonctions pures : tout vient des arguments.
  */
-import { RESULT_COLOR_LABELS, componentColors, isMixColor } from '../game/colors';
+import { componentColors, isMixColor } from '../game/colors';
 import { GEM_SHAPES, orientedPolygon } from '../game/gems';
 import { isAbsorbed } from '../game/laser';
 import type { ProbeRecord, ShotRecord } from '../game/session';
-import { PAINT_LETTER, RAY_COLOR, gemPolygons, lostSignalHtml } from './palette';
+import { PAINT_LETTER, RAY_COLOR, colorSumLabel, gemPolygons, lostSignalHtml } from './palette';
 import { t } from './strings';
 
 /**
@@ -25,7 +25,8 @@ export function chips(color: ShotRecord['color']): string {
               `<span class="chip" data-letter="${PAINT_LETTER[part]}" style="background:${RAY_COLOR[part]}"></span>`,
           )
           .join('<span class="plus">+</span>');
-  return `<span class="chips" aria-hidden="true" title="${RESULT_COLOR_LABELS[color]}">${dots}</span>`;
+  const title = colorSumLabel(color);
+  return `<span class="chips" aria-hidden="true" title="${title}">${dots}</span>`;
 }
 
 /**

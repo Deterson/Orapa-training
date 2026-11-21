@@ -1,4 +1,9 @@
-import type { GemPaint, ResultColor } from '../game/colors';
+import {
+  type GemPaint,
+  RESULT_COLOR_LABELS,
+  type ResultColor,
+  componentColors,
+} from '../game/colors';
 import { type Polygon, gridSegments } from '../game/geometry';
 
 /** Remplissage des gemmes (palette normale). */
@@ -126,6 +131,17 @@ export const PATTERN_DEFS = `<defs>
   <pattern id="pat-yellow" width="0.3" height="0.3" patternUnits="userSpaceOnUse"><circle cx="0.15" cy="0.15" r="0.055" fill="#000" fill-opacity="0.5"/></pattern>
   <pattern id="pat-blue" width="0.26" height="0.26" patternUnits="userSpaceOnUse"><path d="M0 0.13H0.26M0.13 0V0.26" stroke="#fff" stroke-opacity="0.55" stroke-width="0.05"/></pattern>
 </defs>`;
+
+/**
+ * Nom d'une couleur de rayon pour l'infobulle des pastilles : une couleur composée montre l'addition des
+ * couleurs de gemmes (« rouge + bleu + blanc = violet clair »), une couleur simple son nom seul.
+ */
+export function colorSumLabel(color: ResultColor): string {
+  const parts = componentColors(color);
+  return parts.length > 1
+    ? `${parts.map((part) => RESULT_COLOR_LABELS[part]).join(' + ')} = ${RESULT_COLOR_LABELS[color]}`
+    : RESULT_COLOR_LABELS[color];
+}
 
 /** Opacité du centre du Diamant : sa bordure est pleine, son intérieur seulement teinté. */
 export const CLEAR_FILL_OPACITY = 0.3;

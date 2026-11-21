@@ -14,6 +14,7 @@ import {
   PAINT_LETTER,
   PATTERN_DEFS,
   RAY_COLOR,
+  colorSumLabel,
   lostSignalSvg,
   readableOn,
 } from './palette';
@@ -97,12 +98,16 @@ export function entryLabelsSvg(
       const dx = x + 0.34;
       const dy = y + 0.34;
       if (to.color === 'transparent') {
-        dot = popped(to.n, `<text class="exit-number" x="${dx}" y="${dy}">${to.n}</text>`, true);
+        dot = popped(
+          to.n,
+          `<g><title>${colorSumLabel(to.color)}</title><text class="exit-number" x="${dx}" y="${dy}">${to.n}</text></g>`,
+          true,
+        );
       } else {
         const fill = RAY_COLOR[to.color];
         dot = popped(
           to.n,
-          `<circle class="dot" cx="${dx}" cy="${dy}" r="0.24" fill="${fill}"/><text class="dot-text" x="${dx}" y="${dy}" fill="${readableOn(fill)}">${to.n}</text>`,
+          `<g><title>${colorSumLabel(to.color)}</title><circle class="dot" cx="${dx}" cy="${dy}" r="0.24" fill="${fill}"/><text class="dot-text" x="${dx}" y="${dy}" fill="${readableOn(fill)}">${to.n}</text></g>`,
           true,
         );
       }

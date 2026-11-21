@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { COLORBLIND_KEY, readColorblind, saveColorblind } from '../src/ui/colorblind';
+import { entryLabelsSvg } from '../src/ui/board';
 import { chips } from '../src/ui/historyCards';
 import { headerHtml } from '../src/ui/header';
 import {
@@ -91,5 +92,40 @@ describe('mode daltonien', () => {
     };
     expect(headerHtml(model)).toContain('data-action="toggle-colorblind" aria-pressed="false"');
     expect(headerHtml({ ...model, colorblind: true })).toContain('aria-pressed="true"');
+  });
+});
+
+describe('infobulle des pastilles', () => {
+  it('une couleur composée montre l’addition des couleurs', () => {
+    expect(chips('light-violet')).toContain('title="rouge + bleu + blanc = violet clair"');
+    expect(chips('orange')).toContain('title="rouge + jaune = orange"');
+  });
+
+  it('une couleur simple ne montre que son nom', () => {
+    expect(chips('red')).toContain('title="rouge"');
+    expect(chips('transparent')).toContain('title="transparent"');
+  });
+});
+
+describe('infobulle des pastilles du plateau', () => {
+  it('la pastille de sortie d’un tir porte l’addition des couleurs', () => {
+    const html = entryLabelsSvg(
+      { shots: [{ n: 1, entry: 'A', exit: '11', color: 'light-violet' }], selected: null },
+      'fire',
+    );
+    expect(html).toContain('<title>rouge + bleu + blanc = violet clair</title>');
+  });
+
+  it('une couleur simple ou transparente porte son nom', () => {
+    const red = entryLabelsSvg(
+      { shots: [{ n: 1, entry: 'A', exit: '11', color: 'red' }], selected: null },
+      'fire',
+    );
+    expect(red).toContain('<title>rouge</title>');
+    const clear = entryLabelsSvg(
+      { shots: [{ n: 1, entry: 'A', exit: '11', color: 'transparent' }], selected: null },
+      'fire',
+    );
+    expect(clear).toContain('<title>transparent</title>');
   });
 });
