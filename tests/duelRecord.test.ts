@@ -5,6 +5,7 @@ import { buildRecord, parseDuelStats, parseRow, parseStats, recordToRow } from '
 import { emptySolution, solutionFromPlacements } from '../src/game/solution';
 import { createAiClient } from '../src/ui/aiClient';
 import { duelOptionsModal, duelSetupPage, ownBoardHtml } from '../src/ui/duelPanel';
+import { shoot } from '../src/game/laser';
 import { type HistoryModel, historyPage } from '../src/ui/history';
 import { homePage } from '../src/ui/home';
 import { profilePage } from '../src/ui/profile';
@@ -284,6 +285,22 @@ describe('pièces du duel', () => {
     expect(big).toContain('is-big');
     expect(big).not.toContain('<button');
     expect(big).not.toContain('own-expand');
+  });
+
+  it('au survol d’un tir de l’IA, le trajet du rayon se dessine sur le plateau du joueur', () => {
+    const board = generateMine('survol').placements;
+    const result = shoot(board, 'A');
+    const html = ownBoardHtml({
+      board,
+      shots: [{ n: 1, entry: 'A', exit: result.exit, color: result.color }],
+      probes: [],
+      fresh: { shot: null, probe: null },
+    });
+    // Le trajet est calculé sur les gemmes du joueur, et les deux repères (départ, arrivée) sont survolables.
+    const path = result.path.map(([x, y]) => `${x},${y}`).join(' ');
+    expect(html).toContain(`class="ray-outline" points="${path}"`);
+    expect(html.match(/class="ai-hit"/g)).toHaveLength(2);
+    expect(html).toContain('class="ai-shot"');
   });
 
   it('l’accueil propose le duel, sans montrer la graine d’un duel en cours', () => {

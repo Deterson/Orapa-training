@@ -9,9 +9,11 @@ import { GEM_SHAPES, placedPolygon } from '../game/gems';
 import type { ProbeRecord, ShotRecord } from '../game/session';
 import { type Solution, type SolutionIssue, gemsOf, placedGems } from '../game/solution';
 import { encodeBoard } from '../game/boardCode';
-import { boardFrame, entryLabelsSvg, probeMarksSvg } from './board';
+import { parseEntryLabel } from '../game/board';
+import { isAbsorbed, shoot } from '../game/laser';
+import { boardFrame, entryLabelsSvg, labelCenter, probeMarksSvg } from './board';
 import { escapeHtml } from './html';
-import { gemPolygons } from './palette';
+import { RAY_COLOR, gemPolygons } from './palette';
 import { gemButtonsSvg, gemGroupSvg, trayHtml } from './solutionBoard';
 import { t } from './strings';
 
@@ -100,6 +102,24 @@ export interface OwnBoardModel {
 }
 
 /** Le plateau du joueur, en petit : ses gemmes et les questions de l'IA. */
+/**
+ * Un tir de l'IA sur le plateau du joueur : au survol de son repère de départ ou d'arrivée, le trajet du rayon
+ * est dessiné sur ce plateau (le joueur connaît ses gemmes : rien n'est révélé). Le trajet est calculé ici, sur
+ * les gemmes du joueur.
+ */
+function aiShotSvg(board: readonly Placement[], shot: ShotRecord): string {
+  const result = shoot(board, shot.entry);
+  const points = result.path.map(([x, y]) => `${x},${y}`).join(' ');
+  const hit = (label: string): string => {
+    const entry = parseEntryLabel(label);
+    if (entry === null) return '';
+    const [x, y] = labelCenter(entry);
+    return `<rect class="ai-hit" x="${x - 0.5}" y="${y - 0.5}" width="1" height="1" rx="0.25"/>`;
+  };
+  const ends = [shot.entry, ...(isAbsorbed(shot) || shot.exit === shot.entry ? [] : [shot.exit])];
+  return `<g class="ai-shot" tabindex="0" aria-label="Tir ${shot.n} de l'IA : ${shot.entry} → ${isAbsorbed(shot) ? 'signal perdu' : shot.exit}"><g class="ai-ray" aria-hidden="true"><polyline class="ray-outline" points="${points}"/><polyline class="ray" points="${points}" stroke="${RAY_COLOR[result.color]}"/></g>${ends.map(hit).join('')}</g>`;
+}
+
 export function ownBoardSvg(model: OwnBoardModel): string {
   const gems = model.board
     .map((placement) => {
@@ -117,7 +137,7 @@ export function ownBoardSvg(model: OwnBoardModel): string {
     .join('');
   return boardFrame(
     t.duel.ownBoard,
-    `${gems}${guess}${probeMarksSvg(model.probes, model.fresh.probe)}${entryLabelsSvg({ shots: model.shots, selected: null, fresh: model.fresh.shot }, 'fire', false)}`,
+    `${gems}${guess}${probeMarksSvg(model.probes, model.fresh.probe)}${entryLabelsSvg({ shots: model.shots, selected: null, fresh: model.fresh.shot }, 'fire', false)}${model.shots.map((shot) => aiShotSvg(model.board, shot)).join('')}`,
     'own-svg',
   );
 }

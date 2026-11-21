@@ -2075,6 +2075,34 @@ button.big {
   letter-spacing: 0;
 }
 
+/* Plateau du joueur : au survol d'un tir de l'IA, le trajet du rayon apparaît sur ce plateau. */
+.own-svg .ai-hit {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 0.08;
+  pointer-events: all;
+}
+
+.own-svg .ai-ray {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+}
+
+.own-svg .ai-shot {
+  outline: none;
+}
+
+.own-svg .ai-shot:hover .ai-ray,
+.own-svg .ai-shot:focus .ai-ray {
+  opacity: 1;
+}
+
+.own-svg .ai-shot:hover .ai-hit,
+.own-svg .ai-shot:focus .ai-hit {
+  stroke: var(--accent);
+}
+
 /*
  * Duel : tout doit tenir sans défiler. Le plateau du joueur (au-dessus des outils) et la réserve de gemmes sont
  * réduits ; le plateau et les gemmes se cliquent pour s'agrandir (le cliqué grandit, l'autre rétrécit).
