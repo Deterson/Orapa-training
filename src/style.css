@@ -2067,3 +2067,10 @@ button.big {
 :root[data-colorblind='1'] .chip[data-letter='B']::after {
   color: #fff;
 }
+
+/* Page « Plateau » : un titre visible dit où l'on en est. */
+.setup-title {
+  margin: 0 0 12px;
+  font-size: 1.4rem;
+  letter-spacing: 0;
+}

@@ -170,7 +170,7 @@ export const fr = {
     level: 'Niveau',
     levels: { beginner: 'Débutant', intermediate: 'Intermédiaire', expert: 'Expert' },
     toBoard: 'Plateau',
-    setupTitle: 'Votre plateau',
+    setupTitle: 'Placez vos gemmes',
     random: 'Au hasard',
     validate: 'Valider',
     code: 'Code',

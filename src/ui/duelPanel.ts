@@ -71,7 +71,7 @@ export function duelSetupPage(model: SetupModel): string {
     </div>
     <p class="hint" role="status">${escapeHtml(model.notice)}</p>`;
   return `<article class="duel-setup">
-    <h1 class="sr-only">${t.duel.setupTitle}</h1>
+    <h1 class="setup-title">${t.duel.setupTitle}</h1>
     <div class="play is-setup">
       <section class="play-center" id="plateau" tabindex="-1" aria-label="${t.duel.setupTitle}">${editorBoardSvg(model)}</section>
       <aside class="play-side">
